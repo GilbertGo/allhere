@@ -69,7 +69,7 @@ input[type=text],input[type=date],input[type=time]{height:52px;border-radius:12p
 .pill.bad{background:var(--alert-soft);color:var(--alert-ink)}
 .pill i{width:8px;height:8px;border-radius:4px;background:currentColor;display:block}
 nav.tabs{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(3,minmax(0,1fr));padding-bottom:env(safe-area-inset-bottom,0px);z-index:1000}
-nav.tabs button{height:64px;border:none;background:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:13px;color:#6B7068}
+nav.tabs button{width:100%;height:64px;border:none;background:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:13px;color:#6B7068}
 nav.tabs button[aria-current=page]{color:var(--ink);font-weight:700}
 .role{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:-20px -18px 6px;padding:12px 18px;font-size:15px}
 .role .who{font-weight:700;display:flex;align-items:center;gap:6px}
@@ -301,7 +301,7 @@ function watchTrip(t, cb) {
     let v = null; if (raw) { try { v = JSON.parse(raw); } catch { return; } }
     if (k === 'info') st.info = cleanInfo(v);
     else if (k === 'b') st.boarded = (v && typeof v === 'object') ? v : {};
-    else if (k === 'n') st.notice = v && typeof v === 'object' ? { text: str(v.text, 80), ts: num(v.ts) || 0, to: Array.isArray(v.to) ? v.to : null } : null;
+    else if (k === 'n') st.notice = v && typeof v === 'object' ? { text: str(v.text, 140), ts: num(v.ts) || 0, to: Array.isArray(v.to) ? v.to : null } : null;
     else if (k === 'leader') st.leader = v && num(v.lat) != null && num(v.lng) != null ? { lat: v.lat, lng: v.lng, ts: num(v.ts), name: str(v.name, 20) } : null;
     else if (k.startsWith('m/')) { const id = k.slice(2), m = cleanMember(v); if (m) st.members[id] = m; else delete st.members[id]; }
     else return;
@@ -342,6 +342,67 @@ function viewHome() {
   const btn = el('button', { class: 'btn primary full big', text: '단체 나들이 만들기' });
   const mine = ls.get('myTrips', []);
 
+  // ---- 지도에서 위치와 경로 정하기 (선택) ----
+  let hm = null, hl = null, mode = null, sLL = null, eLL = null, rPts = [];
+  const mapEl = el('div', { class: 'mapbox', style: 'height:340px' });
+  const hint = el('div', { class: 'sub' });
+  const bar = el('div', { class: 'mapbar' });
+  const gpx = el('input', { type: 'file', accept: '.gpx,application/gpx+xml', style: 'display:none', onchange: async () => {
+    const f = gpx.files[0]; if (!f) return;
+    try {
+      const pts = parseGpx(await f.text());
+      if (pts.length < 2) { toast('GPX 파일에서 경로를 찾지 못했어요'); return; }
+      rPts = pts; sLL = sLL || pts[0]; eLL = eLL || pts[pts.length - 1]; mode = null;
+      drawHome(true); toast(`경로를 넣었어요 (${pts.length}개 지점)`);
+    } catch { toast('경로를 넣지 못했어요'); }
+    gpx.value = '';
+  } });
+  const modeBtn = (m, label) => el('button', { class: 'btn small ' + (mode === m ? 'dark' : 'line'), text: label, onclick: () => { mode = mode === m ? null : m; drawHome(); } });
+  function drawHome(fit) {
+    bar.replaceChildren(modeBtn('start', '집결지 찍기'), modeBtn('end', '도착지 찍기'), modeBtn('route', '경로 그리기'),
+      el('button', { class: 'btn line small', text: 'GPX 불러오기', onclick: () => gpx.click() }),
+      mode === 'route' && rPts.length ? el('button', { class: 'btn line small', text: '되돌리기', onclick: () => { rPts.pop(); drawHome(); } }) : null,
+      rPts.length ? el('button', { class: 'btn line small', text: '경로 지우기', onclick: () => { rPts = []; drawHome(); } }) : null);
+    hint.textContent = mode === 'start' ? '지도를 눌러 출발 집결지를 찍으세요'
+      : mode === 'end' ? '지도를 눌러 최종 도착지를 찍으세요'
+      : mode === 'route' ? `지도를 눌러 경로를 순서대로 찍으세요 (${rPts.length}개). 다 찍었으면 경로 그리기를 한 번 더 누르세요.`
+      : `출발 집결지 ${sLL ? '지정됨' : '없음'}, 최종 도착지 ${eLL ? '지정됨' : '없음'}, 예정 경로 ${rPts.length > 1 ? rPts.length + '개 지점' : '없음'}`;
+    if (!hm) return;
+    hl.clearLayers();
+    if (rPts.length > 1) L.polyline(rPts, { color: '#2F5D46', weight: 5, opacity: 0.85 }).addTo(hl);
+    if (mode === 'route') rPts.forEach(q => L.circleMarker(q, { radius: 5, color: '#1C2620', weight: 2, fillColor: '#fff', fillOpacity: 1 }).addTo(hl));
+    if (sLL) L.circleMarker(sLL, { radius: 11, color: '#2F5D46', weight: 3, fillColor: '#DCE8DF', fillOpacity: 1 }).bindTooltip('출발', { permanent: true, direction: 'top', className: 'nm', offset: [0, -10] }).addTo(hl);
+    if (eLL) L.circleMarker(eLL, { radius: 11, color: '#2F5D46', weight: 3, fillColor: '#F6C89F', fillOpacity: 1 }).bindTooltip('도착', { permanent: true, direction: 'top', className: 'nm', offset: [0, -10] }).addTo(hl);
+    if (fit) { const pts = [...rPts]; if (sLL) pts.push(sLL); if (eLL) pts.push(eLL); if (pts.length > 1) hm.fitBounds(pts, { padding: [30, 30] }); else if (pts.length) hm.setView(pts[0], 15); }
+  }
+  const mapSec = el('div', { class: 'stack', style: 'display:none' }, bar, hint, mapEl, gpx);
+  const openMapBtn = el('button', { class: 'btn line full', text: '지도에서 위치와 경로 정하기 (선택)' });
+  openMapBtn.onclick = () => {
+    const open = mapSec.style.display === 'none';
+    mapSec.style.display = open ? '' : 'none';
+    openMapBtn.textContent = open ? '지도 접기' : '지도에서 위치와 경로 정하기 (선택)';
+    if (open && !hm && window.L) {
+      hm = L.map(mapEl, { zoomControl: true }).setView([37.5665, 126.978], 12);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(hm);
+      hl = L.layerGroup().addTo(hm);
+      hm.on('click', e => {
+        const ll = [+e.latlng.lat.toFixed(5), +e.latlng.lng.toFixed(5)];
+        if (mode === 'start') { sLL = ll; mode = null; }
+        else if (mode === 'end') { eLL = ll; mode = null; }
+        else if (mode === 'route') rPts.push(ll);
+        else return;
+        drawHome();
+      });
+      if (navigator.geolocation) navigator.geolocation.getCurrentPosition(pp => { if (!sLL && !eLL && !rPts.length) hm.setView([pp.coords.latitude, pp.coords.longitude], 14); }, () => {}, { timeout: 8000 });
+    }
+    if (hm && open) setTimeout(() => { hm.invalidateSize(); drawHome(true); }, 0);
+  };
+  const geo = () => Object.assign({},
+    sLL ? { startLat: sLL[0], startLng: sLL[1] } : {},
+    eLL ? { meetLat: eLL[0], meetLng: eLL[1] } : {},
+    rPts.length > 1 ? { route: rPts } : {});
+  drawHome();
+
   btn.onclick = async () => {
     const name = iName.value.trim(), leaderName = iLeader.value.trim(), place = iPlace.value.trim(), endPlace = iEnd.value.trim();
     if (!name || !leaderName || !iDate.value || !iTime.value) return toast('나들이 이름, 인솔자 이름, 출발 예정시간을 모두 적어주세요');
@@ -351,7 +412,7 @@ function viewHome() {
     btn.disabled = true; btn.textContent = '만드는 중…';
     try {
       const t = rid(10), key = rid(24);
-      await pub(base(t) + '/info', { name, leaderName, startAt, startPlace: place || '출발 집결지', meetAt, meetPlace: endPlace || '도착지', phase: 'gather' });
+      await pub(base(t) + '/info', { name, leaderName, startAt, startPlace: place || '출발 집결지', meetAt, meetPlace: endPlace || '도착지', phase: 'gather', ...geo() });
       const keys = ls.get('leaderKeys', {}); keys[t] = key; ls.set('leaderKeys', keys);
       ls.set('leaderName', leaderName);
       ls.set('myTrips', [{ t, name, meetAt: startAt }, ...mine].slice(0, 10));
@@ -372,7 +433,9 @@ function viewHome() {
     el('label', { class: 'f', for: 'p' }, '나들이 출발 집결지', iPlace),
     el('div', { class: 'two' }, el('label', { class: 'f', for: 'tm' }, '나들이 출발 예정시간', iTime), el('label', { class: 'f', for: 'et' }, '나들이 종료 예정시간', iEndTime)),
     el('label', { class: 'f', for: 'ep' }, '최종 도착지', iEnd),
-    el('p', { class: 'sub', style: 'margin:0', text: '정확한 위치와 예정 경로는 만든 뒤 지도에서 지정할 수 있어요.' }),
+    openMapBtn, mapSec,
+    el('p', { class: 'sub', style: 'margin:0', text: '집결지와 도착지 위치, 예정 경로는 지금 정해도 되고 만든 뒤 지도 탭에서 정해도 돼요.' }),
+
     btn,
     mine.length ? el('div', { class: 'stack', style: 'margin-top:12px' },
       el('h2', { text: '내가 만든 나들이' }),
@@ -465,6 +528,65 @@ async function viewLeader(key) {
   }
   function setTab(t) { tab = t; render(); window.scrollTo(0, 0); }
   function saveInfo(patch) { return pub(base(tripId) + '/info', Object.assign({}, info, patch)); }
+  function planCard() {
+    const r = (k, v) => el('div', { class: 'row', style: 'justify-content:space-between;gap:12px' }, el('span', { class: 'sub', text: k }), el('b', { style: 'text-align:right', text: v }));
+    const sd = new Date(info.startAt ?? info.meetAt);
+    return el('div', { class: 'card stack', style: 'gap:8px' },
+      el('div', { class: 'row', style: 'justify-content:space-between' }, el('h2', { text: '나들이 계획' }),
+        el('button', { class: 'btn line small', style: 'height:36px;font-size:14px', text: '계획 수정', onclick: openEdit })),
+      r('날짜', sd.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })),
+      r('출발 집결지', info.startPlace || info.meetPlace),
+      r('출발 예정시간', fmtClock(info.startAt ?? info.meetAt)),
+      r('종료 예정시간', fmtClock(info.meetAt)),
+      r('최종 도착지', info.meetPlace),
+      (info.startLat == null || info.meetLat == null)
+        ? el('button', { class: 'link', style: 'align-self:flex-start;padding:4px 0', text: '지도에서 집결지와 도착지 위치 지정하기', onclick: () => setTab('map') }) : null);
+  }
+  function openEdit() {
+    const pad = n => String(n).padStart(2, '0');
+    const sd = new Date(info.startAt ?? info.meetAt), ed = new Date(info.meetAt);
+    const dstr = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`, tstr = d => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    const iName = el('input', { type: 'text', id: 'e-n', maxlength: 40, value: info.name });
+    const iLeader = el('input', { type: 'text', id: 'e-l', maxlength: 20, value: info.leaderName });
+    const iDate = el('input', { type: 'date', id: 'e-d', value: dstr(sd) });
+    const iPlace = el('input', { type: 'text', id: 'e-p', maxlength: 30, value: info.startPlace || '' });
+    const iTime = el('input', { type: 'time', id: 'e-t', value: tstr(sd) });
+    const iEndTime = el('input', { type: 'time', id: 'e-et', value: tstr(ed) });
+    const iEnd = el('input', { type: 'text', id: 'e-ep', maxlength: 30, value: info.meetPlace || '' });
+    const iTell = el('input', { type: 'checkbox', id: 'e-tell', checked: true });
+    const bg = el('div', { class: 'sheet-bg', onclick: e => { if (e.target === bg) bg.remove(); } });
+    const saveBtn = el('button', { class: 'btn primary small grow', text: '저장' });
+    saveBtn.onclick = async () => {
+      const name = iName.value.trim(), leaderName = iLeader.value.trim();
+      if (!name || !leaderName || !iDate.value || !iTime.value) return toast('나들이 이름, 인솔자 이름, 출발 예정시간을 모두 적어주세요');
+      const startAt = new Date(`${iDate.value}T${iTime.value}`).getTime();
+      let meetAt = new Date(`${iDate.value}T${iEndTime.value || iTime.value}`).getTime();
+      if (meetAt <= startAt) meetAt += 24 * 3600 * 1000;
+      const patch = { name, leaderName, startAt, startPlace: iPlace.value.trim() || '출발 집결지', meetAt, meetPlace: iEnd.value.trim() || '도착지' };
+      const changed = [];
+      if (patch.startPlace !== info.startPlace || patch.startAt !== info.startAt) changed.push(`집결 ${fmtClock(startAt)} ${patch.startPlace}`);
+      if (patch.meetPlace !== info.meetPlace || patch.meetAt !== info.meetAt) changed.push(`도착 ${fmtClock(meetAt)} ${patch.meetPlace}`);
+      const movedName = (patch.startPlace !== info.startPlace && info.startLat != null) || (patch.meetPlace !== info.meetPlace && info.meetLat != null);
+      saveBtn.disabled = true;
+      try { await saveInfo(patch); } catch { saveBtn.disabled = false; return toast('저장하지 못했어요. 다시 시도해 주세요'); }
+      bg.remove();
+      if (iTell.checked && changed.length) notify(`나들이 계획이 바뀌었어요. ${changed.join(', ')}`);
+      toast(movedName ? '계획을 수정했어요. 장소가 바뀌었다면 지도 탭에서 위치도 다시 지정해 주세요' : '계획을 수정했어요');
+      ls.set('myTrips', ls.get('myTrips', []).map(m => m.t === tripId ? Object.assign(m, { name, meetAt: startAt }) : m));
+    };
+    bg.append(el('div', { class: 'sheet', role: 'dialog', 'aria-label': '나들이 계획 수정' },
+      el('h2', { text: '나들이 계획 수정' }),
+      el('label', { class: 'f', for: 'e-n' }, '나들이 이름', iName),
+      el('label', { class: 'f', for: 'e-l' }, '인솔자 이름', iLeader),
+      el('label', { class: 'f', for: 'e-d' }, '날짜', iDate),
+      el('label', { class: 'f', for: 'e-p' }, '나들이 출발 집결지', iPlace),
+      el('div', { class: 'two' }, el('label', { class: 'f', for: 'e-t' }, '나들이 출발 예정시간', iTime), el('label', { class: 'f', for: 'e-et' }, '나들이 종료 예정시간', iEndTime)),
+      el('label', { class: 'f', for: 'e-ep' }, '최종 도착지', iEnd),
+      el('div', { class: 'check' }, iTell, el('label', { for: 'e-tell', text: '시간이나 장소가 바뀌면 참여자 전원에게 알림 보내기' })),
+      el('p', { class: 'sub', style: 'margin:0', text: '장소의 정확한 위치와 예정 경로는 지도 탭에서 바꿀 수 있어요.' }),
+      el('div', { class: 'row' }, el('button', { class: 'btn line small grow', text: '닫기', onclick: () => bg.remove() }), saveBtn)));
+    document.body.append(bg);
+  }
   function phaseCard(Lst) {
     if (!isGo(info)) {
       const n = Lst.filter(m => m.st === 'done').length;
@@ -537,6 +659,7 @@ async function viewLeader(key) {
     if (tab === 'status') {
       const sorted = L.sort((a, b) => ST[a.st].rank - ST[b.st].rank || a.name.localeCompare(b.name, 'ko'));
       body = [
+        planCard(),
         phaseCard(L),
         el('div', { class: 'card stack' },
           el('div', { class: 'row', style: 'justify-content:space-between' }, el('h2', { text: '참여 링크' }), el('span', { class: 'sub', text: `${L.length}명 참여` })),
