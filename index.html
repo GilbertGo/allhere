@@ -315,6 +315,16 @@ function addFullBtn(map, box) {
   map.addControl(new C());
 }
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && fsActive) toggleFull(fsActive.map, fsActive.box, fsActive.b); });
+// ---------- 지난 계획 (인솔자 휴대폰에 저장) ----------
+function savePlan(t, info) {
+  if (!info || !info.name) return;
+  const hm = ts => { const d = new Date(ts); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
+  const plan = { id: t, name: info.name, leaderName: info.leaderName || '', startPlace: info.startPlace || '', startTime: hm(info.startAt ?? info.meetAt),
+    endTime: hm(info.meetAt), meetPlace: info.meetPlace || '', startLL: info.startLat != null ? [info.startLat, info.startLng] : null,
+    endLL: info.meetLat != null ? [info.meetLat, info.meetLng] : null, route: hasRoute(info) ? info.route : null, savedAt: Date.now() };
+  const plans = ls.get('plans', []).filter(q => q.id !== t);
+  plans.unshift(plan); ls.set('plans', plans.slice(0, 30));
+}
 const DIR8 = ['북', '북동', '동', '남동', '남', '남서', '서', '북서'];
 const REL8 = ['정면', '오른쪽 앞', '오른쪽', '오른쪽 뒤', '뒤쪽', '왼쪽 뒤', '왼쪽', '왼쪽 앞'];
 const dir8 = deg => Math.round(((deg % 360) + 360) % 360 / 45) % 8;
@@ -480,6 +490,36 @@ function viewHome() {
     rPts.length > 1 ? { route: rPts } : {});
   drawHome();
 
+  // ---- 지난 계획 불러오기 ----
+  function loadPlan(pl) {
+    iName.value = pl.name; iLeader.value = pl.leaderName || iLeader.value;
+    iPlace.value = pl.startPlace || ''; iTime.value = pl.startTime || iTime.value;
+    iEndTime.value = pl.endTime || iEndTime.value; iEnd.value = pl.meetPlace || '';
+    sLL = pl.startLL || null; eLL = pl.endLL || null; rPts = Array.isArray(pl.route) ? pl.route.slice() : []; mode = null;
+    drawHome(true);
+    if ((sLL || eLL || rPts.length) && mapSec.style.display === 'none') openMapBtn.click();
+    toast(`"${pl.name}" 계획을 불러왔어요. 날짜를 확인하고 필요한 부분만 고치세요`);
+  }
+  function openPlans() {
+    const bg = el('div', { class: 'sheet-bg', onclick: e => { if (e.target === bg) bg.remove(); } });
+    const draw = () => {
+      const plans = ls.get('plans', []);
+      bg.replaceChildren(el('div', { class: 'sheet', role: 'dialog', 'aria-label': '지난 계획 불러오기' },
+        el('h2', { text: '지난 계획 불러오기' }),
+        el('p', { class: 'sub', style: 'margin:0', text: '이 휴대폰에서 만든 나들이 계획이에요. 장소, 시간, 지도 위치, 예정 경로를 그대로 가져와요.' }),
+        plans.length ? plans.map(pl => el('div', { class: 'member' },
+          el('div', { class: 'grow' }, el('div', { class: 'nm', text: pl.name }),
+            el('div', { class: 'dt', text: `${pl.startPlace || '집결지'} ${pl.startTime} → ${pl.meetPlace || '도착지'} ${pl.endTime}${pl.route ? ', 경로 있음' : ''}` })),
+          el('div', { class: 'stack', style: 'gap:2px;align-items:flex-end' },
+            el('button', { class: 'btn primary small', text: '불러오기', onclick: () => { bg.remove(); loadPlan(pl); } }),
+            el('button', { class: 'link', style: 'padding:4px 0;font-size:13px;color:var(--muted)', text: '목록에서 지우기', onclick: () => { ls.set('plans', ls.get('plans', []).filter(q => q.id !== pl.id)); draw(); } }))))
+          : el('p', { class: 'sub center', text: '저장된 계획이 없어요.' }),
+        el('button', { class: 'btn line small', text: '닫기', onclick: () => bg.remove() })));
+    };
+    draw(); document.body.append(bg);
+  }
+  const plansN = ls.get('plans', []).length;
+
   btn.onclick = async () => {
     const name = iName.value.trim(), leaderName = iLeader.value.trim(), place = iPlace.value.trim(), endPlace = iEnd.value.trim();
     if (!name || !leaderName || !iDate.value || !iTime.value) return toast('나들이 이름, 인솔자 이름, 출발 예정시간을 모두 적어주세요');
@@ -507,6 +547,7 @@ function viewHome() {
     roleBar('leader'),
     el('h1', { text: '단체 나들이 만들기' }),
     el('p', { class: 'sub', style: 'margin:0', text: '만들고 나면 참여 링크를 카톡방에 보내세요. 참여자는 앱 설치 없이 링크로 들어와요.' }),
+    plansN ? el('button', { class: 'btn line full', text: `지난 계획 불러오기 (${plansN}개)`, onclick: openPlans }) : null,
     el('label', { class: 'f', for: 'n' }, '나들이 이름', iName),
     el('label', { class: 'f', for: 'l' }, '인솔자 이름', iLeader),
     el('label', { class: 'f', for: 'd' }, '날짜', iDate),
@@ -551,6 +592,7 @@ async function viewLeader(key) {
     if (st.info === undefined) return;
     if (!st.info) { root.replaceChildren(roleBar('leader'), el('div', { class: 'banner info' }, el('b', { text: '끝난 나들이예요' }), el('a', { class: 'btn line small', href: './', text: '새 단체 나들이 만들기' }))); nav.remove(); return; }
     info = st.info; members = st.members; boarded = st.boarded; lnotice = st.notice;
+    savePlan(tripId, info);
     for (const [id, m] of Object.entries(members)) {
       if (m.status === 'help' && !seenHelp.has(id + m.statusTs)) { seenHelp.add(id + m.statusTs); beep(); }
     }
