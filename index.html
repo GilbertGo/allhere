@@ -240,6 +240,11 @@ function bearing(lat1, lng1, lat2, lng2) {
   const x = Math.cos(r(lat1)) * Math.sin(r(lat2)) - Math.sin(r(lat1)) * Math.cos(r(lat2)) * Math.cos(r(lng2 - lng1));
   return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
 }
+async function pinHash(t, pin) {
+  const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`allhere:${t}:${pin}`));
+  return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join('');
+}
+function randPin() { const a = new Uint32Array(1); crypto.getRandomValues(a); return String(a[0] % 10000).padStart(4, '0'); }
 const DIR8 = ['북', '북동', '동', '남동', '남', '남서', '서', '북서'];
 const REL8 = ['정면', '오른쪽 앞', '오른쪽', '오른쪽 뒤', '뒤쪽', '왼쪽 뒤', '왼쪽', '왼쪽 앞'];
 const dir8 = deg => Math.round(((deg % 360) + 360) % 360 / 45) % 8;
@@ -287,7 +292,7 @@ function cleanInfo(v) {
   if (!v || typeof v !== 'object') return null;
   return { name: str(v.name, 40), leaderName: str(v.leaderName, 20), meetAt: num(v.meetAt) || Date.now(), meetPlace: str(v.meetPlace, 30) || '집결지', meetLat: num(v.meetLat), meetLng: num(v.meetLng),
     startAt: num(v.startAt), startPlace: str(v.startPlace, 30) || '출발 집결지', startLat: num(v.startLat), startLng: num(v.startLng),
-    phase: v.phase === 'go' ? 'go' : 'gather', departedAt: num(v.departedAt),
+    phase: v.phase === 'go' ? 'go' : 'gather', pinHash: str(v.pinHash, 64), departedAt: num(v.departedAt),
     route: Array.isArray(v.route) ? v.route.filter(q => Array.isArray(q) && Number.isFinite(q[0]) && Number.isFinite(q[1])).slice(0, 500).map(q => [q[0], q[1]]) : null };
 }
 // 산행 하나를 구독하고, 바뀔 때마다 cb(state) 호출. info가 4초 넘게 안 오면 없는 산행으로 봐요.
@@ -339,6 +344,7 @@ function viewHome() {
   const iPlace = el('input', { type: 'text', id: 'p', placeholder: '예: 서울역 2번 출구', maxlength: 30 });
   const iEndTime = el('input', { type: 'time', id: 'et', value: '17:00' });
   const iEnd = el('input', { type: 'text', id: 'ep', placeholder: '예: 우이동 주차장', maxlength: 30 });
+  const iPin = el('input', { type: 'text', id: 'pin', inputmode: 'numeric', maxlength: 4, autocomplete: 'off', value: randPin(), style: 'letter-spacing:6px;font-weight:700' });
   const btn = el('button', { class: 'btn primary full big', text: '단체 나들이 만들기' });
   const mine = ls.get('myTrips', []);
 
@@ -406,15 +412,18 @@ function viewHome() {
   btn.onclick = async () => {
     const name = iName.value.trim(), leaderName = iLeader.value.trim(), place = iPlace.value.trim(), endPlace = iEnd.value.trim();
     if (!name || !leaderName || !iDate.value || !iTime.value) return toast('나들이 이름, 인솔자 이름, 출발 예정시간을 모두 적어주세요');
+    const pin = iPin.value.trim();
+    if (!/^\d{4}$/.test(pin)) return toast('인솔자 비밀번호는 숫자 4자리로 적어주세요');
     const startAt = new Date(`${iDate.value}T${iTime.value}`).getTime();
     let meetAt = new Date(`${iDate.value}T${iEndTime.value || iTime.value}`).getTime();
     if (meetAt <= startAt) meetAt += 24 * 3600 * 1000;
     btn.disabled = true; btn.textContent = '만드는 중…';
     try {
       const t = rid(10), key = rid(24);
-      await pub(base(t) + '/info', { name, leaderName, startAt, startPlace: place || '출발 집결지', meetAt, meetPlace: endPlace || '도착지', phase: 'gather', ...geo() });
+      await pub(base(t) + '/info', { name, leaderName, startAt, startPlace: place || '출발 집결지', meetAt, meetPlace: endPlace || '도착지', phase: 'gather', ...geo(), pinHash: await pinHash(t, pin) });
       const keys = ls.get('leaderKeys', {}); keys[t] = key; ls.set('leaderKeys', keys);
       ls.set('leaderName', leaderName);
+      const pins = ls.get('leaderPins', {}); pins[t] = pin; ls.set('leaderPins', pins);
       ls.set('myTrips', [{ t, name, meetAt: startAt }, ...mine].slice(0, 10));
       location.href = `?t=${t}`;
     } catch (e) {
@@ -434,6 +443,8 @@ function viewHome() {
     el('div', { class: 'two' }, el('label', { class: 'f', for: 'tm' }, '나들이 출발 예정시간', iTime), el('label', { class: 'f', for: 'et' }, '나들이 종료 예정시간', iEndTime)),
     el('label', { class: 'f', for: 'ep' }, '최종 도착지', iEnd),
     openMapBtn, mapSec,
+    el('label', { class: 'f', for: 'pin' }, '인솔자 비밀번호 (숫자 4자리)', iPin),
+    el('p', { class: 'sub', style: 'margin:0', text: '부인솔자처럼 참여자 중 인솔을 도울 사람이 이 번호로 인솔자 화면에 들어올 수 있어요.' }),
     el('p', { class: 'sub', style: 'margin:0', text: '집결지와 도착지 위치, 예정 경로는 지금 정해도 되고 만든 뒤 지도 탭에서 정해도 돼요.' }),
 
     btn,
@@ -455,6 +466,7 @@ async function viewLeader(key) {
   let info = null, members = {}, boarded = {}, tab = 'status', focus = null;
   let map = null, layer = null, meetMarker = null, pickMode = null, myMarker = null, myPos = null, myWatch = null, fitted = false, drawMode = false, drawPts = [], lastLeaderSent = null, lastLeaderAt = 0;
   const seenOff = new Set();
+  let myPin = ls.get('leaderPins', {})[tripId] || (/^\d{4}$/.test(key) ? key : null);
   const seenHelp = new Set();
   const root = el('div', { class: 'stack' });
   const nav = el('nav', { class: 'tabs', 'aria-label': '화면 전환' });
@@ -539,6 +551,7 @@ async function viewLeader(key) {
       r('출발 예정시간', fmtClock(info.startAt ?? info.meetAt)),
       r('종료 예정시간', fmtClock(info.meetAt)),
       r('최종 도착지', info.meetPlace),
+      r('인솔자 비밀번호', myPin || '모름 (계획 수정에서 새로 정하세요)'),
       (info.startLat == null || info.meetLat == null)
         ? el('button', { class: 'link', style: 'align-self:flex-start;padding:4px 0', text: '지도에서 집결지와 도착지 위치 지정하기', onclick: () => setTab('map') }) : null);
   }
@@ -554,6 +567,7 @@ async function viewLeader(key) {
     const iEndTime = el('input', { type: 'time', id: 'e-et', value: tstr(ed) });
     const iEnd = el('input', { type: 'text', id: 'e-ep', maxlength: 30, value: info.meetPlace || '' });
     const iTell = el('input', { type: 'checkbox', id: 'e-tell', checked: true });
+    const iPin2 = el('input', { type: 'text', id: 'e-pin', inputmode: 'numeric', maxlength: 4, autocomplete: 'off', value: myPin || '', style: 'letter-spacing:6px;font-weight:700' });
     const bg = el('div', { class: 'sheet-bg', onclick: e => { if (e.target === bg) bg.remove(); } });
     const saveBtn = el('button', { class: 'btn primary small grow', text: '저장' });
     saveBtn.onclick = async () => {
@@ -566,6 +580,10 @@ async function viewLeader(key) {
       const changed = [];
       if (patch.startPlace !== info.startPlace || patch.startAt !== info.startAt) changed.push(`집결 ${fmtClock(startAt)} ${patch.startPlace}`);
       if (patch.meetPlace !== info.meetPlace || patch.meetAt !== info.meetAt) changed.push(`도착 ${fmtClock(meetAt)} ${patch.meetPlace}`);
+      const newPin = iPin2.value.trim();
+      if (newPin && !/^\d{4}$/.test(newPin)) return toast('인솔자 비밀번호는 숫자 4자리로 적어주세요');
+      if (newPin && newPin !== myPin) patch.pinHash = await pinHash(tripId, newPin);
+      if (newPin) { myPin = newPin; const pins = ls.get('leaderPins', {}); pins[tripId] = newPin; ls.set('leaderPins', pins); }
       const movedName = (patch.startPlace !== info.startPlace && info.startLat != null) || (patch.meetPlace !== info.meetPlace && info.meetLat != null);
       saveBtn.disabled = true;
       try { await saveInfo(patch); } catch { saveBtn.disabled = false; return toast('저장하지 못했어요. 다시 시도해 주세요'); }
@@ -582,6 +600,7 @@ async function viewLeader(key) {
       el('label', { class: 'f', for: 'e-p' }, '나들이 출발 집결지', iPlace),
       el('div', { class: 'two' }, el('label', { class: 'f', for: 'e-t' }, '나들이 출발 예정시간', iTime), el('label', { class: 'f', for: 'e-et' }, '나들이 종료 예정시간', iEndTime)),
       el('label', { class: 'f', for: 'e-ep' }, '최종 도착지', iEnd),
+      el('label', { class: 'f', for: 'e-pin' }, '인솔자 비밀번호 (숫자 4자리)', iPin2),
       el('div', { class: 'check' }, iTell, el('label', { for: 'e-tell', text: '시간이나 장소가 바뀌면 참여자 전원에게 알림 보내기' })),
       el('p', { class: 'sub', style: 'margin:0', text: '장소의 정확한 위치와 예정 경로는 지도 탭에서 바꿀 수 있어요.' }),
       el('div', { class: 'row' }, el('button', { class: 'btn line small grow', text: '닫기', onclick: () => bg.remove() }), saveBtn)));
@@ -882,6 +901,44 @@ function viewMember() {
   const myTopic = () => base(tripId) + '/m/' + uid;
   setInterval(() => info && render(), 30000);
 
+  let pinFails = 0, pinWait = 0;
+  async function checkPin(pin) {
+    if (!info.pinHash) return false;
+    return (await pinHash(tripId, pin)) === info.pinHash;
+  }
+  function openLeaderSwitch() {
+    const iP = el('input', { type: 'password', id: 'lp', inputmode: 'numeric', maxlength: 4, autocomplete: 'off', style: 'letter-spacing:10px;font-size:24px;text-align:center' });
+    const bg = el('div', { class: 'sheet-bg', onclick: e => { if (e.target === bg) bg.remove(); } });
+    const ok = el('button', { class: 'btn primary small grow', text: '확인' });
+    ok.onclick = async () => {
+      if (Date.now() < pinWait) return toast('잠시 뒤에 다시 시도해 주세요');
+      const pin = iP.value.trim();
+      if (!/^\d{4}$/.test(pin)) return toast('숫자 4자리를 입력해 주세요');
+      ok.disabled = true;
+      const good = await checkPin(pin);
+      ok.disabled = false;
+      if (!good) {
+        iP.value = '';
+        if (++pinFails >= 5) { pinFails = 0; pinWait = Date.now() + 30000; return toast('5번 틀렸어요. 30초 뒤에 다시 해주세요'); }
+        return toast('비밀번호가 맞지 않아요');
+      }
+      const keys = ls.get('leaderKeys', {}); keys[tripId] = pin; ls.set('leaderKeys', keys);
+      const pins = ls.get('leaderPins', {}); pins[tripId] = pin; ls.set('leaderPins', pins);
+      stopGps();
+      if (me) pub(myTopic(), null).catch(() => {});
+      delete joined[tripId]; ls.set('joined', joined);
+      location.href = `?t=${tripId}`;
+    };
+    bg.append(el('div', { class: 'sheet', role: 'dialog', 'aria-label': '인솔자 모드로 전환' },
+      el('h2', { text: '인솔자 모드로 전환' }),
+      el('p', { class: 'sub', style: 'margin:0', text: '인솔자에게 받은 비밀번호 4자리를 입력하세요. 전환하면 참여자 목록에서 빠지고 인솔자 화면으로 바뀌어요.' }),
+      el('label', { class: 'f', for: 'lp' }, '인솔자 비밀번호', iP),
+      el('div', { class: 'row' }, el('button', { class: 'btn line small grow', text: '닫기', onclick: () => bg.remove() }), ok)));
+    document.body.append(bg);
+    setTimeout(() => iP.focus(), 50);
+  }
+  const switchLink = () => el('button', { class: 'link', style: 'align-self:center;color:var(--muted)', text: '인솔자 모드로 전환', onclick: openLeaderSwitch });
+
   function renderEnded() {
     app.replaceChildren(el('div', { class: 'stack' }, roleBar('member'),
       el('h1', { text: '나들이가 끝났어요' }),
@@ -978,6 +1035,7 @@ function viewMember() {
         el('div', { class: 'row', style: 'justify-content:space-between' }, el('b', { text: '화면 켜두기' }),
           el('button', { class: 'btn small ' + (wake ? 'primary' : 'line'), text: wake ? '켜둠' : '켜기', onclick: toggleWake })),
         el('div', { class: 'sub', text: '화면이 꺼지면 위치 전송이 멈춰요. 이동 중에는 켜두면 인솔자가 위치를 계속 볼 수 있어요. 배터리를 더 써요.' })) : null,
+      switchLink(),
       el('button', { class: 'link', style: 'margin-top:8px;color:var(--muted)', text: '나들이에서 나가기', onclick: () => {
         if (!confirm('나들이에서 나갈까요? 인솔자 목록에서 빠지고 위치 공유가 꺼져요.')) return;
         stopGps(); me = null; pub(myTopic(), null); delete joined[tripId]; ls.set('joined', joined); render(); } })
@@ -1013,7 +1071,8 @@ function viewMember() {
         el('div', { class: 'row', style: 'justify-content:space-between;gap:12px' }, el('span', { class: 'sub', text: '최종 도착지' }), el('b', { style: 'text-align:right', text: info.meetPlace }))),
       el('label', { class: 'f', for: 'nm' }, '이름', iName),
       el('div', { class: 'card check' }, iAgree, el('label', { for: 'ag', text: '나들이 중에만 내 위치를 인솔자와 일행에게 공유해요. 도착지 도착을 누르거나 나들이가 끝나면 꺼지고 기록은 지워져요.' })),
-      btn));
+      btn,
+      switchLink()));
   }
 }
 </script>
