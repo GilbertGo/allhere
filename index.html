@@ -76,6 +76,9 @@ nav.tabs button[aria-current=page]{color:var(--ink);font-weight:700}
 .role.leader{background:#1C2620;color:#F1F0EA}.role.leader .who{color:#F6C89F}
 .role.member{background:#2563A8;color:#FFFFFF}
 body[data-role=member]{--ground:#EEF2F6}
+.map-full{position:fixed!important;top:env(safe-area-inset-top,0px)!important;bottom:env(safe-area-inset-bottom,0px)!important;left:0!important;right:0!important;height:auto!important;min-height:0!important;border-radius:0!important;border:none!important;z-index:1500!important}
+body.noscroll{overflow:hidden}
+.fs-btn{background:#fff;border:2px solid rgba(0,0,0,.25);border-radius:10px;padding:8px 12px;font:700 14px 'IBM Plex Sans KR','Apple SD Gothic Neo',sans-serif;color:#1C2620;cursor:pointer;min-height:40px}
 .mapbox{height:260px;border-radius:16px;border:1px solid var(--line);z-index:0}
 #map{height:58vh;min-height:320px;border-radius:16px;border:1px solid var(--line);z-index:0}
 .mapbar{display:flex;gap:8px;flex-wrap:wrap}
@@ -228,6 +231,7 @@ function detailOf(m, info) {
   const s = statusOf(m, info);
   if (s === 'done') return `${lab('done', info)} ${m.statusTs ? fmtClock(m.statusTs) : ''}`;
   const parts = [], T = target(info);
+  if (m.msg && m.msg.ts && now() - m.msg.ts < 30 * 60000) parts.push(`"${m.msg.text}"`);
   if (m.status === 'late') parts.push('늦는다고 알림');
   if (m.status === 'help') parts.push('도움 요청');
   if (s === 'off') parts.push(`경로에서 ${fmtDist(routeDist(m.lat, m.lng, info.route))} 벗어남`);
@@ -287,6 +291,30 @@ function trackCard(t, going) {
       el('button', { class: 'btn primary small grow', text: 'GPX 파일로 저장', onclick: () => downloadTrack(t) }),
       el('button', { class: 'btn line small', text: '기록 지우기', onclick: () => { if (confirm('이 나들이의 이동 기록을 지울까요?')) { ls.set('track:' + t, []); toast('이동 기록을 지웠어요'); } } })));
 }
+// ---------- 지도 전체화면 ----------
+let fsActive = null;
+function toggleFull(map, box, b) {
+  const on = !box.classList.contains('map-full');
+  if (on && fsActive && fsActive.box !== box) toggleFull(fsActive.map, fsActive.box, fsActive.b);
+  box.classList.toggle('map-full', on);
+  document.body.classList.toggle('noscroll', on);
+  b.textContent = on ? '✕ 작게 보기' : '⤢ 크게 보기';
+  b.setAttribute('aria-label', on ? '지도 작게 보기' : '지도 전체화면으로 보기');
+  fsActive = on ? { map, box, b } : null;
+  setTimeout(() => map.invalidateSize(), 60);
+}
+function addFullBtn(map, box) {
+  if (!L.Control || !L.DomUtil) return;
+  const C = L.Control.extend({ options: { position: 'topright' }, onAdd() {
+    const b = L.DomUtil.create('button', 'fs-btn');
+    b.type = 'button'; b.textContent = '⤢ 크게 보기'; b.setAttribute('aria-label', '지도 전체화면으로 보기');
+    L.DomEvent.disableClickPropagation(b);
+    b.addEventListener('click', () => toggleFull(map, box, b));
+    return b;
+  } });
+  map.addControl(new C());
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && fsActive) toggleFull(fsActive.map, fsActive.box, fsActive.b); });
 const DIR8 = ['북', '북동', '동', '남동', '남', '남서', '서', '북서'];
 const REL8 = ['정면', '오른쪽 앞', '오른쪽', '오른쪽 뒤', '뒤쪽', '왼쪽 뒤', '왼쪽', '왼쪽 앞'];
 const dir8 = deg => Math.round(((deg % 360) + 360) % 360 / 45) % 8;
@@ -328,7 +356,7 @@ const str = (v, n) => typeof v === 'string' ? v.slice(0, n) : '';
 function cleanMember(v) {
   if (!v || typeof v !== 'object') return null;
   const st = ['hiking', 'start', 'late', 'help', 'done'].includes(v.status) ? v.status : 'hiking';
-  return { name: str(v.name, 20) || '이름 없음', status: st, statusTs: num(v.statusTs), lat: num(v.lat), lng: num(v.lng), acc: num(v.acc), ts: num(v.ts) };
+  return { msg: v.msg && typeof v.msg === 'object' && str(v.msg.text, 60) ? { text: str(v.msg.text, 60), ts: num(v.msg.ts) || 0 } : null, ackTs: num(v.ackTs), name: str(v.name, 20) || '이름 없음', status: st, statusTs: num(v.statusTs), lat: num(v.lat), lng: num(v.lng), acc: num(v.acc), ts: num(v.ts) };
 }
 function cleanInfo(v) {
   if (!v || typeof v !== 'object') return null;
@@ -433,6 +461,7 @@ function viewHome() {
       hm = L.map(mapEl, { zoomControl: true }).setView([37.5665, 126.978], 12);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(hm);
       hl = L.layerGroup().addTo(hm);
+      addFullBtn(hm, mapEl);
       hm.on('click', e => {
         const ll = [+e.latlng.lat.toFixed(5), +e.latlng.lng.toFixed(5)];
         if (mode === 'start') { sLL = ll; mode = null; }
@@ -507,7 +536,9 @@ async function viewLeader(key) {
 
   let info = null, members = {}, boarded = {}, tab = 'status', focus = null;
   let map = null, layer = null, meetMarker = null, pickMode = null, myMarker = null, myPos = null, myWatch = null, fitted = false, drawMode = false, drawPts = [], lastLeaderSent = null, lastLeaderAt = 0;
-  const seenOff = new Set();
+  const seenOff = new Set(), beepedMsg = new Set();
+  let lnotice = null;
+  const seenMsg = ls.get('seenMsg:' + tripId, {});
   let myPin = ls.get('leaderPins', {})[tripId] || (/^\d{4}$/.test(key) ? key : null);
   const seenHelp = new Set();
   const root = el('div', { class: 'stack' });
@@ -519,7 +550,7 @@ async function viewLeader(key) {
   const trip = watchTrip(tripId, st => {
     if (st.info === undefined) return;
     if (!st.info) { root.replaceChildren(roleBar('leader'), el('div', { class: 'banner info' }, el('b', { text: '끝난 나들이예요' }), el('a', { class: 'btn line small', href: './', text: '새 단체 나들이 만들기' }))); nav.remove(); return; }
-    info = st.info; members = st.members; boarded = st.boarded;
+    info = st.info; members = st.members; boarded = st.boarded; lnotice = st.notice;
     for (const [id, m] of Object.entries(members)) {
       if (m.status === 'help' && !seenHelp.has(id + m.statusTs)) { seenHelp.add(id + m.statusTs); beep(); }
     }
@@ -580,8 +611,20 @@ async function viewLeader(key) {
     if (!confirm('나들이를 끝낼까요? 모든 참여자의 위치 공유가 꺼지고 기록이 지워져요.')) return;
     endTripAll(tripId, trip).catch(() => toast('끝내지 못했어요. 다시 시도해 주세요'));
   }
-  function setTab(t) { tab = t; render(); window.scrollTo(0, 0); }
+  function setTab(t) { if (fsActive) toggleFull(fsActive.map, fsActive.box, fsActive.b); tab = t; render(); window.scrollTo(0, 0); }
   function saveInfo(patch) { return pub(base(tripId) + '/info', Object.assign({}, info, patch)); }
+  function noticeCard(Lst) {
+    if (!lnotice || !lnotice.text) return null;
+    const to = Array.isArray(lnotice.to) ? lnotice.to : null;
+    const rec = to ? Lst.filter(m => to.includes(m.id)) : Lst;
+    const ok = rec.filter(m => m.ackTs === lnotice.ts), not = rec.filter(m => m.ackTs !== lnotice.ts);
+    return el('div', { class: 'card stack', style: 'gap:8px' },
+      el('div', { class: 'row', style: 'justify-content:space-between' }, el('h2', { text: '마지막 알림' }), el('span', { class: 'sub', text: fmtClock(lnotice.ts) })),
+      el('div', { style: 'font-size:16px', text: lnotice.text }),
+      el('div', { class: 'row', style: 'justify-content:space-between' },
+        el('b', { style: `color:${not.length ? 'var(--alert-ink)' : 'var(--forest-ink)'}`, text: `확인 ${ok.length} / ${rec.length}명` }),
+        not.length ? el('span', { class: 'sub', style: 'text-align:right', text: `아직: ${not.map(m => m.name).join(', ')}` }) : el('span', { class: 'sub', text: '모두 확인했어요' })));
+  }
   function planCard() {
     const r = (k, v) => el('div', { class: 'row', style: 'justify-content:space-between;gap:12px' }, el('span', { class: 'sub', text: k }), el('b', { style: 'text-align:right', text: v }));
     const sd = new Date(info.startAt ?? info.meetAt);
@@ -691,6 +734,8 @@ async function viewLeader(key) {
     const c = { done: 0, moving: 0, need: 0 };
     L.forEach(m => { if (m.st === 'done') c.done++; else if (m.st === 'moving') c.moving++; else c.need++; });
     const helps = L.filter(m => m.st === 'help');
+    const msgs = L.filter(m => m.msg && m.msg.ts && (seenMsg[m.id] || 0) < m.msg.ts);
+    msgs.forEach(m => { const k = m.id + ':' + m.msg.ts; if (!beepedMsg.has(k)) { beepedMsg.add(k); beep(); } });
     const offs = L.filter(m => m.st === 'off');
     offs.forEach(m => { if (!seenOff.has(m.id)) { seenOff.add(m.id); beep(); } });
     [...seenOff].forEach(id => { if (!offs.some(m => m.id === id)) seenOff.delete(id); });
@@ -710,6 +755,10 @@ async function viewLeader(key) {
         el('b', { text: `${m.name} 님이 도움을 요청했어요` }),
         el('div', { text: detailOf(m, info) }),
         el('button', { class: 'btn danger small', text: '지도에서 보기', onclick: () => { focus = m.id; setTab('map'); } }))),
+      msgs.map(m => el('div', { class: 'banner info', role: 'alert' },
+        el('b', { text: `${m.name} 님의 한마디 (${fmtClock(m.msg.ts)})` }),
+        el('div', { style: 'font-size:17px', text: m.msg.text }),
+        el('button', { class: 'btn line small', style: 'align-self:flex-start', text: '확인', onclick: () => { seenMsg[m.id] = m.msg.ts; ls.set('seenMsg:' + tripId, seenMsg); render(); } }))),
       offs.map(m => el('div', { class: 'banner alert', role: 'alert' },
         el('b', { text: `${m.name} 님이 예정 경로를 벗어났어요` }),
         el('div', { text: detailOf(m, info) }),
@@ -722,6 +771,7 @@ async function viewLeader(key) {
       body = [
         planCard(),
         phaseCard(L),
+        noticeCard(L),
         el('div', { class: 'card stack' },
           el('div', { class: 'row', style: 'justify-content:space-between' }, el('h2', { text: '참여 링크' }), el('span', { class: 'sub', text: `${L.length}명 참여` })),
           el('button', { class: 'btn full', style: 'background:#FEE500;color:#191919', text: '카카오톡으로 참여 링크 보내기', onclick: shareKakao }),
@@ -787,6 +837,7 @@ async function viewLeader(key) {
     map = L.map(mapBox, { zoomControl: true }).setView([info.meetLat ?? 37.5665, info.meetLng ?? 126.978], 14);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(map);
     layer = L.layerGroup().addTo(map);
+    addFullBtn(map, mapBox);
     map.on('click', e => {
       if (drawMode) { drawPts.push([+e.latlng.lat.toFixed(5), +e.latlng.lng.toFixed(5)]); render(); return; }
       if (!pickMode) return;
@@ -903,6 +954,7 @@ function viewMember() {
       mmap = L.map(mBox, { zoomControl: true }).setView([info.meetLat ?? 37.5665, info.meetLng ?? 126.978], 14);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(mmap);
       mlayer = L.layerGroup().addTo(mmap);
+      addFullBtn(mmap, mBox);
     }
     setTimeout(() => mmap.invalidateSize(), 0);
     mlayer.clearLayers();
@@ -1029,6 +1081,24 @@ function viewMember() {
     if (wantWake) { wantWake = false; try { await wake?.release(); } catch {} wake = null; render(); }
     else { wantWake = true; await lockWake(); }
   }
+  function patchMe(data, okMsg) {
+    me = Object.assign({}, me, data); render();
+    pub(myTopic(), me).then(() => okMsg && toast(okMsg), () => toast('보내지 못했어요. 인터넷 연결을 확인해 주세요'));
+  }
+  const PRESET_MSG = ['화장실 들렀다 갈게요', '잠깐 쉬었다 갈게요', '먼저 가고 있을게요', '사진 찍고 바로 갈게요'];
+  function openMsg() {
+    const custom = el('input', { type: 'text', id: 'mm', placeholder: '직접 쓰기 (60자까지)', maxlength: 60 });
+    const bg = el('div', { class: 'sheet-bg', onclick: e => { if (e.target === bg) bg.remove(); } });
+    const sendMsg = t => { bg.remove(); patchMe({ msg: { text: t, ts: serverTimestamp() } }, '인솔자에게 보냈어요'); };
+    bg.append(el('div', { class: 'sheet', role: 'dialog', 'aria-label': '인솔자에게 한마디' },
+      el('h2', { text: '인솔자에게 한마디' }),
+      el('p', { class: 'sub', style: 'margin:0', text: '인솔자에게만 보여요. 급한 일은 "도움이 필요해요"를 누르세요.' }),
+      PRESET_MSG.map(t => el('button', { class: 'preset', text: t, onclick: () => sendMsg(t) })),
+      el('label', { class: 'f', for: 'mm' }, '직접 쓰기', custom),
+      el('div', { class: 'row' }, el('button', { class: 'btn line small grow', text: '닫기', onclick: () => bg.remove() }),
+        el('button', { class: 'btn primary small grow', text: '보내기', onclick: () => { const t = custom.value.trim(); if (t) sendMsg(t); } }))));
+    document.body.append(bg);
+  }
   function setStatus(status, msg) {
     const data = { status, statusTs: serverTimestamp() };
     if (status === 'done') Object.assign(data, { lat: null, lng: null, acc: null });
@@ -1054,7 +1124,9 @@ function viewMember() {
       roleBar('member'),
       el('div', { class: 'row', style: 'justify-content:space-between;align-items:flex-start' },
         el('div', { class: 'grow' }, el('div', { class: 'sub', text: `${me.name} 님 참여 중` }), el('h1', { style: 'font-size:21px', text: info.name })), pill),
-      notice ? el('div', { class: 'banner info', role: 'alert' }, el('b', { text: `인솔자 알림 (${fmtClock(notice.ts)})` }), el('div', { style: 'font-size:17px', text: notice.text })) : null,
+      notice ? el('div', { class: 'banner info', role: 'alert' }, el('b', { text: `인솔자 알림 (${fmtClock(notice.ts)})` }), el('div', { style: 'font-size:17px', text: notice.text }),
+        me.ackTs === notice.ts ? el('div', { class: 'sub', style: 'color:var(--blue-ink)', text: '확인했다고 알렸어요' })
+          : el('button', { class: 'btn primary small', style: 'align-self:flex-start', text: '확인했어요', onclick: () => patchMe({ ackTs: notice.ts }, '인솔자에게 확인을 알렸어요') })) : null,
       el('div', { class: 'clock' },
         el('div', {}, el('div', { class: 'lbl', text: isGo(info) ? '도착까지' : '출발까지' }), el('div', { style: 'font-weight:600;font-size:17px', text: `${fmtClock(T.at)} ${T.place}` })),
         el('div', { class: 'big', text: fmtLeft(T.at - now()) })),
@@ -1080,6 +1152,8 @@ function viewMember() {
             el('button', { class: 'btn line full big', text: me.status === 'late' ? '늦는다고 알렸어요' : '10분 정도 늦어요', disabled: me.status === 'late', onclick: () => setStatus('late', '인솔자에게 늦는다고 알렸어요') }),
             el('button', { class: 'btn danger full big', text: me.status === 'help' ? '도움 요청을 보냈어요' : '도움이 필요해요', disabled: me.status === 'help',
               onclick: () => { if (confirm('인솔자에게 도움 요청과 현재 위치를 보낼까요?')) setStatus('help', '도움 요청을 보냈어요. 곧 연락이 갈 거예요'); } }),
+            el('button', { class: 'btn line full', text: '인솔자에게 한마디', onclick: openMsg }),
+            me.msg && me.msg.ts ? el('div', { class: 'sub', text: `보낸 한마디: "${me.msg.text}" (${fmtClock(me.msg.ts)})` }) : null,
             me.status === 'help' || me.status === 'late' ? el('button', { class: 'link', style: 'align-self:flex-start', text: '이제 괜찮아요', onclick: () => setStatus('hiking', '인솔자에게 괜찮다고 알렸어요') }) : null),
       me.status !== 'done' ? el('div', { class: 'card stack' },
         el('div', { class: 'row', style: 'justify-content:space-between' }, el('b', { text: '화면 켜두기' }),
