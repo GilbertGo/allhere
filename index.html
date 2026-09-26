@@ -305,7 +305,7 @@ async function viewLeader(key) {
   if (keyParam) history.replaceState(null, '', `?t=${tripId}`);
 
   let info = null, members = {}, boarded = {}, tab = 'status', focus = null;
-  let map = null, layer = null, meetMarker = null, pickMode = false, myMarker = null;
+  let map = null, layer = null, meetMarker = null, pickMode = false, myMarker = null, myPos = null, myWatch = null, fitted = false;
   const seenHelp = new Set();
   const root = el('div', { class: 'stack' });
   const nav = el('nav', { class: 'tabs', 'aria-label': '화면 전환' });
@@ -423,7 +423,7 @@ async function viewLeader(key) {
         el('div', { class: 'mapbar' },
           el('button', { class: 'btn small ' + (pickMode ? 'dark' : 'line'), text: pickMode ? '지도를 눌러 집결지를 고르세요' : '집결지 지정', onclick: () => { pickMode = !pickMode; render(); } }),
           el('button', { class: 'btn line small', text: '내 위치', onclick: locateMe }),
-          el('button', { class: 'btn line small', text: '전체 보기', onclick: () => { focus = null; fitAll(); } })),
+          el('button', { class: 'btn line small', text: '모두 보기', onclick: () => { focus = null; fitAll(); } })),
         mapBox,
         el('div', { class: 'row', style: 'flex-wrap:wrap;gap:12px;font-size:13px;color:var(--muted)' },
           Object.values(ST).map(s => el('span', { class: 'row', style: 'gap:6px' }, el('span', { class: 'dot', style: `width:10px;height:10px;background:${s.color}` }), s.label)))
@@ -481,20 +481,35 @@ async function viewLeader(key) {
       if (f === m.id) { map.setView([m.lat, m.lng], Math.max(map.getZoom(), 16)); mk.openPopup(); }
     });
     if (f && members[f] && members[f].lat == null) toast('아직 이 사람의 위치가 없어요');
+    startMyGps(); updateMyMarker();
+    if (!fitted && !f && (myPos || list().some(m => m.lat != null))) { fitAll(); fitted = true; }
+  }
+  // 인솔자 본인 위치: 지도 탭을 열면 켜지고 계속 따라가요
+  function startMyGps() {
+    if (myWatch != null || !navigator.geolocation) return;
+    myWatch = navigator.geolocation.watchPosition(p => {
+      const first = !myPos;
+      myPos = [p.coords.latitude, p.coords.longitude];
+      updateMyMarker();
+      if (first && map && tab === 'map' && !fitted) { fitAll(); fitted = true; }
+    }, e => { if (e.code === 1) toast('내 위치를 보려면 위치 권한을 허용해 주세요'); }, { enableHighAccuracy: true, maximumAge: 10000, timeout: 30000 });
+  }
+  function updateMyMarker() {
+    if (!map || !myPos) return;
+    if (myMarker) myMarker.setLatLng(myPos);
+    else myMarker = L.circleMarker(myPos, { radius: 10, color: '#F6C89F', weight: 4, fillColor: '#1C2620', fillOpacity: 1 })
+      .bindTooltip('나 (인솔자)', { permanent: true, direction: 'top', className: 'nm', offset: [0, -10] }).addTo(map);
   }
   function fitAll() {
     if (!map) return;
     const pts = list().filter(m => m.lat != null).map(m => [m.lat, m.lng]);
     if (info.meetLat != null) pts.push([info.meetLat, info.meetLng]);
+    if (myPos) pts.push(myPos);
     if (pts.length === 1) map.setView(pts[0], 16); else if (pts.length) map.fitBounds(pts, { padding: [40, 40] });
   }
   function locateMe() {
     if (!navigator.geolocation) return toast('이 휴대폰에서는 위치를 쓸 수 없어요');
-    navigator.geolocation.getCurrentPosition(p => {
-      const ll = [p.coords.latitude, p.coords.longitude];
-      if (myMarker) myMarker.setLatLng(ll); else myMarker = L.circleMarker(ll, { radius: 8, color: '#fff', weight: 3, fillColor: '#1C2620', fillOpacity: 1 }).bindTooltip('나', { permanent: true, direction: 'top', className: 'nm', offset: [0, -8] }).addTo(map);
-      map.setView(ll, 16);
-    }, () => toast('위치 권한을 허용해 주세요'), { enableHighAccuracy: true, timeout: 15000 });
+    if (myPos) map.setView(myPos, 16); else { startMyGps(); toast('내 위치를 찾는 중이에요'); }
   }
 }
 
