@@ -245,6 +245,48 @@ async function pinHash(t, pin) {
   return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join('');
 }
 function randPin() { const a = new Uint32Array(1); crypto.getRandomValues(a); return String(a[0] % 10000).padStart(4, '0'); }
+// ---------- 나의 이동 기록 (내 휴대폰에만 저장돼요) ----------
+const TRACK_MIN_M = 15, TRACK_MAX_ACC = 60;
+const trackLoad = t => ls.get('track:' + t, []);
+function trackAdd(t, lat, lng, acc, name) {
+  if (acc > TRACK_MAX_ACC) return;
+  const tr = trackLoad(t), lp = tr[tr.length - 1];
+  if (lp && dist(lp[0], lp[1], lat, lng) < TRACK_MIN_M) return;
+  tr.push([+lat.toFixed(6), +lng.toFixed(6), Date.now()]);
+  if (tr.length > 5000) tr.splice(0, tr.length - 5000);
+  ls.set('track:' + t, tr);
+  if (name) ls.set('trackName:' + t, name);
+}
+function trackStats(tr) {
+  let d = 0; for (let i = 1; i < tr.length; i++) d += dist(tr[i - 1][0], tr[i - 1][1], tr[i][0], tr[i][1]);
+  return { d, ms: tr.length > 1 ? tr[tr.length - 1][2] - tr[0][2] : 0 };
+}
+function fmtDur(ms) { const m = Math.round(ms / 60000), h = Math.floor(m / 60); return h ? `${h}시간 ${m % 60}분` : `${m}분`; }
+function downloadTrack(t) {
+  const tr = trackLoad(t); if (tr.length < 2) return toast('아직 저장할 이동 기록이 없어요');
+  const name = ls.get('trackName:' + t, '나들이');
+  const x = v => String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' })[c]);
+  const gpx = `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="다왔나" xmlns="http://www.topografix.com/GPX/1/1"><trk><name>${x(name)}</name><trkseg>` +
+    tr.map(q => `<trkpt lat="${q[0]}" lon="${q[1]}"><time>${new Date(q[2]).toISOString()}</time></trkpt>`).join('') + '</trkseg></trk></gpx>';
+  const d = new Date(tr[0][2]), pad = n => String(n).padStart(2, '0');
+  const a = el('a', { href: URL.createObjectURL(new Blob([gpx], { type: 'application/gpx+xml' })), download: `다왔나_${name.replace(/[\\/:*?"<>|]/g, '')}_${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}.gpx` });
+  document.body.append(a); a.click(); a.remove();
+  toast('이동 경로를 GPX 파일로 저장했어요');
+}
+function trackCard(t, going) {
+  const tr = trackLoad(t);
+  if (tr.length < 2) return going ? el('div', { class: 'card stack', style: 'gap:6px' }, el('h2', { text: '나의 이동 경로' }), el('div', { class: 'sub', text: '움직이기 시작하면 내가 지나간 길이 지도에 파란 선으로 그려지고 기록돼요.' })) : null;
+  const st = trackStats(tr);
+  return el('div', { class: 'card stack', style: 'gap:8px' },
+    el('div', { class: 'row', style: 'justify-content:space-between' }, el('h2', { text: '나의 이동 경로' }), el('span', { class: 'sub', text: going ? '기록 중' : '기록 끝' })),
+    el('div', { class: 'row', style: 'gap:18px' },
+      el('div', {}, el('div', { class: 'sub', text: '이동 거리' }), el('b', { style: 'font-size:20px', text: fmtDist(st.d) })),
+      el('div', {}, el('div', { class: 'sub', text: '걸린 시간' }), el('b', { style: 'font-size:20px', text: fmtDur(st.ms) }))),
+    el('div', { class: 'sub', text: '이 기록은 내 휴대폰에만 저장돼요. 다른 사람에게는 보이지 않아요.' }),
+    el('div', { class: 'row' },
+      el('button', { class: 'btn primary small grow', text: 'GPX 파일로 저장', onclick: () => downloadTrack(t) }),
+      el('button', { class: 'btn line small', text: '기록 지우기', onclick: () => { if (confirm('이 나들이의 이동 기록을 지울까요?')) { ls.set('track:' + t, []); toast('이동 기록을 지웠어요'); } } })));
+}
 const DIR8 = ['북', '북동', '동', '남동', '남', '남서', '서', '북서'];
 const REL8 = ['정면', '오른쪽 앞', '오른쪽', '오른쪽 뒤', '뒤쪽', '왼쪽 뒤', '왼쪽', '왼쪽 앞'];
 const dir8 = deg => Math.round(((deg % 360) + 360) % 360 / 45) % 8;
@@ -714,7 +756,8 @@ async function viewLeader(key) {
         mapBox,
         el('div', { class: 'row', style: 'flex-wrap:wrap;gap:12px;font-size:13px;color:var(--muted)' },
           (info.startLat == null || info.meetLat == null) ? el('span', { style: 'width:100%', text: '집결지와 도착지를 지정하면 도착한 사람이 그곳에 모여 표시돼요.' }) : null,
-          Object.entries(ST).map(([k, s]) => el('span', { class: 'row', style: 'gap:6px' }, el('span', { class: 'dot', style: `width:10px;height:10px;background:${s.color}` }), lab(k, info))))
+          Object.entries(ST).map(([k, s]) => el('span', { class: 'row', style: 'gap:6px' }, el('span', { class: 'dot', style: `width:10px;height:10px;background:${s.color}` }), lab(k, info)))),
+        isGo(info) || trackLoad(tripId).length > 1 ? trackCard(tripId, isGo(info)) : null
       ];
     } else {
       const n = L.filter(m => boarded[m.id]).length;
@@ -759,6 +802,8 @@ async function viewLeader(key) {
     const f = focus; focus = null;
     layer.clearLayers();
     drawPlaces(layer, info, list().filter(m => m.st === 'done').map(m => m.name));
+    const myTr = trackLoad(tripId);
+    if (myTr.length > 1) L.polyline(myTr.map(q => [q[0], q[1]]), { color: '#1C2620', weight: 4, opacity: 0.55 }).addTo(layer);
     const R = drawMode ? drawPts : (hasRoute(info) ? info.route : []);
     if (R.length > 1) L.polyline(R, drawMode ? { color: '#1C2620', weight: 4, dashArray: '6 6' } : { color: '#2F5D46', weight: 5, opacity: 0.85 }).addTo(layer);
     if (drawMode) R.forEach(q => L.circleMarker(q, { radius: 5, color: '#1C2620', weight: 2, fillColor: '#fff', fillOpacity: 1 }).addTo(layer));
@@ -781,6 +826,7 @@ async function viewLeader(key) {
     myWatch = navigator.geolocation.watchPosition(p => {
       const first = !myPos;
       myPos = [p.coords.latitude, p.coords.longitude];
+      if (info && isGo(info)) trackAdd(tripId, myPos[0], myPos[1], p.coords.accuracy, info.name);
       updateMyMarker();
       const moved = lastLeaderSent ? dist(lastLeaderSent[0], lastLeaderSent[1], myPos[0], myPos[1]) : Infinity;
       if (info && (!lastLeaderSent || Date.now() - lastLeaderAt > SEND_MIN_MS || moved > SEND_MIN_M)) {
@@ -875,6 +921,8 @@ function viewMember() {
     }
     const T = target(info);
     if (last && T.lat != null && me && me.status !== 'done') L.polyline([[last.coords.latitude, last.coords.longitude], [T.lat, T.lng]], { color: '#2563A8', weight: 3, dashArray: '4 8' }).addTo(mlayer);
+    const myTr = trackLoad(tripId);
+    if (myTr.length > 1) L.polyline(myTr.map(q => [q[0], q[1]]), { color: '#2563A8', weight: 4, opacity: 0.75 }).addTo(mlayer);
     if (last) {
       const ll = [last.coords.latitude, last.coords.longitude];
       L.circleMarker(ll, { radius: 9, color: '#fff', weight: 3, fillColor: '#2563A8', fillOpacity: 1 })
@@ -942,7 +990,8 @@ function viewMember() {
   function renderEnded() {
     app.replaceChildren(el('div', { class: 'stack' }, roleBar('member'),
       el('h1', { text: '나들이가 끝났어요' }),
-      el('p', { class: 'sub', text: '위치 공유가 꺼졌고 기록은 지워졌어요. 이 창은 닫아도 돼요.' })));
+      el('p', { class: 'sub', text: '위치 공유가 꺼졌고 서버에 있던 기록은 지워졌어요.' }),
+      trackCard(tripId, false)));
   }
 
   function send(pos) {
@@ -957,7 +1006,7 @@ function viewMember() {
   }
   function startGps() {
     if (watchId != null || !navigator.geolocation) { if (!navigator.geolocation) gpsState = 'none'; return; }
-    watchId = navigator.geolocation.watchPosition(p => { gpsState = 'on'; send(p); if (info) render(); },
+    watchId = navigator.geolocation.watchPosition(p => { gpsState = 'on'; send(p); if (info && isGo(info) && me && me.status !== 'done') trackAdd(tripId, p.coords.latitude, p.coords.longitude, p.coords.accuracy, info.name); if (info) render(); },
       e => { gpsState = e.code === 1 ? 'denied' : 'weak'; if (info) render(); },
       { enableHighAccuracy: true, maximumAge: 10000, timeout: 30000 });
     hb = setInterval(() => { if (last && document.visibilityState === 'visible') { lastSent = null; send(last); } }, HEARTBEAT_MS);
@@ -1012,7 +1061,8 @@ function viewMember() {
       myOff != null && isGo(info) && me.status !== 'done' && myOff > offLimit(last.coords.accuracy) ? el('div', { class: 'banner alert', role: 'alert' },
         el('b', { text: `예정 경로에서 약 ${fmtDist(myOff)} 벗어났어요` }),
         el('div', { text: '지도의 초록 선이 예정 경로예요. 길이 확실하지 않으면 그 자리에서 인솔자에게 연락하세요.' })) : null,
-      me.status !== 'done' ? mBox : null,
+      mBox,
+      isGo(info) ? trackCard(tripId, me.status !== 'done') : null,
       gpsState === 'denied' ? el('div', { class: 'banner alert' }, el('b', { text: '위치 권한을 허용해 주세요' }), el('div', { text: '주소창 옆 자물쇠(또는 설정) 아이콘을 눌러 위치를 허용한 뒤 새로고침하세요.' })) : null,
       meetDist != null ? el('div', { class: 'card row', style: 'gap:14px' },
         arrowBox,
