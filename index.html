@@ -89,20 +89,11 @@ nav.tabs button[aria-current=page]{color:var(--ink);font-weight:700}
 <body>
 <div id="app" class="wrap"><p class="sub">불러오는 중…</p></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mqtt@5/dist/mqtt.min.js"></script>
 <script type="module">
-// ===== 설정: Firebase 웹 앱 설정값으로 바꾸세요 =====
-const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  databaseURL: "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
-  projectId: "YOUR_PROJECT",
-  appId: "YOUR_APP_ID"
-};
-
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getDatabase, ref, set, update, remove, onValue, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-
+// ===== 오늘 시험용: 공개 실시간 서버(HiveMQ 공개 브로커) 사용 =====
+// 누구나 쓰는 공개 서버라 보안이 약해요. 정식 출시 때는 Firebase 버전으로 바꾸세요.
+const BROKER = 'wss://broker.hivemq.com:8884/mqtt';
 const STALE_MS = 5 * 60 * 1000;      // 이 시간 넘게 위치가 안 오면 '위치 소식 없음'
 const SEND_MIN_MS = 20 * 1000;       // 위치 전송 최소 간격
 const SEND_MIN_M = 25;               // 이만큼 움직이면 바로 전송
@@ -189,21 +180,60 @@ function detailOf(m, info) {
   return parts.join(', ');
 }
 
-// ---------- Firebase 시작 ----------
-if (firebaseConfig.apiKey === 'YOUR_API_KEY') {
-  app.replaceChildren(el('div', { class: 'banner alert' }, el('b', { text: '설정이 필요해요' }), el('div', { text: 'index.html 위쪽의 firebaseConfig에 Firebase 웹 앱 설정값을 넣어주세요.' })));
-  throw new Error('firebaseConfig missing');
+// ---------- 실시간 연결 ----------
+const serverTimestamp = () => Date.now();
+let uid = ls.get('myId', null);
+if (!uid) { uid = rid(12); ls.set('myId', uid); }
+if (!window.mqtt) {
+  app.replaceChildren(el('div', { class: 'banner alert' }, el('b', { text: '연결하지 못했어요' }), el('div', { text: '인터넷 연결을 확인하고 새로고침해 주세요.' })));
+  throw new Error('mqtt missing');
 }
-const fb = initializeApp(firebaseConfig);
-const auth = getAuth(fb);
-const db = getDatabase(fb);
-onValue(ref(db, '.info/serverTimeOffset'), s => { offset = s.val() || 0; });
-
-let uid = null;
-onAuthStateChanged(auth, u => {
-  if (u) { if (!uid) { uid = u.uid; route(); } }
-  else signInAnonymously(auth).catch(e => app.replaceChildren(el('div', { class: 'banner alert' }, el('b', { text: '연결하지 못했어요' }), el('div', { text: '인터넷 연결을 확인하고 새로고침해 주세요. (' + e.code + ')' }))));
-});
+const client = mqtt.connect(BROKER, { clientId: 'dwn_' + rid(12), clean: true, connectTimeout: 10000, reconnectPeriod: 3000 });
+let connected = false, subTopic = null;
+const connBar = el('div', { class: 'toast', role: 'status', style: 'bottom:auto;top:calc(12px + env(safe-area-inset-top,0px));background:#8A310B', text: '연결 중이에요…' });
+function setConn(on) { connected = on; if (on) connBar.remove(); else if (!connBar.isConnected) document.body.append(connBar); }
+setConn(false);
+client.on('connect', () => { setConn(true); if (subTopic) client.subscribe(subTopic, { qos: 1 }); });
+client.on('close', () => setConn(false));
+function pub(topic, obj) {
+  return new Promise((res, rej) => client.publish(topic, obj == null ? '' : JSON.stringify(obj), { qos: 1, retain: true }, e => e ? rej(e) : res()));
+}
+const base = t => `allhere/v1/${t}`;
+const num = v => (typeof v === 'number' && Number.isFinite(v)) ? v : null;
+const str = (v, n) => typeof v === 'string' ? v.slice(0, n) : '';
+function cleanMember(v) {
+  if (!v || typeof v !== 'object') return null;
+  const st = ['hiking', 'late', 'help', 'done'].includes(v.status) ? v.status : 'hiking';
+  return { name: str(v.name, 20) || '이름 없음', status: st, statusTs: num(v.statusTs), lat: num(v.lat), lng: num(v.lng), acc: num(v.acc), ts: num(v.ts) };
+}
+function cleanInfo(v) {
+  if (!v || typeof v !== 'object') return null;
+  return { name: str(v.name, 40), leaderName: str(v.leaderName, 20), meetAt: num(v.meetAt) || Date.now(), meetPlace: str(v.meetPlace, 30) || '집결지', meetLat: num(v.meetLat), meetLng: num(v.meetLng) };
+}
+// 산행 하나를 구독하고, 바뀔 때마다 cb(state) 호출. info가 4초 넘게 안 오면 없는 산행으로 봐요.
+function watchTrip(t, cb) {
+  const b = base(t), st = { info: undefined, members: {}, boarded: {}, notice: null };
+  subTopic = b + '/#';
+  if (connected) client.subscribe(subTopic, { qos: 1 });
+  client.on('message', (topic, buf) => {
+    if (!topic.startsWith(b + '/')) return;
+    const k = topic.slice(b.length + 1), raw = buf.toString();
+    let v = null; if (raw) { try { v = JSON.parse(raw); } catch { return; } }
+    if (k === 'info') st.info = cleanInfo(v);
+    else if (k === 'b') st.boarded = (v && typeof v === 'object') ? v : {};
+    else if (k === 'n') st.notice = v && typeof v === 'object' ? { text: str(v.text, 80), ts: num(v.ts) || 0, to: Array.isArray(v.to) ? v.to : null } : null;
+    else if (k.startsWith('m/')) { const id = k.slice(2), m = cleanMember(v); if (m) st.members[id] = m; else delete st.members[id]; }
+    else return;
+    cb(st);
+  });
+  const wait = () => { if (st.info === undefined) { if (connected) { st.info = null; cb(st); } else setTimeout(wait, 3000); } };
+  setTimeout(wait, 5000);
+  return st;
+}
+async function endTripAll(t, st) {
+  const b = base(t);
+  await Promise.all([pub(b + '/info', null), pub(b + '/b', null), pub(b + '/n', null), ...Object.keys(st.members).map(id => pub(b + '/m/' + id, null))]);
+}
 
 function route() {
   if (!tripId) return viewHome();
@@ -233,9 +263,7 @@ function viewHome() {
     btn.disabled = true; btn.textContent = '만드는 중…';
     try {
       const t = rid(10), key = rid(24);
-      await set(ref(db, `tripSecrets/${t}`), key);
-      await set(ref(db, `tripLeaders/${t}/${uid}`), key);
-      await set(ref(db, `trips/${t}/info`), { name, leaderName, meetAt, meetPlace: place || '집결지', createdAt: serverTimestamp() });
+      await pub(base(t) + '/info', { name, leaderName, meetAt, meetPlace: place || '집결지' });
       const keys = ls.get('leaderKeys', {}); keys[t] = key; ls.set('leaderKeys', keys);
       ls.set('leaderName', leaderName);
       ls.set('myTrips', [{ t, name, meetAt }, ...mine].slice(0, 10));
@@ -267,14 +295,8 @@ function viewHome() {
 // 2) 인솔자 화면
 // =====================================================================
 async function viewLeader(key) {
-  try {
-    await set(ref(db, `tripLeaders/${tripId}/${uid}`), key);
-    const keys = ls.get('leaderKeys', {}); keys[tripId] = key; ls.set('leaderKeys', keys);
-    if (keyParam) history.replaceState(null, '', `?t=${tripId}`);
-  } catch {
-    app.replaceChildren(el('div', { class: 'banner alert' }, el('b', { text: '인솔자 링크가 맞지 않아요' }), el('div', { text: '산행을 만든 사람에게 인솔자 링크를 다시 받아주세요.' })));
-    return;
-  }
+  const keys = ls.get('leaderKeys', {}); keys[tripId] = key; ls.set('leaderKeys', keys);
+  if (keyParam) history.replaceState(null, '', `?t=${tripId}`);
 
   let info = null, members = {}, boarded = {}, tab = 'status', focus = null;
   let map = null, layer = null, meetMarker = null, pickMode = false, myMarker = null;
@@ -285,10 +307,10 @@ async function viewLeader(key) {
 
   const mapBox = el('div', { id: 'map' });
 
-  onValue(ref(db, `trips/${tripId}`), s => {
-    const v = s.val();
-    if (!v || !v.info) { root.replaceChildren(el('div', { class: 'banner info' }, el('b', { text: '끝난 산행이에요' }), el('a', { class: 'btn line small', href: './', text: '새 산행 만들기' }))); nav.remove(); return; }
-    info = v.info; members = v.members || {}; boarded = v.boarded || {};
+  const trip = watchTrip(tripId, st => {
+    if (st.info === undefined) return;
+    if (!st.info) { root.replaceChildren(el('div', { class: 'banner info' }, el('b', { text: '끝난 산행이에요' }), el('a', { class: 'btn line small', href: './', text: '새 산행 만들기' }))); nav.remove(); return; }
+    info = st.info; members = st.members; boarded = st.boarded;
     for (const [id, m] of Object.entries(members)) {
       if (m.status === 'help' && !seenHelp.has(id + m.statusTs)) { seenHelp.add(id + m.statusTs); beep(); }
     }
@@ -309,7 +331,7 @@ async function viewLeader(key) {
     navigator.clipboard.writeText(url).then(() => toast('공동 인솔자 링크를 복사했어요. 부대장님께만 보내세요.'), () => prompt('공동 인솔자 링크', url));
   }
   function notify(text, to) {
-    set(ref(db, `trips/${tripId}/notice`), { text, ts: serverTimestamp(), to: to || null })
+    pub(base(tripId) + '/n', { text, ts: serverTimestamp(), to: to || null })
       .then(() => toast(to ? `${to.length}명에게 알림을 보냈어요` : '전원에게 알림을 보냈어요'), () => toast('알림을 보내지 못했어요'));
   }
   function openNotice() {
@@ -329,7 +351,7 @@ async function viewLeader(key) {
   }
   function endTrip() {
     if (!confirm('산행을 끝낼까요? 모든 참여자의 위치 공유가 꺼지고 기록이 지워져요.')) return;
-    remove(ref(db, `trips/${tripId}`)).catch(() => toast('끝내지 못했어요. 다시 시도해 주세요'));
+    endTripAll(tripId, trip).catch(() => toast('끝내지 못했어요. 다시 시도해 주세요'));
   }
   function setTab(t) { tab = t; render(); window.scrollTo(0, 0); }
 
@@ -393,7 +415,7 @@ async function viewLeader(key) {
         sorted.map(m => { const on = !!boarded[m.id]; return el('div', { class: 'member' },
           el('div', { class: 'grow' }, el('div', { class: 'nm', text: m.name }), el('div', { class: 'dt', text: ST[m.st].label })),
           el('button', { class: 'btn small ' + (on ? 'primary' : 'line'), style: 'min-width:100px', text: on ? '탑승 완료' : '탑승 확인',
-            onclick: () => set(ref(db, `trips/${tripId}/boarded/${m.id}`), on ? null : true) })); }),
+            onclick: () => { const nb = Object.assign({}, boarded); if (on) delete nb[m.id]; else nb[m.id] = true; boarded = nb; render(); pub(base(tripId) + '/b', nb); } })); }),
         notOn.length ? el('button', { class: 'btn dark full', text: `안 탄 ${notOn.length}명에게 알림 보내기`, onclick: () => notify('버스가 곧 출발합니다. 서둘러 와주세요', notOn.map(m => m.id)) }) : null
       ];
     }
@@ -412,7 +434,7 @@ async function viewLeader(key) {
     map.on('click', e => {
       if (!pickMode) return;
       pickMode = false;
-      update(ref(db, `trips/${tripId}/info`), { meetLat: e.latlng.lat, meetLng: e.latlng.lng }).then(() => toast('집결지를 정했어요'), () => toast('저장하지 못했어요'));
+      pub(base(tripId) + '/info', Object.assign({}, info, { meetLat: e.latlng.lat, meetLng: e.latlng.lng })).then(() => toast('집결지를 정했어요'), () => toast('저장하지 못했어요'));
     });
     setTimeout(() => { map.invalidateSize(); fitAll(); }, 0);
   }
@@ -459,24 +481,20 @@ function viewMember() {
   const joined = ls.get('joined', {});
   const seenNotice = ls.get('seenNotice', {});
 
-  onValue(ref(db, `trips/${tripId}/info`), s => {
-    info = s.val();
+  watchTrip(tripId, st => {
+    if (st.info === undefined) return;
+    info = st.info;
     if (!info) { stopGps(); return renderEnded(); }
-    render();
-  });
-  onValue(ref(db, `trips/${tripId}/members/${uid}`), s => {
-    me = s.val();
+    me = st.members[uid] || null;
     if (me && me.status !== 'done') startGps(); else stopGps();
-    if (info) render();
-  });
-  onValue(ref(db, `trips/${tripId}/notice`), s => {
-    const n = s.val();
+    const n = st.notice;
     if (n && (!n.to || n.to.includes(uid))) {
       notice = n;
       if (seenNotice[tripId] !== n.ts) { seenNotice[tripId] = n.ts; ls.set('seenNotice', seenNotice); if (me) beep(); }
     } else notice = null;
-    if (info) render();
+    render();
   });
+  const myTopic = () => base(tripId) + '/m/' + uid;
   setInterval(() => info && render(), 30000);
 
   function renderEnded() {
@@ -491,7 +509,9 @@ function viewMember() {
     const moved = lastSent ? dist(lastSent.lat, lastSent.lng, lat, lng) : Infinity;
     if (lastSent && Date.now() - lastSent.at < SEND_MIN_MS && moved < SEND_MIN_M) return;
     lastSent = { lat, lng, at: Date.now() };
-    update(ref(db, `trips/${tripId}/members/${uid}`), { lat, lng, acc: Math.round(acc), ts: serverTimestamp() }).catch(() => {});
+    if (!me) return;
+    me = Object.assign({}, me, { lat, lng, acc: Math.round(acc), ts: serverTimestamp() });
+    pub(myTopic(), me).catch(() => {});
   }
   function startGps() {
     if (watchId != null || !navigator.geolocation) { if (!navigator.geolocation) gpsState = 'none'; return; }
@@ -521,7 +541,8 @@ function viewMember() {
   function setStatus(status, msg) {
     const data = { status, statusTs: serverTimestamp() };
     if (status === 'done') Object.assign(data, { lat: null, lng: null, acc: null });
-    update(ref(db, `trips/${tripId}/members/${uid}`), data).then(() => toast(msg), () => toast('보내지 못했어요. 인터넷 연결을 확인해 주세요'));
+    me = Object.assign({}, me, data); render();
+    pub(myTopic(), me).then(() => toast(msg), () => toast('보내지 못했어요. 인터넷 연결을 확인해 주세요'));
   }
 
   let joinShown = false;
@@ -560,7 +581,7 @@ function viewMember() {
         el('div', { class: 'sub', text: '화면이 꺼지면 위치 전송이 멈춰요. 산행 중에는 켜두면 인솔자가 위치를 계속 볼 수 있어요. 배터리를 더 써요.' })) : null,
       el('button', { class: 'link', style: 'margin-top:8px;color:var(--muted)', text: '산행에서 나가기', onclick: () => {
         if (!confirm('산행에서 나갈까요? 인솔자 목록에서 빠지고 위치 공유가 꺼져요.')) return;
-        stopGps(); remove(ref(db, `trips/${tripId}/members/${uid}`)); delete joined[tripId]; ls.set('joined', joined); } })
+        stopGps(); me = null; pub(myTopic(), null); delete joined[tripId]; ls.set('joined', joined); render(); } })
     ));
   }
 
@@ -574,7 +595,9 @@ function viewMember() {
       if (!iAgree.checked) return toast('위치 공유에 동의해야 참여할 수 있어요');
       btn.disabled = true;
       try {
-        await set(ref(db, `trips/${tripId}/members/${uid}`), { name, status: 'hiking', statusTs: serverTimestamp() });
+        me = { name, status: 'hiking', statusTs: serverTimestamp() };
+        await pub(myTopic(), me);
+        startGps(); render();
         ls.set('myName', name); joined[tripId] = true; ls.set('joined', joined);
       } catch (e) { btn.disabled = false; toast('참여하지 못했어요. 인터넷 연결을 확인해 주세요'); }
     };
