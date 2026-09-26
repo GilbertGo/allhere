@@ -1,0 +1,30 @@
+{
+  "rules": {
+    "trips": {
+      "$t": {
+        ".read": "auth != null",
+        ".write": "auth != null && (!data.exists() || root.child('tripLeaders').child($t).child(auth.uid).exists())",
+        "members": {
+          "$uid": {
+            ".write": "auth != null && auth.uid == $uid && root.child('trips').child($t).child('info').exists()",
+            ".validate": "newData.child('name').isString() && newData.child('name').val().length > 0 && newData.child('name').val().length <= 20"
+          }
+        }
+      }
+    },
+    "tripSecrets": {
+      "$t": {
+        ".read": false,
+        ".write": "auth != null && !data.exists() && newData.isString() && newData.val().length >= 16"
+      }
+    },
+    "tripLeaders": {
+      "$t": {
+        "$uid": {
+          ".read": "auth != null && auth.uid == $uid",
+          ".write": "auth != null && auth.uid == $uid && newData.val() == root.child('tripSecrets').child($t).val()"
+        }
+      }
+    }
+  }
+}
