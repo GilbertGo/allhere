@@ -90,10 +90,13 @@ nav.tabs button[aria-current=page]{color:var(--ink);font-weight:700}
 <div id="app" class="wrap"><p class="sub">불러오는 중…</p></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/mqtt@5/dist/mqtt.min.js"></script>
+<script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js" crossorigin="anonymous"></script>
 <script type="module">
 // ===== 오늘 시험용: 공개 실시간 서버(HiveMQ 공개 브로커) 사용 =====
 // 누구나 쓰는 공개 서버라 보안이 약해요. 정식 출시 때는 Firebase 버전으로 바꾸세요.
 const BROKER = 'wss://broker.hivemq.com:8884/mqtt';
+// 카카오 개발자 사이트(developers.kakao.com)에서 받은 JavaScript 키를 넣으면 카카오톡 공유가 켜져요.
+const KAKAO_JS_KEY = 'YOUR_KAKAO_JS_KEY';
 const STALE_MS = 5 * 60 * 1000;      // 이 시간 넘게 위치가 안 오면 '위치 소식 없음'
 const SEND_MIN_MS = 20 * 1000;       // 위치 전송 최소 간격
 const SEND_MIN_M = 25;               // 이만큼 움직이면 바로 전송
@@ -323,11 +326,29 @@ async function viewLeader(key) {
 
   const list = () => Object.entries(members).map(([id, m]) => ({ id, ...m, st: statusOf(m) }));
 
-  function shareLink() {
-    const url = `${location.origin}${location.pathname}?t=${tripId}&m=1`;
-    const text = `[다왔나] ${info.name} 참여 링크예요. 누르고 이름만 적으면 돼요. 하산 집결: ${fmtClock(info.meetAt)} ${info.meetPlace}`;
-    if (navigator.share) navigator.share({ title: info.name, text, url }).catch(() => {});
-    else navigator.clipboard.writeText(`${text}\n${url}`).then(() => toast('링크를 복사했어요. 카톡방에 붙여넣으세요.'), () => prompt('이 링크를 복사하세요', url));
+  function shareText() { return `[다왔나] ${info.name} 참여 링크예요. 누르고 이름만 적으면 돼요.\n하산 집결: ${fmtClock(info.meetAt)} ${info.meetPlace}`; }
+  function joinUrl() { return `${location.origin}${location.pathname}?t=${tripId}&m=1`; }
+  function kakaoReady() {
+    try {
+      if (!window.Kakao || KAKAO_JS_KEY === 'YOUR_KAKAO_JS_KEY') return false;
+      if (!Kakao.isInitialized()) Kakao.init(KAKAO_JS_KEY);
+      return true;
+    } catch { return false; }
+  }
+  function shareKakao() {
+    const url = joinUrl();
+    if (kakaoReady()) {
+      try {
+        Kakao.Share.sendDefault({ objectType: 'text', text: shareText(), link: { mobileWebUrl: url, webUrl: url }, buttonTitle: '산행 참여하기' });
+        return;
+      } catch {}
+    }
+    if (navigator.share && /Android|iPhone|iPad/i.test(navigator.userAgent)) { navigator.share({ title: info.name, text: shareText(), url }).catch(() => {}); return; }
+    copyLink('카카오톡 연결 전이라 링크를 복사했어요. 카톡방에 붙여넣으세요.');
+  }
+  function copyLink(msg) {
+    const url = joinUrl();
+    navigator.clipboard.writeText(`${shareText()}\n${url}`).then(() => toast(msg || '링크를 복사했어요. 카톡방에 붙여넣으세요.'), () => prompt('이 링크를 복사하세요', url));
   }
   function coLeaderLink() {
     const url = `${location.origin}${location.pathname}?t=${tripId}&k=${key}`;
@@ -387,7 +408,8 @@ async function viewLeader(key) {
       body = [
         el('div', { class: 'card stack' },
           el('div', { class: 'row', style: 'justify-content:space-between' }, el('h2', { text: '참여 링크' }), el('span', { class: 'sub', text: `${L.length}명 참여` })),
-          el('button', { class: 'btn primary full', text: '참여 링크 보내기', onclick: shareLink }),
+          el('button', { class: 'btn full', style: 'background:#FEE500;color:#191919', text: '카카오톡으로 참여 링크 보내기', onclick: shareKakao }),
+          el('button', { class: 'btn line full small', text: '링크 복사', onclick: () => copyLink() }),
           el('button', { class: 'link', style: 'align-self:flex-start', text: '공동 인솔자 링크 복사', onclick: coLeaderLink })),
         L.length ? el('h2', { style: 'margin-top:4px', text: '확인이 필요한 사람부터' }) : el('p', { class: 'sub center', text: '아직 참여한 사람이 없어요. 참여 링크를 카톡방에 보내세요.' }),
         sorted.map(m => { const s = ST[m.st]; return el('button', { class: 'member', onclick: () => { focus = m.id; setTab('map'); } },
