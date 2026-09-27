@@ -472,7 +472,7 @@ function openBrag(info, t, count, allDone) {
   document.body.append(bg);
   draw();
 }
-// 카톡 안의 브라우저는 사진 저장·공유를 막아요. 그때는 카드 내용을 링크에 담아 크롬으로 넘겨요.
+// 카톡 안의 브라우저는 사진 저장·공유를 막아요. 그때는 카드 내용을 링크에 담아 기본 브라우저로 넘겨요.
 const IN_KAKAO = /KAKAOTALK/i.test(navigator.userAgent);
 const b64u = s => btoa(unescape(encodeURIComponent(s))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 const unb64u = s => decodeURIComponent(escape(atob(s.replace(/-/g, '+').replace(/_/g, '/'))));
@@ -499,11 +499,11 @@ function bragView(img, getOpts) {
     } else save();
   };
   const actions = IN_KAKAO ? [
-    el('button', { class: 'btn primary full', text: '크롬에서 열어 저장하기', onclick: () => {
+    el('button', { class: 'btn primary full', text: '다른 브라우저에서 열어 저장하기', onclick: () => {
       const o = getOpts(); if (!o) return;
       location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(bragLink(o));
     } }),
-    el('p', { class: 'sub', style: 'margin:0', text: '카카오톡 안에서는 사진 저장이 안 돼요. 위 버튼을 누르면 크롬에서 같은 카드가 열리고, 거기서 저장하거나 공유할 수 있어요.' })
+    el('p', { class: 'sub', style: 'margin:0', text: '카카오톡 안에서는 사진 저장이 안 돼요. 위 버튼을 누르면 휴대폰의 기본 브라우저(삼성 인터넷, 크롬 등)에서 같은 카드가 열리고, 거기서 저장하거나 공유할 수 있어요.' })
   ] : [
     el('div', { class: 'two' }, el('button', { class: 'btn line', text: '사진으로 저장', onclick: save }), el('button', { class: 'btn primary', text: '공유하기', onclick: share })),
     el('p', { class: 'sub', style: 'margin:0', text: '저장이 안 되면 위 그림을 길게 눌러 저장하세요.' })
@@ -517,7 +517,7 @@ function bragView(img, getOpts) {
     }
   };
 }
-// ?brag=... 링크로 열면 그 카드만 보여줘요 (카톡에서 크롬으로 넘어왔을 때)
+// ?brag=... 링크로 열면 그 카드만 보여줘요 (카톡에서 다른 브라우저로 넘어왔을 때)
 function viewBragLink() {
   let o = null;
   try { o = JSON.parse(unb64u(qs.get('brag'))); } catch {}
