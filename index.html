@@ -551,18 +551,27 @@ function bragView(img, getOpts) {
     if (navigator.share && !IN_KAKAO) { try { await navigator.share({ title: o.name, text, url }); return; } catch (e) { if (e && e.name === 'AbortError') return; } }
     navigator.clipboard.writeText(`${text}\n${url}`).then(() => toast('지도 링크를 복사했어요. 카톡방에 붙여넣으세요'), () => prompt('이 링크를 복사하세요', url));
   };
-  const linkBtn = el('button', { class: 'btn line full', text: '지도 링크 보내기', onclick: shareLink });
-  const actions = IN_KAKAO ? [linkBtn,
-    el('button', { class: 'btn primary full', text: '다른 브라우저에서 열어 저장하기', onclick: () => {
-      const o = getOpts(); if (!o) return;
-      location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(bragLink(o));
-    } }),
-    el('p', { class: 'sub', style: 'margin:0', text: '카카오톡 안에서는 사진 저장이 안 돼요. 위 버튼을 누르면 휴대폰의 기본 브라우저(삼성 인터넷, 크롬 등)에서 같은 카드가 열리고, 거기서 저장하거나 공유할 수 있어요.' })
-  ] : [
-    el('div', { class: 'two' }, el('button', { class: 'btn line', text: '사진으로 저장', onclick: save }), el('button', { class: 'btn primary', text: '사진 공유하기', onclick: share })),
-    linkBtn,
-    el('p', { class: 'sub', style: 'margin:0', text: '지도 링크를 받은 사람은 지도에서 경로를 크게 보고, 카카오맵 길찾기나 GPX 받기도 할 수 있어요. 사진 저장이 안 되면 위 그림을 길게 눌러 저장하세요.' })
-  ];
+  const openOther = () => { const o = getOpts(); if (o) location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(bragLink(o)); };
+  // 버튼은 '보내기' 하나만 보이고, 누르면 방법을 골라요
+  const item = (title, desc, fn) => el('button', { class: 'preset', onclick: () => { menu.remove(); fn(); } },
+    el('b', { style: 'display:block', text: title }), el('span', { class: 'sub', text: desc }));
+  let menu = null;
+  const openMenu = () => {
+    menu = el('div', { class: 'sheet-bg', style: 'z-index:3200', onclick: e => { if (e.target === menu) menu.remove(); } });
+    menu.append(el('div', { class: 'sheet', role: 'dialog', 'aria-label': '보내기' },
+      el('h2', { text: '어떻게 보낼까요?' }),
+      ...(IN_KAKAO ? [
+        item('지도 링크 보내기', '받은 사람이 지도에서 경로를 크게 보고, 카카오맵 길찾기나 GPX 받기도 할 수 있어요', shareLink),
+        item('사진으로 저장·공유하기', '카카오톡 안에서는 사진 저장이 안 돼요. 휴대폰의 기본 브라우저에서 같은 카드를 열어요', openOther)
+      ] : [
+        item('사진 공유하기', '카톡, 인스타 등으로 카드 사진을 바로 보내요', share),
+        item('사진으로 저장', '휴대폰에 사진으로 저장해요. 안 되면 카드 그림을 길게 눌러 저장하세요', save),
+        item('지도 링크 보내기', '받은 사람이 지도에서 경로를 크게 보고, 카카오맵 길찾기나 GPX 받기도 할 수 있어요', shareLink)
+      ]),
+      el('button', { class: 'btn line small', text: '닫기', onclick: () => menu.remove() })));
+    document.body.append(menu);
+  };
+  const actions = [el('button', { class: 'btn primary full big', text: '보내기', onclick: openMenu })];
   return {
     actions,
     async draw(o) {
