@@ -3,113 +3,123 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#1C2620">
+<meta name="theme-color" content="#191F28">
 <title>다왔나</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Crect%20rx%3D%2222%22%20fill%3D%22%231C2620%22/%3E%3Cpath%20d%3D%22M50%2016c-15.5%200-27%2011.4-27%2026%200%2019.5%2027%2042%2027%2042s27-22.5%2027-42c0-14.6-11.5-26-27-26z%22%20fill%3D%22%23F6C89F%22/%3E%3Cpath%20d%3D%22M38.5%2042.5l8%208%2015-16%22%20fill%3D%22none%22%20stroke%3D%22%231C2620%22%20stroke-width%3D%227%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
 :root{
-  --ground:#EFEEE8; --card:#FFFFFF; --line:#DEDACF; --ink:#1C2620; --muted:#565C55;
-  --forest:#2F5D46; --forest-soft:#DCE8DF; --forest-ink:#1F4A33;
-  --alert:#B4410F; --alert-soft:#FBE4D4; --alert-ink:#8A310B;
-  --blue:#2563A8; --blue-soft:#DCE6F2; --blue-ink:#1B3F6E;
-  --amber:#8A5A00; --amber-soft:#F6E7C4;
-  --grey:#6B6B66; --grey-soft:#E6E4DF;
+  --ground:#F2F4F6; --card:#FFFFFF; --line:#E5E8EB; --ink:#191F28; --muted:#6B7684; --soft:#F2F4F6;
+  --forest:#15A05A; --forest-soft:#E4F6EC; --forest-ink:#0B6B3B;
+  --alert:#E5484D; --alert-soft:#FFEBEC; --alert-ink:#B42328;
+  --blue:#3182F6; --blue-soft:#E8F3FF; --blue-ink:#1B64DA;
+  --amber:#B76E00; --amber-soft:#FFF4DB;
+  --grey:#8B95A1; --grey-soft:#F2F4F6;
+  --accent:#FFC46B;
+  --shadow:0 1px 3px rgba(0,27,55,.05),0 4px 16px rgba(0,27,55,.04);
 }
 *{box-sizing:border-box}
 html,body{margin:0;height:100%}
-body{background:var(--ground);color:var(--ink);font-family:'IBM Plex Sans KR','Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:16px;line-height:1.5;-webkit-text-size-adjust:100%}
+body{background:var(--ground);color:var(--ink);font-family:'Pretendard Variable',Pretendard,-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:16px;line-height:1.5;letter-spacing:-.01em;-webkit-text-size-adjust:100%;-webkit-font-smoothing:antialiased}
 :root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-button,input{font:inherit;color:inherit}
-button{cursor:pointer}
+button,input{font:inherit;color:inherit;letter-spacing:inherit}
+button{cursor:pointer;-webkit-tap-highlight-color:transparent}
+button:active:not(:disabled){transform:scale(.98)}
 :focus-visible{outline:3px solid var(--blue);outline-offset:2px}
-.wrap{max-width:520px;margin:0 auto;padding:20px 18px 110px}
-h1{margin:0;font-size:24px;line-height:1.3;letter-spacing:-.02em}
-h2{margin:0;font-size:17px}
+.wrap{max-width:520px;margin:0 auto;padding:20px 20px 110px}
+h1{margin:0;font-size:24px;line-height:1.3;letter-spacing:-.03em;font-weight:700}
+h2{margin:0;font-size:18px;font-weight:700;letter-spacing:-.02em}
 .sub{color:var(--muted);font-size:14px}
 .stack{display:flex;flex-direction:column;gap:12px}
 .row{display:flex;gap:8px;align-items:center}
-.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px}
-.clock{background:var(--ink);color:#F1F0EA;border-radius:18px;padding:16px 18px;display:flex;justify-content:space-between;align-items:center;gap:12px}
-.clock .big{font-size:36px;font-weight:700;color:#F6C89F;font-variant-numeric:tabular-nums;white-space:nowrap;line-height:1.1}
-.clock .lbl{font-size:13px;color:#C9CFC7}
-.btn{height:52px;border-radius:14px;border:none;padding:0 18px;font-size:17px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;gap:8px;text-decoration:none}
+.card{background:var(--card);border-radius:20px;padding:20px;box-shadow:var(--shadow)}
+.clock{background:var(--ink);color:#fff;border-radius:24px;padding:20px;display:flex;justify-content:space-between;align-items:center;gap:12px}
+.clock .big{font-size:36px;font-weight:700;color:var(--accent);font-variant-numeric:tabular-nums;white-space:nowrap;line-height:1.1}
+.clock .lbl{font-size:13px;color:#B0B8C1}
+.btn{height:54px;border-radius:16px;border:none;padding:0 20px;font-size:17px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;transition:transform .08s,filter .15s}
 .btn.full{width:100%}
 .btn.big{height:60px;font-size:18px}
 .btn.primary{background:var(--forest);color:#fff}
 .btn.danger{background:var(--alert);color:#fff}
-.btn.dark{background:var(--ink);color:#F1F0EA}
-.btn.line{background:#fff;border:1.5px solid var(--ink);color:var(--ink)}
-.btn.small{height:44px;font-size:15px;padding:0 14px;border-radius:12px}
-.btn:disabled{opacity:.5;cursor:default}
-label.f{display:flex;flex-direction:column;gap:6px;font-weight:600}
-input[type=text],input[type=date],input[type=time]{height:52px;border-radius:12px;border:1.5px solid #B9B2A2;background:#fff;padding:0 14px;font-size:17px;width:100%}
+.btn.dark{background:var(--ink);color:#fff}
+.btn.line{background:#fff;color:#333D4B;box-shadow:inset 0 0 0 1px var(--line)}
+.card .btn.line,.sheet .btn.line,details.more .btn.line{background:#F2F4F6;box-shadow:none}
+.btn.small{height:44px;font-size:15px;padding:0 16px;border-radius:12px}
+.btn:disabled{opacity:.45;cursor:default}
+label.f{display:flex;flex-direction:column;gap:8px;font-weight:600;font-size:15px;color:#4E5968}
+input[type=text],input[type=date],input[type=time],input[type=password]{height:54px;border-radius:14px;border:1.5px solid var(--line);background:#fff;padding:0 16px;font-size:17px;width:100%;color:var(--ink);transition:border-color .15s,background .15s}
+input[type=text]:focus,input[type=date]:focus,input[type=time]:focus,input[type=password]:focus{outline:none;border-color:var(--blue);background:#fff}
+input::placeholder{color:#B0B8C1}
+.sheet input[type=text],.sheet input[type=date],.sheet input[type=time],.sheet input[type=password],.card input[type=text]{background:#F2F4F6;border-color:transparent}
+.sheet input:focus,.card input:focus{background:#fff!important;border-color:var(--blue)!important}
 .two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 .three{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
-.cnt{background:var(--card);border-radius:12px;padding:10px 6px;text-align:center}
-.cnt b{display:block;font-size:24px;font-variant-numeric:tabular-nums}
+.cnt{background:var(--card);border-radius:18px;padding:14px 6px;text-align:center;box-shadow:var(--shadow)}
+.cnt b{display:block;font-size:26px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2}
 .cnt span{font-size:13px;color:var(--muted)}
-.cnt.warn{background:var(--alert-soft)} .cnt.warn b{color:var(--alert-ink)} .cnt.warn span{color:var(--alert-ink)}
-.chip{font-size:12px;font-weight:700;padding:5px 9px;border-radius:999px;white-space:nowrap}
-.member{width:100%;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:12px}
+.cnt.warn{background:var(--alert-soft);box-shadow:none} .cnt.warn b{color:var(--alert-ink)} .cnt.warn span{color:var(--alert-ink)}
+.chip{font-size:12px;font-weight:700;padding:5px 10px;border-radius:999px;white-space:nowrap}
+.member{width:100%;text-align:left;background:var(--card);border:none;border-radius:18px;padding:14px 16px;display:flex;align-items:center;gap:12px;box-shadow:var(--shadow)}
 .dot{width:12px;height:12px;border-radius:6px;flex-shrink:0}
 .member .nm{font-size:16px;font-weight:600}
 .member .dt{font-size:13px;color:var(--muted)}
 .grow{flex:1;min-width:0}
-.banner{border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:8px}
-.banner.alert{background:var(--alert-soft);border:1px solid #F0C4A6;color:var(--alert-ink)}
+.banner{border-radius:20px;padding:16px 18px;display:flex;flex-direction:column;gap:8px}
+.banner.alert{background:var(--alert-soft);color:var(--alert-ink)}
 .banner.info{background:var(--blue-soft);color:var(--blue-ink)}
 .banner.ok{background:var(--forest-soft);color:var(--forest-ink)}
 .banner b{font-size:16px}
+.banner .btn.line{background:#fff}
 .pill{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;padding:6px 10px;border-radius:999px}
 .pill.on{background:var(--forest-soft);color:var(--forest-ink)}
-.pill.off{background:var(--grey-soft);color:#3A3A38}
+.pill.off{background:#E5E8EB;color:#4E5968}
 .pill.bad{background:var(--alert-soft);color:var(--alert-ink)}
 .pill i{width:8px;height:8px;border-radius:4px;background:currentColor;display:block}
-nav.tabs{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(3,minmax(0,1fr));padding-bottom:env(safe-area-inset-bottom,0px);z-index:1000}
-nav.tabs button{width:100%;height:64px;border:none;background:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:13px;color:#6B7068}
-nav.tabs button[aria-current=page]{color:var(--ink);font-weight:700}
-.role{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:-20px 0 6px -18px;width:calc(100% + 36px);box-sizing:border-box;align-self:flex-start;padding:12px 18px;font-size:15px}
+nav.tabs{position:fixed;left:0;right:0;bottom:0;background:rgba(255,255,255,.92);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;padding:8px 10px calc(8px + env(safe-area-inset-bottom,0px));z-index:1000}
+nav.tabs button{width:100%;height:50px;border:none;border-radius:14px;background:none;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:600;color:var(--grey)}
+nav.tabs button[aria-current=page]{background:var(--ink);color:#fff;font-weight:700}
+.role{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:-20px 0 6px -20px;width:calc(100% + 40px);box-sizing:border-box;align-self:flex-start;padding:12px 20px;font-size:14px;font-weight:600}
 .role .who{font-weight:700;display:flex;align-items:center;gap:6px}
-.role.leader{background:#1C2620;color:#F1F0EA}.role.leader .who{color:#F6C89F}
-.role.member{background:#2563A8;color:#FFFFFF}
-body[data-role=member]{--ground:#EEF2F6}
+.role.leader{background:var(--ink);color:#fff}.role.leader .who{color:var(--accent)}
+.role.member{background:var(--blue);color:#FFFFFF}
+body[data-role=member]{--ground:#EEF4FB}
 .map-full{position:fixed!important;top:env(safe-area-inset-top,0px)!important;bottom:env(safe-area-inset-bottom,0px)!important;left:0!important;right:0!important;height:auto!important;min-height:0!important;border-radius:0!important;border:none!important;z-index:1500!important}
 body.noscroll{overflow:hidden}
-.fs-btn{background:#fff;border:2px solid rgba(0,0,0,.25);border-radius:10px;padding:8px 12px;font:700 14px 'IBM Plex Sans KR','Apple SD Gothic Neo',sans-serif;color:#1C2620;cursor:pointer;min-height:40px}
+.fs-btn{background:#fff;border:none;border-radius:12px;padding:8px 12px;font:700 14px 'Pretendard Variable',Pretendard,-apple-system,sans-serif;color:var(--ink);cursor:pointer;min-height:40px;box-shadow:0 2px 8px rgba(0,27,55,.18)}
 .rt-arrow{background:none;border:none}
-.goal{background:var(--ink);color:#F1F0EA;border-radius:18px;padding:16px 18px;display:flex;flex-direction:column;gap:12px}
-.goal .lbl{font-size:13px;color:#C9CFC7}
-.goal .place{font-size:19px;font-weight:700;line-height:1.3}
-.goal .big{font-size:32px;font-weight:700;color:#F6C89F;line-height:1.1;white-space:nowrap;font-variant-numeric:tabular-nums}
-.goal .dir{display:flex;align-items:center;gap:12px;border-top:1px solid rgba(241,240,234,.18);padding-top:12px}
-.goal .dir button{background:transparent;border:1.5px solid #F1F0EA;color:#F1F0EA}
-.goal .dir button.on{background:#F6C89F;border-color:#F6C89F;color:var(--ink)}
-.wakebar{display:flex;align-items:center;justify-content:space-between;gap:12px;border-radius:14px;padding:10px 12px 10px 16px;font-size:14px}
-.wakebar.off{background:var(--amber-soft);color:#6B4600}
+.goal{background:var(--ink);color:#fff;border-radius:24px;padding:20px;display:flex;flex-direction:column;gap:14px}
+.goal .lbl{font-size:13px;color:#B0B8C1}
+.goal .place{font-size:21px;font-weight:700;line-height:1.3;letter-spacing:-.02em}
+.goal .big{font-size:32px;font-weight:700;color:var(--accent);line-height:1.1;white-space:nowrap;font-variant-numeric:tabular-nums}
+.goal .dir{display:flex;align-items:center;gap:12px;border-top:1px solid rgba(255,255,255,.12);padding-top:14px}
+.goal .dir button{background:rgba(255,255,255,.12);border:none;color:#fff}
+.goal .dir button.on{background:var(--accent);color:var(--ink)}
+.wakebar{display:flex;align-items:center;justify-content:space-between;gap:12px;border-radius:18px;padding:10px 12px 10px 16px;font-size:14px}
+.wakebar.off{background:var(--amber-soft);color:#7A4A00}
 .wakebar.on{background:var(--forest-soft);color:var(--forest-ink)}
-.mapbox{height:260px;border-radius:16px;border:1px solid var(--line);z-index:0}
-#map{height:58vh;min-height:320px;border-radius:16px;border:1px solid var(--line);z-index:0}
+.mapbox{height:260px;border-radius:20px;overflow:hidden;z-index:0;box-shadow:var(--shadow)}
+#map{height:58vh;min-height:320px;border-radius:20px;overflow:hidden;z-index:0;box-shadow:var(--shadow)}
 .mapbar{display:flex;gap:8px;flex-wrap:wrap}
-.toast{position:fixed;left:16px;right:16px;bottom:calc(84px + env(safe-area-inset-bottom,0px));max-width:488px;margin:0 auto;background:var(--ink);color:#F1F0EA;border-radius:12px;padding:14px 16px;font-size:15px;z-index:2000;box-shadow:0 8px 24px rgba(28,38,32,.25)}
-.sheet-bg{position:fixed;inset:0;background:rgba(28,38,32,.45);z-index:3000;display:flex;align-items:flex-end;justify-content:center}
-.sheet{background:var(--ground);width:100%;max-width:520px;border-radius:20px 20px 0 0;padding:20px 18px calc(20px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:10px;max-height:85vh;overflow:auto}
-.preset{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px;text-align:left;font-size:16px}
+.mapbar .btn.line{background:#fff;box-shadow:var(--shadow)}
+.toast{position:fixed;left:16px;right:16px;bottom:calc(84px + env(safe-area-inset-bottom,0px));max-width:488px;margin:0 auto;background:rgba(25,31,40,.94);color:#fff;border-radius:16px;padding:14px 18px;font-size:15px;z-index:2000;box-shadow:0 8px 24px rgba(0,27,55,.2)}
+.sheet-bg{position:fixed;inset:0;background:rgba(0,19,43,.45);z-index:3000;display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:#fff;width:100%;max-width:520px;border-radius:28px 28px 0 0;padding:24px 20px calc(20px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:10px;max-height:85vh;overflow:auto}
+.preset{background:#F2F4F6;border:none;border-radius:16px;padding:16px;text-align:left;font-size:16px;font-weight:500}
 .check{display:flex;gap:12px;align-items:flex-start}
 .check input{width:24px;height:24px;margin:2px 0 0;accent-color:var(--forest);flex-shrink:0}
-.bar{height:10px;border-radius:5px;background:#E4E0D4;overflow:hidden}
+.bar{height:10px;border-radius:5px;background:#E5E8EB;overflow:hidden}
 .bar i{display:block;height:100%;background:var(--forest);border-radius:5px}
-.link{background:none;border:none;color:var(--forest);font-weight:600;padding:10px 0;font-size:15px;text-decoration:underline}
+.link{background:none;border:none;color:var(--blue-ink);font-weight:600;padding:10px 0;font-size:15px;text-decoration:none}
 .center{text-align:center}
-details.more{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:0 16px}
-details.more>summary{list-style:none;cursor:pointer;min-height:52px;display:flex;align-items:center;justify-content:space-between;font-weight:700}
+details.more{background:var(--card);border-radius:20px;padding:0 20px;box-shadow:var(--shadow)}
+details.more>summary{list-style:none;cursor:pointer;min-height:58px;display:flex;align-items:center;justify-content:space-between;font-weight:700}
 details.more>summary::-webkit-details-marker{display:none}
 details.more>summary::after{content:'펼치기 ▾';font-size:13px;font-weight:600;color:var(--muted)}
 details.more[open]>summary::after{content:'접기 ▴'}
-details.more>.stack{padding:0 0 16px}
-.leaflet-tooltip.nm{font-family:inherit;font-weight:700;font-size:12px;padding:2px 6px}
+details.more>.stack{padding:0 0 18px}
+.leaflet-tooltip.nm{font-family:inherit;font-weight:700;font-size:12px;padding:2px 6px;border-radius:8px}
+.leaflet-bar{border:none!important;box-shadow:0 2px 8px rgba(0,27,55,.18)!important;border-radius:12px!important;overflow:hidden}
 @media (prefers-reduced-motion:no-preference){.toast{animation:up .2s ease-out}@keyframes up{from{transform:translateY(8px);opacity:0}}}
 </style>
 </head>
@@ -159,12 +169,6 @@ const ls = {
 };
 let offset = 0;
 const now = () => Date.now() + offset;
-function fmtLeft(ms) {
-  const late = ms < 0; let m = Math.round(Math.abs(ms) / 60000);
-  const h = Math.floor(m / 60); m = m % 60;
-  const s = h ? `${h}시간 ${m}분` : `${m}분`;
-  return late ? `${s} 지남` : s;
-}
 function fmtClock(ts) { const d = new Date(ts); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; }
 function fmtAgo(ts) { const s = Math.max(0, Math.round((now() - ts) / 1000)); if (s < 60) return '방금'; const m = Math.round(s / 60); return m < 60 ? `${m}분 전` : `${Math.floor(m / 60)}시간 전`; }
 function dist(a, b, c, d) { const R = 6371000, r = x => x * Math.PI / 180; const x = Math.sin(r(c - a) / 2) ** 2 + Math.cos(r(a)) * Math.cos(r(c)) * Math.sin(r(d - b) / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(x)); }
@@ -292,7 +296,7 @@ function downloadTrack(t) {
   const d = new Date(tr[0][2]), pad = n => String(n).padStart(2, '0');
   const a = el('a', { href: URL.createObjectURL(new Blob([gpx], { type: 'application/gpx+xml' })), download: `다왔나_${name.replace(/[\\/:*?"<>|]/g, '')}_${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}.gpx` });
   document.body.append(a); a.click(); a.remove();
-  toast('이동 경로를 GPX 파일로 저장했어요');
+  toast('이동 경로를 GPX 파일로 저장했어요. 휴대폰의 "내 파일 > 다운로드" 폴더에 "다왔나_"로 시작하는 이름으로 있어요');
 }
 function trackCard(t, going) {
   const tr = trackLoad(t);
@@ -400,7 +404,7 @@ if (!window.mqtt) {
 }
 const client = mqtt.connect(BROKER, { clientId: 'dwn_' + rid(12), clean: true, connectTimeout: 10000, reconnectPeriod: 3000 });
 let connected = false, subTopic = null;
-const connBar = el('div', { class: 'toast', role: 'status', style: 'bottom:auto;top:calc(12px + env(safe-area-inset-top,0px));background:#8A310B', text: '연결 중이에요…' });
+const connBar = el('div', { class: 'toast', role: 'status', style: 'bottom:auto;top:calc(12px + env(safe-area-inset-top,0px));background:#B42328', text: '연결 중이에요…' });
 function setConn(on) { connected = on; if (on) connBar.remove(); else if (!connBar.isConnected) document.body.append(connBar); }
 setConn(false);
 client.on('connect', () => { setConn(true); if (subTopic) client.subscribe(subTopic, { qos: 1 }); });
@@ -481,7 +485,7 @@ function viewHome() {
   const mapEl = el('div', { class: 'mapbox', style: 'height:340px' });
   const hint = el('div', { class: 'sub' });
   const bar = el('div', { class: 'mapbar' });
-  const gpx = el('input', { type: 'file', accept: '.gpx,application/gpx+xml', style: 'display:none', onchange: async () => {
+  const gpx = el('input', { type: 'file', style: 'display:none', onchange: async () => {
     const f = gpx.files[0]; if (!f) return;
     try {
       const pts = parseGpx(await f.text());
@@ -655,24 +659,13 @@ async function viewLeader(key) {
       if (leaderVerifying) return;
       leaderVerifying = true;
       Promise.all(credentials.map(async credential => ({ credential, hash: await pinHash(tripId, credential) })))
-        .then(async matches => {
+        .then(matches => {
+          // 인솔자 키 또는 인솔자 비밀번호가 맞으면 통과. 서버의 키는 바꾸지 않아요(바꾸면 다른 인솔자가 쫓겨나요).
+          // leaderKeyHash가 없는 예전 나들이는 전처럼 이 기기에 저장된 키를 믿어요.
           const accepted = matches.find(({ hash }) => hash === st.info?.leaderKeyHash)
-            || (!keyParam ? (() => {
-              const pinMatch = matches.find(({ hash }) => hash === st.info?.pinHash);
-              return pinMatch ? { ...pinMatch, migrate: true, rotate: true } : null;
-            })() : null)
-            || (!st.info.leaderKeyHash && legacyKey ? { credential: legacyKey, migrate: true } : null);
+            || matches.find(({ hash }) => hash === st.info?.pinHash)
+            || (!st.info.leaderKeyHash && legacyKey ? { credential: legacyKey } : null);
           if (!accepted) { location.replace(`?t=${tripId}&m=1`); return; }
-          if (accepted.migrate) {
-            try {
-              const leaderKey = accepted.rotate ? rid(24) : accepted.credential;
-              const leaderKeyHash = await pinHash(tripId, leaderKey);
-              await pub(base(tripId) + '/info', Object.assign({}, st.info, { leaderKeyHash }));
-              const keys = ls.get('leaderKeys', {}); keys[tripId] = leaderKey; ls.set('leaderKeys', keys);
-              leaderVerified = true; renderTrip(st);
-            } catch { location.replace(`?t=${tripId}&m=1`); }
-            return;
-          }
           leaderVerified = true;
           const keys = ls.get('leaderKeys', {}); keys[tripId] = accepted.credential; ls.set('leaderKeys', keys);
           if (keyParam) history.replaceState(null, '', `?t=${tripId}`);
@@ -827,8 +820,7 @@ async function viewLeader(key) {
     return el('div', { class: 'goal' },
       el('div', { class: 'row', style: 'justify-content:space-between;align-items:flex-start;gap:12px' },
         el('div', { class: 'grow' }, el('div', { class: 'lbl', text: going ? '도착지' : '출발 집결지' }), el('div', { class: 'place', text: T.place }),
-          el('div', { class: 'lbl', text: `${fmtClock(T.at)} ${going ? '도착 예정' : '출발'}` })),
-        el('div', { style: 'text-align:right' }, el('div', { class: 'lbl', text: going ? '도착까지' : '출발까지' }), el('div', { class: 'big', text: fmtLeft(T.at - now()) }))),
+          el('div', { class: 'lbl', text: `${fmtClock(T.at)} ${going ? '도착 예정' : '출발'}` }))),
       el('div', { class: 'dir', style: 'justify-content:space-between' },
         going
           ? el('div', {}, el('b', { text: '도착지로 이동 중' }), el('div', { class: 'lbl', text: info.departedAt ? `${fmtClock(info.departedAt)} 출발` : '출발함' }))
@@ -843,7 +835,7 @@ async function viewLeader(key) {
   }
   function openRoute() {
     const bg = el('div', { class: 'sheet-bg', onclick: e => { if (e.target === bg) bg.remove(); } });
-    const file = el('input', { type: 'file', accept: '.gpx,application/gpx+xml', style: 'display:none', onchange: async () => {
+    const file = el('input', { type: 'file', style: 'display:none', onchange: async () => {
       const f = file.files[0]; if (!f) return; bg.remove();
       try {
         const pts = parseGpx(await f.text());
@@ -857,6 +849,7 @@ async function viewLeader(key) {
       el('p', { class: 'sub', style: 'margin:0', text: '경로를 넣으면 참여자 지도에도 보이고, 경로에서 150m 넘게 벗어난 사람은 "경로 이탈"로 알려드려요.' }),
       el('button', { class: 'preset', text: '지도에 직접 그리기', onclick: () => { bg.remove(); drawMode = true; pickMode = null; drawPts = (info.route || []).slice(); setTab('map'); } }),
       el('button', { class: 'preset', text: 'GPX 파일 불러오기 (트랭글, 램블러 같은 등산·걷기 앱이나 내비에서 받은 파일)', onclick: () => file.click() }),
+      el('p', { class: 'sub', style: 'margin:0', text: '다왔나에서 저장한 이동 기록은 휴대폰 "내 파일 > 다운로드" 폴더에 "다왔나_"로 시작하는 이름으로 있어요.' }),
       hasRoute(info) ? el('button', { class: 'preset', style: 'color:var(--alert-ink)', text: '경로 지우기', onclick: () => { bg.remove(); saveInfo({ route: null }).then(() => toast('경로를 지웠어요')); } }) : null,
       el('button', { class: 'btn line small', text: '닫기', onclick: () => bg.remove() }),
       file));
@@ -881,7 +874,7 @@ async function viewLeader(key) {
         el('div', { class: 'grow' }, el('div', { class: 'sub', text: `인솔 ${info.leaderName} · ${L.length}명 참여` }), el('h1', { style: 'font-size:21px', text: info.name })),
         el('button', { class: 'btn line small', text: '전체 알림', onclick: openNotice })),
       tab !== 'status' ? el('div', { class: 'row sub', style: 'justify-content:space-between;gap:12px;margin-top:-4px' },
-        el('span', { text: `${isGo(info) ? '도착까지' : '출발까지'} ${fmtLeft(target(info).at - now())}` }),
+        el('span', { text: `${fmtClock(target(info).at)} ${isGo(info) ? '도착 예정' : '출발'}` }),
         el('span', { style: 'text-align:right', text: `${lab('done', info)} ${c.done} / ${L.length}명` + (c.need ? ` · 확인 필요 ${c.need}명` : '') })) : null,
       helps.map(m => el('div', { class: 'banner alert', role: 'alert' },
         el('b', { text: `${m.name} 님이 도움을 요청했어요` }),
@@ -1069,9 +1062,9 @@ function viewMember() {
   const seenNotice = ls.get('seenNotice', {});
   const mBox = el('div', { class: 'mapbox' });
   let mmap = null, mlayer = null, mfit = false, heading = null, compassOn = false, lastBearing = null;
-  const arrowBox = el('div', { style: 'width:56px;height:56px;border-radius:28px;background:#33413A;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:transform .2s' });
+  const arrowBox = el('div', { style: 'width:56px;height:56px;border-radius:28px;background:#2B333E;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:transform .2s' });
   arrowBox.innerHTML = '<svg width="34" height="34" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 L19 20 L12 16 L5 20 Z" fill="#F6C89F"/></svg>';
-  const dirEl = el('div', { style: 'font-size:14px;color:#C9CFC7' });
+  const dirEl = el('div', { style: 'font-size:14px;color:#B0B8C1' });
   function updateArrow() {
     if (lastBearing == null) return;
     const rot = heading == null ? lastBearing : lastBearing - heading;
@@ -1282,8 +1275,7 @@ function viewMember() {
       el('div', { class: 'goal' },
         el('div', { class: 'row', style: 'justify-content:space-between;align-items:flex-start;gap:12px' },
           el('div', { class: 'grow' }, el('div', { class: 'lbl', text: going ? '도착지' : '집결지' }), el('div', { class: 'place', text: T.place }),
-            el('div', { class: 'lbl', text: `${fmtClock(T.at)} ${going ? '도착 예정' : '출발'}` })),
-          el('div', { style: 'text-align:right' }, el('div', { class: 'lbl', text: going ? '도착까지' : '출발까지' }), el('div', { class: 'big', text: fmtLeft(T.at - now()) }))),
+            el('div', { class: 'lbl', text: `${fmtClock(T.at)} ${going ? '도착 예정' : '출발'}` }))),
         !done && meetDist != null ? el('div', { class: 'dir' }, arrowBox,
           el('div', { class: 'grow' }, el('b', { style: 'font-size:22px', text: `${fmtDist(meetDist)}` }), dirEl),
           el('button', { class: 'btn small' + (compassOn ? ' on' : ''), text: compassOn ? '나침반 끄기' : '나침반', onclick: enableCompass }))
