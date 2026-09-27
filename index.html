@@ -508,7 +508,7 @@ function openBrag(info, t, count, allDone) {
   const bg = el('div', { class: 'sheet-bg', onclick: e => { if (e.target === bg) bg.remove(); } });
   bg.append(el('div', { class: 'sheet', role: 'dialog', 'aria-label': '나들이 자랑하기' },
     el('h2', { text: '나들이 자랑하기' }),
-    el('p', { class: 'sub', style: 'margin:0', text: '카톡방이나 SNS에 올릴 그림 한 장을 만들어요. 참여자 이름과 위치는 들어가지 않아요.' }),
+    el('p', { class: 'sub', style: 'margin:0', text: '카톡방이나 SNS에 올릴 그림 한 장을 만들어요. 참여자 이름과 위치는 들어가지 않아요. 그림을 누르면 지도로 크게 볼 수 있어요.' }),
     img, opts,
     count ? el('div', { class: 'check' }, cnt, el('label', { for: 'bg-c', text: '참여 인원 수 보이기' })) : null,
     ...card.actions,
@@ -529,6 +529,8 @@ function bragLink(o) {
 // 미리보기 그림 + 저장/공유 버튼 묶음. draw(opts)로 카드를 다시 그려요.
 function bragView(img, getOpts) {
   let blob = null;
+  img.style.cursor = 'zoom-in';
+  img.addEventListener('click', () => { const o = getOpts(); if (o && o.route && o.route.length > 1) openRouteMap(o); });
   const fname = () => `다왔나_${(getOpts()?.name || '나들이').replace(/[\\/:*?"<>|]/g, '')}_자랑카드.png`;
   const save = () => {
     if (!blob) return;
@@ -606,19 +608,34 @@ function viewBragLink() {
     img, ...card.actions,
     el('a', { class: 'btn primary full', href: './?new=1', style: 'margin-top:8px', text: '나도 다왔나로 나들이 만들기' })));
   card.draw(o);
-  if (R.length > 1) setTimeout(() => {
-    const m = L.map(mapEl);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(m);
-    L.polyline(R, { color: '#FFFFFF', weight: 9, opacity: 0.9 }).addTo(m);
-    L.polyline(R, { color: '#E4572E', weight: 5 }).addTo(m);
-    setRouteArrows(m, R);
-    const A = R[0], B = R[R.length - 1], same = dist(A[0], A[1], B[0], B[1]) < 80;
-    const pin = (p, label, fill) => L.circleMarker(p, { radius: 9, color: '#1E3B2F', weight: 3, fillColor: fill, fillOpacity: 1 })
-      .bindTooltip(label, { permanent: true, direction: 'top', className: 'nm', offset: [0, -8] }).addTo(m);
-    if (same) pin(A, '출발·도착', '#F4A259'); else { pin(A, '출발', '#FFFDF8'); pin(B, '도착', '#F4A259'); }
-    m.fitBounds(R, { padding: [30, 30] });
-    addFullBtn(m, mapEl);
-  }, 0);
+  if (R.length > 1) setTimeout(() => { addFullBtn(routeMap(mapEl, R), mapEl); }, 0);
+}
+// 움직이는 지도에 경로와 출발·도착을 그려요
+function routeMap(mapEl, R) {
+  const m = L.map(mapEl);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(m);
+  L.polyline(R, { color: '#FFFFFF', weight: 9, opacity: 0.9 }).addTo(m);
+  L.polyline(R, { color: '#E4572E', weight: 5 }).addTo(m);
+  setRouteArrows(m, R);
+  const A = R[0], B = R[R.length - 1], same = dist(A[0], A[1], B[0], B[1]) < 80;
+  const pin = (p, label, fill) => L.circleMarker(p, { radius: 9, color: '#1E3B2F', weight: 3, fillColor: fill, fillOpacity: 1 })
+    .bindTooltip(label, { permanent: true, direction: 'top', className: 'nm', offset: [0, -8] }).addTo(m);
+  if (same) pin(A, '출발·도착', '#F4A259'); else { pin(A, '출발', '#FFFDF8'); pin(B, '도착', '#F4A259'); }
+  m.fitBounds(R, { padding: [30, 30] });
+  return m;
+}
+// 카드 그림을 누르면 화면 가득 지도로 보여줘요
+function openRouteMap(o) {
+  const R = (o.route || []).filter(q => Array.isArray(q) && Number.isFinite(q[0]) && Number.isFinite(q[1]));
+  if (R.length < 2) return;
+  const mapEl = el('div', { style: 'flex:1;min-height:0' });
+  const box = el('div', { role: 'dialog', 'aria-label': `${o.name} 지도`, style: 'position:fixed;inset:0;z-index:3500;background:var(--ground);display:flex;flex-direction:column;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)' },
+    el('div', { class: 'row', style: 'justify-content:space-between;padding:10px 12px 10px 18px;background:var(--pine);color:#fff' },
+      el('b', { class: 'grow', style: 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis', text: o.name }),
+      el('button', { class: 'btn small', style: 'background:var(--accent);color:var(--pine)', text: '닫기', onclick: () => { box.remove(); document.body.classList.remove('noscroll'); } })),
+    mapEl);
+  document.body.append(box); document.body.classList.add('noscroll');
+  setTimeout(() => routeMap(mapEl, R), 0);
 }
 function trackCard(t, going) {
   const tr = trackLoad(t);
