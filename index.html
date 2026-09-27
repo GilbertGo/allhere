@@ -551,12 +551,15 @@ function bragView(img, getOpts) {
     const a = el('a', { href: URL.createObjectURL(blob), download: fname() }); document.body.append(a); a.click(); a.remove();
     toast('자랑 카드를 사진으로 저장했어요');
   };
+  // 사진 한 장 + 지도 링크를 같이 보내요. 글을 버리는 앱도 있어서 링크는 복사도 해 둬요.
   const share = async () => {
     if (!blob) return;
-    const file = new File([blob], fname(), { type: 'image/png' });
+    const o = getOpts(), file = new File([blob], fname(), { type: 'image/png' });
+    const url = await (linkP || shortLink(o)), text = `[다왔나] ${o.name} 경로 지도\n${url}`;
+    try { navigator.clipboard.writeText(text).catch(() => {}); } catch {}
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      try { await navigator.share({ files: [file], title: getOpts().name, text: `[다왔나] ${getOpts().name}` }); } catch {}
-    } else save();
+      try { await navigator.share({ files: [file], text }); toast('링크도 복사해 뒀어요. 링크가 안 붙었으면 붙여넣으세요'); } catch {}
+    } else { save(); toast('사진을 저장하고 링크를 복사했어요. 카톡방에 사진과 링크를 같이 올리세요'); }
   };
   // 받은 사람이 움직이는 지도에서 경로를 볼 수 있는 링크
   let linkP = null;   // '보내기' 창을 열 때 미리 짧은 링크를 만들어 둬요
@@ -580,9 +583,9 @@ function bragView(img, getOpts) {
         item('지도 링크 보내기', '받은 사람이 지도에서 경로를 크게 보고, 카카오맵 길찾기나 GPX 받기도 할 수 있어요', shareLink),
         item('사진으로 저장·공유하기', '카카오톡 안에서는 사진 저장이 안 돼요. 휴대폰의 기본 브라우저에서 같은 카드를 열어요', openOther)
       ] : [
-        item('사진 공유하기', '카톡, 인스타 등으로 카드 사진을 바로 보내요', share),
+        item('사진 + 지도 링크 보내기', '카톡, 밴드 등으로 카드 사진과 지도 링크를 같이 보내요', share),
         item('사진으로 저장', '휴대폰에 사진으로 저장해요. 안 되면 카드 그림을 길게 눌러 저장하세요', save),
-        item('지도 링크 보내기', '받은 사람이 지도에서 경로를 크게 보고, 카카오맵 길찾기나 GPX 받기도 할 수 있어요', shareLink)
+        item('지도 링크만 보내기', '받은 사람이 지도에서 경로를 크게 보고, 카카오맵 길찾기나 GPX 받기도 할 수 있어요', shareLink)
       ]),
       el('button', { class: 'btn line small', text: '닫기', onclick: () => menu.remove() })));
     document.body.append(menu);
