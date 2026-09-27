@@ -212,11 +212,11 @@ function beep() {
 }
 document.addEventListener('click', () => { try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); actx.resume(); } catch {} }, { once: true });
 
-function roleBar(role) {
+function roleBar(role, who) {
   document.body.dataset.role = role;
-  document.title = role === 'leader' ? '다왔나 · 인솔자' : '다왔나 · 참여자';
+  document.title = who ? `다왔나 · ${who}` : role === 'leader' ? '다왔나 · 인솔자' : '다왔나 · 참여자';
   return el('div', { class: 'role ' + role, role: 'banner' }, el('b', { text: '다왔나' }),
-    el('span', { class: 'who', text: role === 'leader' ? '인솔자 화면' : '참여자 화면' }));
+    el('span', { class: 'who', text: who || (role === 'leader' ? '인솔자 화면' : '참여자 화면') }));
 }
 const ST = {
   help:   { label: '도움 요청',      color: '#B91C1C', bg: '#FDE2E2', fg: '#7F1D1D', rank: 0 },
@@ -356,6 +356,40 @@ function cssImg(v) {   // CSS의 url("data:...")에서 그림을 꺼내요
   return new Promise(res => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = m[1].replace(/\\(.)/g, '$1'); });
 }
 function pathLen(pts) { let d = 0; for (let i = 1; i < pts.length; i++) d += dist(pts[i - 1][0], pts[i - 1][1], pts[i][0], pts[i][1]); return d; }
+// 카드용 지도 조각 (OpenStreetMap). 경로가 판 안에 꽉 차게 확대 단계를 골라요.
+const mercPx = (lat, lng, z) => { const n = 256 * 2 ** z, s = Math.sin(lat * Math.PI / 180); return [(lng + 180) / 360 * n, (0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)) * n]; };
+function loadTile(src) {
+  return new Promise(res => {
+    const im = new Image(), to = setTimeout(() => res(null), 8000);
+    im.crossOrigin = 'anonymous';
+    im.onload = () => { clearTimeout(to); res(im); }; im.onerror = () => { clearTimeout(to); res(null); };
+    im.src = src;
+  });
+}
+async function mapTiles(g, R, px, py, pw, ph) {
+  const pad = 80;   // 지도 조각을 2~3배로 키워 그려요 (글씨가 보이고 경로가 판에 꽉 차게)
+  let z = 17, W0, H0, box, S = 2;
+  for (; z > 3; z--) {
+    const pts = R.map(q => mercPx(q[0], q[1], z)), xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
+    box = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+    if ((box[2] - box[0]) * 2 <= pw - pad * 2 && (box[3] - box[1]) * 2 <= ph - pad * 2) break;
+  }
+  S = Math.max(2, Math.min(3, (pw - pad * 2) / Math.max(box[2] - box[0], 1), (ph - pad * 2) / Math.max(box[3] - box[1], 1)));
+  W0 = pw / S; H0 = ph / S;
+  const wx0 = (box[0] + box[2]) / 2 - W0 / 2, wy0 = (box[1] + box[3]) / 2 - H0 / 2, n = 2 ** z;
+  const jobs = [];
+  for (let tx = Math.floor(wx0 / 256); tx <= Math.floor((wx0 + W0) / 256); tx++)
+    for (let ty = Math.floor(wy0 / 256); ty <= Math.floor((wy0 + H0) / 256); ty++) {
+      if (ty < 0 || ty >= n) continue;
+      const x = ((tx % n) + n) % n;
+      jobs.push(loadTile(`https://tile.openstreetmap.org/${z}/${x}/${ty}.png`).then(im => ({ im, tx, ty })));
+    }
+  const tiles = await Promise.all(jobs);
+  if (!tiles.length || tiles.some(t => !t.im)) return null;
+  g.fillStyle = '#F2EFE9'; g.fillRect(px, py, pw, ph);
+  tiles.forEach(t => g.drawImage(t.im, px + (t.tx * 256 - wx0) * S, py + (t.ty * 256 - wy0) * S, 256 * S + 1, 256 * S + 1));
+  return R.map(q => { const p = mercPx(q[0], q[1], z); return [px + (p[0] - wx0) * S, py + (p[1] - wy0) * S]; });
+}
 async function drawBragCard(o) {
   const W = 1080, H = 1350, F = "'Pretendard Variable',Pretendard,-apple-system,'Apple SD Gothic Neo',sans-serif";
   try { await Promise.all([document.fonts.load(`700 60px ${F}`), document.fonts.load(`500 30px ${F}`)]); } catch {}
@@ -399,14 +433,24 @@ async function drawBragCard(o) {
   if (contour) for (let cx = px - 60; cx < px + pw; cx += 260) for (let cy = py - 40; cy < py + ph; cy += 220) g.drawImage(contour, cx, cy, 260, 220);
   const R = o.route;
   if (R && R.length > 1) {
-    const lat0 = R.reduce((s, q) => s + q[0], 0) / R.length, k = Math.cos(lat0 * Math.PI / 180);
-    const xs = R.map(q => q[1] * k), ys = R.map(q => -q[0]);
-    const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
-    const pad = 90, sc = Math.min((pw - pad * 2) / Math.max(x1 - x0, 1e-9), (ph - pad * 2) / Math.max(y1 - y0, 1e-9));
-    const ox = px + (pw - (x1 - x0) * sc) / 2, oy = py + (ph - (y1 - y0) * sc) / 2;
-    const P = R.map((q, i) => [ox + (xs[i] - x0) * sc, oy + (ys[i] - y0) * sc]);
+    // 진짜 지도 위에 그려요. 지도를 못 받으면(인터넷 끊김 등) 등고선 바탕에 경로 모양만 그려요.
+    let P = o.noMap ? null : await mapTiles(g, R, px, py, pw, ph);
+    const onMap = !!P;
+    if (!P) {
+      const lat0 = R.reduce((s, q) => s + q[0], 0) / R.length, k = Math.cos(lat0 * Math.PI / 180);
+      const xs = R.map(q => q[1] * k), ys = R.map(q => -q[0]);
+      const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+      const pad = 90, sc = Math.min((pw - pad * 2) / Math.max(x1 - x0, 1e-9), (ph - pad * 2) / Math.max(y1 - y0, 1e-9));
+      const ox = px + (pw - (x1 - x0) * sc) / 2, oy = py + (ph - (y1 - y0) * sc) / 2;
+      P = R.map((q, i) => [ox + (xs[i] - x0) * sc, oy + (ys[i] - y0) * sc]);
+    }
     const line = (w, c) => { g.beginPath(); P.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); g.lineWidth = w; g.strokeStyle = c; g.lineCap = 'round'; g.lineJoin = 'round'; g.stroke(); };
-    line(26, 'rgba(255,255,255,.14)'); line(12, ACC);
+    if (onMap) { line(24, '#FFFFFF'); line(12, '#E4572E'); } else { line(26, 'rgba(255,255,255,.14)'); line(12, ACC); }
+    if (onMap) {   // 지도 출처 표시
+      font(500, 20); const at = '© OpenStreetMap', aw = g.measureText(at).width + 20;
+      g.fillStyle = 'rgba(255,255,255,.85)'; g.fillRect(px + pw - aw - 24, py + ph - 38, aw, 28);
+      g.fillStyle = '#555'; g.textBaseline = 'middle'; g.fillText(at, px + pw - aw - 14, py + ph - 24); g.textBaseline = 'alphabetic';
+    }
     const mark = (p, fill, label) => {
       g.beginPath(); g.arc(p[0], p[1], 20, 0, Math.PI * 2); g.fillStyle = fill; g.fill(); g.lineWidth = 7; g.strokeStyle = PINE; g.stroke();
       font(700, 30); const tw = g.measureText(label).width + 32; const lx = Math.min(Math.max(p[0] - tw / 2, px + 16), px + pw - tw - 16), ly = p[1] - 76 < py + 16 ? p[1] + 34 : p[1] - 76;
@@ -498,15 +542,24 @@ function bragView(img, getOpts) {
       try { await navigator.share({ files: [file], title: getOpts().name, text: `[다왔나] ${getOpts().name}` }); } catch {}
     } else save();
   };
-  const actions = IN_KAKAO ? [
+  // 받은 사람이 움직이는 지도에서 경로를 볼 수 있는 링크
+  const shareLink = async () => {
+    const o = getOpts(); if (!o) return;
+    const url = bragLink(o), text = `[다왔나] ${o.name} 경로를 지도에서 보세요`;
+    if (navigator.share && !IN_KAKAO) { try { await navigator.share({ title: o.name, text, url }); return; } catch (e) { if (e && e.name === 'AbortError') return; } }
+    navigator.clipboard.writeText(`${text}\n${url}`).then(() => toast('지도 링크를 복사했어요. 카톡방에 붙여넣으세요'), () => prompt('이 링크를 복사하세요', url));
+  };
+  const linkBtn = el('button', { class: 'btn line full', text: '지도 링크 보내기', onclick: shareLink });
+  const actions = IN_KAKAO ? [linkBtn,
     el('button', { class: 'btn primary full', text: '다른 브라우저에서 열어 저장하기', onclick: () => {
       const o = getOpts(); if (!o) return;
       location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(bragLink(o));
     } }),
     el('p', { class: 'sub', style: 'margin:0', text: '카카오톡 안에서는 사진 저장이 안 돼요. 위 버튼을 누르면 휴대폰의 기본 브라우저(삼성 인터넷, 크롬 등)에서 같은 카드가 열리고, 거기서 저장하거나 공유할 수 있어요.' })
   ] : [
-    el('div', { class: 'two' }, el('button', { class: 'btn line', text: '사진으로 저장', onclick: save }), el('button', { class: 'btn primary', text: '공유하기', onclick: share })),
-    el('p', { class: 'sub', style: 'margin:0', text: '저장이 안 되면 위 그림을 길게 눌러 저장하세요.' })
+    el('div', { class: 'two' }, el('button', { class: 'btn line', text: '사진으로 저장', onclick: save }), el('button', { class: 'btn primary', text: '사진 공유하기', onclick: share })),
+    linkBtn,
+    el('p', { class: 'sub', style: 'margin:0', text: '지도 링크를 받은 사람은 지도에서 경로를 크게 보고, 카카오맵 길찾기나 GPX 받기도 할 수 있어요. 사진 저장이 안 되면 위 그림을 길게 눌러 저장하세요.' })
   ];
   return {
     actions,
@@ -518,18 +571,54 @@ function bragView(img, getOpts) {
   };
 }
 // ?brag=... 링크로 열면 그 카드만 보여줘요 (카톡에서 다른 브라우저로 넘어왔을 때)
+// 받은 사람이 보는 화면: 움직이는 지도에 경로, 카카오맵 길찾기, GPX 받기, 자랑 카드
 function viewBragLink() {
   let o = null;
   try { o = JSON.parse(unb64u(qs.get('brag'))); } catch {}
   if (!o || typeof o.name !== 'string') { location.replace('./'); return; }
+  const R = Array.isArray(o.route) ? o.route.filter(q => Array.isArray(q) && Number.isFinite(q[0]) && Number.isFinite(q[1])) : [];
   const img = el('img', { alt: '나들이 자랑 카드', style: 'width:100%;border-radius:16px;display:block;box-shadow:var(--shadow);background:#EFE9DC;aspect-ratio:4/5' });
   const card = bragView(img, () => o);
+  const mapEl = el('div', { class: 'mapbox', style: 'height:56vh;min-height:320px' });
+  const chip = s => el('span', { class: 'chip', style: s.startsWith('✓') ? 'background:var(--forest-soft);color:var(--forest-ink)' : 'background:var(--soft);color:var(--ink)', text: s });
+  const place = (lbl, time, name) => el('div', {}, el('div', { class: 'sub', text: `${lbl} ${time || ''}` }), el('b', { text: name || '' }));
+  const toGpx = () => {
+    const x = v => String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' })[c]);
+    const gpx = `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="다왔나" xmlns="http://www.topografix.com/GPX/1/1"><trk><name>${x(o.name)}</name><trkseg>` +
+      R.map(q => `<trkpt lat="${q[0]}" lon="${q[1]}"></trkpt>`).join('') + '</trkseg></trk></gpx>';
+    const a = el('a', { href: URL.createObjectURL(new Blob([gpx], { type: 'application/gpx+xml' })), download: `다왔나_${o.name.replace(/[\\/:*?"<>|]/g, '')}.gpx` });
+    document.body.append(a); a.click(); a.remove();
+    toast(IN_KAKAO ? '카카오톡 안에서는 저장이 안 될 수 있어요. 다른 브라우저로 열어 주세요' : 'GPX 파일을 받았어요. 트랭글, 램블러 같은 앱에서 불러오세요');
+  };
   app.replaceChildren(el('div', { class: 'stack' },
-    roleBar('leader'),
-    el('h1', { text: '나들이 자랑 카드' }),
+    roleBar('leader', '나들이 경로'),
+    el('div', {}, el('div', { class: 'sub', text: o.dateText || '' }), el('h1', { text: o.name })),
+    el('div', { class: 'card two' }, place('출발', o.startTime, o.startPlace), place('도착', o.endTime, o.endPlace)),
+    Array.isArray(o.stats) && o.stats.length ? el('div', { class: 'row', style: 'flex-wrap:wrap' }, o.stats.map(s => chip(String(s)))) : null,
+    R.length > 1 ? [
+      mapEl,
+      el('div', { class: 'two' },
+        el('a', { class: 'btn line small', style: 'color:#191919', href: `https://map.kakao.com/link/to/${encodeURIComponent(o.startPlace || '출발')},${R[0][0]},${R[0][1]}`, target: '_blank', rel: 'noopener', text: '카카오맵 길찾기' }),
+        el('button', { class: 'btn line small', text: 'GPX 받기', onclick: toGpx })),
+      el('p', { class: 'sub', style: 'margin:0', text: '카카오맵 길찾기는 출발 지점까지 가는 길을 알려줘요. GPX는 트랭글, 램블러 같은 등산·걷기 앱에 경로를 넣을 때 써요.' })
+    ] : null,
+    el('h2', { style: 'margin-top:8px', text: '자랑 카드' }),
     img, ...card.actions,
-    el('a', { class: 'link', href: './', style: 'align-self:center', text: '다왔나 처음으로' })));
+    el('a', { class: 'btn primary full', href: './?new=1', style: 'margin-top:8px', text: '나도 다왔나로 나들이 만들기' })));
   card.draw(o);
+  if (R.length > 1) setTimeout(() => {
+    const m = L.map(mapEl);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(m);
+    L.polyline(R, { color: '#FFFFFF', weight: 9, opacity: 0.9 }).addTo(m);
+    L.polyline(R, { color: '#E4572E', weight: 5 }).addTo(m);
+    setRouteArrows(m, R);
+    const A = R[0], B = R[R.length - 1], same = dist(A[0], A[1], B[0], B[1]) < 80;
+    const pin = (p, label, fill) => L.circleMarker(p, { radius: 9, color: '#1E3B2F', weight: 3, fillColor: fill, fillOpacity: 1 })
+      .bindTooltip(label, { permanent: true, direction: 'top', className: 'nm', offset: [0, -8] }).addTo(m);
+    if (same) pin(A, '출발·도착', '#F4A259'); else { pin(A, '출발', '#FFFDF8'); pin(B, '도착', '#F4A259'); }
+    m.fitBounds(R, { padding: [30, 30] });
+    addFullBtn(m, mapEl);
+  }, 0);
 }
 function trackCard(t, going) {
   const tr = trackLoad(t);
