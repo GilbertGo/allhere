@@ -103,6 +103,12 @@ body.noscroll{overflow:hidden}
 .bar i{display:block;height:100%;background:var(--forest);border-radius:5px}
 .link{background:none;border:none;color:var(--forest);font-weight:600;padding:10px 0;font-size:15px;text-decoration:underline}
 .center{text-align:center}
+details.more{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:0 16px}
+details.more>summary{list-style:none;cursor:pointer;min-height:52px;display:flex;align-items:center;justify-content:space-between;font-weight:700}
+details.more>summary::-webkit-details-marker{display:none}
+details.more>summary::after{content:'펼치기 ▾';font-size:13px;font-weight:600;color:var(--muted)}
+details.more[open]>summary::after{content:'접기 ▴'}
+details.more>.stack{padding:0 0 16px}
 .leaflet-tooltip.nm{font-family:inherit;font-weight:700;font-size:12px;padding:2px 6px}
 @media (prefers-reduced-motion:no-preference){.toast{animation:up .2s ease-out}@keyframes up{from{transform:translateY(8px);opacity:0}}}
 </style>
@@ -624,7 +630,7 @@ async function viewLeader(key) {
   let lnotice = null;
   const seenMsg = ls.get('seenMsg:' + tripId, {});
   let myPin = ls.get('leaderPins', {})[tripId] || (/^\d{4}$/.test(key) ? key : null);
-  const seenHelp = new Set();
+  const seenHelp = new Set(), openMore = new Set();
   const root = el('div', { class: 'stack' });
   const nav = el('nav', { class: 'tabs', 'aria-label': '화면 전환' });
   app.replaceChildren(root); document.body.append(nav);
@@ -697,6 +703,11 @@ async function viewLeader(key) {
     endTripAll(tripId, trip).catch(() => toast('끝내지 못했어요. 다시 시도해 주세요'));
   }
   function setTab(t) { if (fsActive) toggleFull(fsActive.map, fsActive.box, fsActive.b); tab = t; render(); window.scrollTo(0, 0); }
+  // 접었다 펴는 상자 (화면을 다시 그려도 펼친 상태를 기억해요)
+  function more(k, title, ...kids) {
+    return el('details', { class: 'more', open: openMore.has(k), ontoggle: e => { if (e.target.open) openMore.add(k); else openMore.delete(k); } },
+      el('summary', { text: title }), ...kids);
+  }
   function saveInfo(patch) { return pub(base(tripId) + '/info', Object.assign({}, info, patch)); }
   function noticeCard(Lst) {
     if (!lnotice || !lnotice.text) return null;
@@ -713,17 +724,14 @@ async function viewLeader(key) {
   function planCard() {
     const r = (k, v) => el('div', { class: 'row', style: 'justify-content:space-between;gap:12px' }, el('span', { class: 'sub', text: k }), el('b', { style: 'text-align:right', text: v }));
     const sd = new Date(info.startAt ?? info.meetAt);
-    return el('div', { class: 'card stack', style: 'gap:8px' },
-      el('div', { class: 'row', style: 'justify-content:space-between' }, el('h2', { text: '나들이 계획' }),
-        el('button', { class: 'btn line small', style: 'height:36px;font-size:14px', text: '계획 수정', onclick: openEdit })),
+    return el('div', { class: 'stack', style: 'gap:8px' },
       r('날짜', sd.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })),
       r('출발 집결지', info.startPlace || info.meetPlace),
       r('출발 예정시간', fmtClock(info.startAt ?? info.meetAt)),
       r('종료 예정시간', fmtClock(info.meetAt)),
       r('최종 도착지', info.meetPlace),
       r('인솔자 비밀번호', myPin || '모름 (계획 수정에서 새로 정하세요)'),
-      (info.startLat == null || info.meetLat == null)
-        ? el('button', { class: 'link', style: 'align-self:flex-start;padding:4px 0', text: '지도에서 집결지와 도착지 위치 지정하기', onclick: () => setTab('map') }) : null);
+      el('button', { class: 'btn line small full', text: '계획 수정', onclick: openEdit }));
   }
   function openEdit() {
     const pad = n => String(n).padStart(2, '0');
@@ -776,20 +784,26 @@ async function viewLeader(key) {
       el('div', { class: 'row' }, el('button', { class: 'btn line small grow', text: '닫기', onclick: () => bg.remove() }), saveBtn)));
     document.body.append(bg);
   }
-  function phaseCard(Lst) {
-    if (!isGo(info)) {
-      const n = Lst.filter(m => m.st === 'done').length;
-      return el('div', { class: 'card stack' },
-        el('div', { class: 'row', style: 'justify-content:space-between' }, el('h2', { text: '출발 전' }), el('span', { class: 'sub', text: `집결 ${n} / ${Lst.length}명` })),
-        el('button', { class: 'btn dark full', text: '출발하기', onclick: () => {
-          if (!confirm(`출발할까요? 참여자 화면이 "${info.meetPlace}"까지 가는 화면으로 바뀌어요.`)) return;
-          saveInfo({ phase: 'go', departedAt: serverTimestamp() })
-            .then(() => notify(`출발합니다! 도착지는 ${info.meetPlace}, ${fmtClock(info.meetAt)} 도착 예정이에요`), () => toast('저장하지 못했어요'));
-        } }));
-    }
-    return el('div', { class: 'card row', style: 'justify-content:space-between' },
-      el('div', {}, el('b', { text: '도착지로 이동 중' }), el('div', { class: 'sub', text: info.departedAt ? `${fmtClock(info.departedAt)} 출발` : '출발함' })),
-      el('button', { class: 'link', text: '출발 전으로 되돌리기', onclick: () => { if (confirm('출발 전 상태로 되돌릴까요?')) saveInfo({ phase: 'gather' }); } }));
+  // 어디로, 언제까지 + 출발하기 (참여자 화면의 목표 카드와 같은 모양)
+  function goalCard(Lst) {
+    const going = isGo(info), T = target(info);
+    const n = Lst.filter(m => m.st === 'done').length;
+    return el('div', { class: 'goal' },
+      el('div', { class: 'row', style: 'justify-content:space-between;align-items:flex-start;gap:12px' },
+        el('div', { class: 'grow' }, el('div', { class: 'lbl', text: going ? '도착지' : '출발 집결지' }), el('div', { class: 'place', text: T.place }),
+          el('div', { class: 'lbl', text: `${fmtClock(T.at)} ${going ? '도착 예정' : '출발'}` })),
+        el('div', { style: 'text-align:right' }, el('div', { class: 'lbl', text: going ? '도착까지' : '출발까지' }), el('div', { class: 'big', text: fmtLeft(T.at - now()) }))),
+      el('div', { class: 'dir', style: 'justify-content:space-between' },
+        going
+          ? el('div', {}, el('b', { text: '도착지로 이동 중' }), el('div', { class: 'lbl', text: info.departedAt ? `${fmtClock(info.departedAt)} 출발` : '출발함' }))
+          : el('div', {}, el('b', { text: '출발 전' }), el('div', { class: 'lbl', text: `집결 ${n} / ${Lst.length}명` })),
+        going
+          ? el('button', { class: 'btn small', text: '출발 전으로', onclick: () => { if (confirm('출발 전 상태로 되돌릴까요?')) saveInfo({ phase: 'gather' }); } })
+          : el('button', { class: 'btn small on', style: 'min-width:120px', text: '출발하기', onclick: () => {
+            if (!confirm(`출발할까요? 참여자 화면이 "${info.meetPlace}"까지 가는 화면으로 바뀌어요.`)) return;
+            saveInfo({ phase: 'go', departedAt: serverTimestamp() })
+              .then(() => notify(`출발합니다! 도착지는 ${info.meetPlace}, ${fmtClock(info.meetAt)} 도착 예정이에요`), () => toast('저장하지 못했어요'));
+          } })));
   }
   function openRoute() {
     const bg = el('div', { class: 'sheet-bg', onclick: e => { if (e.target === bg) bg.remove(); } });
@@ -825,17 +839,14 @@ async function viewLeader(key) {
     offs.forEach(m => { if (!seenOff.has(m.id)) { seenOff.add(m.id); beep(); } });
     [...seenOff].forEach(id => { if (!offs.some(m => m.id === id)) seenOff.delete(id); });
 
+    // 맨 위: 제목과 급한 알림 (모든 탭 공통)
     const head = [
       el('div', { class: 'row', style: 'justify-content:space-between;align-items:flex-start' },
-        el('div', { class: 'grow' }, el('div', { class: 'sub', text: `인솔 ${info.leaderName}` }), el('h1', { text: info.name })),
+        el('div', { class: 'grow' }, el('div', { class: 'sub', text: `인솔 ${info.leaderName} · ${L.length}명 참여` }), el('h1', { style: 'font-size:21px', text: info.name })),
         el('button', { class: 'btn line small', text: '전체 알림', onclick: openNotice })),
-      el('div', { class: 'clock' },
-        el('div', {}, el('div', { class: 'lbl', text: isGo(info) ? '도착까지' : '출발까지' }), el('div', { style: 'font-weight:600', text: `${fmtClock(target(info).at)} ${target(info).place}` })),
-        el('div', { class: 'big', text: fmtLeft(target(info).at - now()) })),
-      el('div', { class: 'three' },
-        el('div', { class: 'cnt' }, el('b', { text: c.done }), el('span', { text: lab('done', info) })),
-        el('div', { class: 'cnt' }, el('b', { text: c.moving }), el('span', { text: lab('moving', info) })),
-        el('div', { class: 'cnt' + (c.need ? ' warn' : '') }, el('b', { text: c.need }), el('span', { text: '확인 필요' }))),
+      tab !== 'status' ? el('div', { class: 'row sub', style: 'justify-content:space-between;gap:12px;margin-top:-4px' },
+        el('span', { text: `${isGo(info) ? '도착까지' : '출발까지'} ${fmtLeft(target(info).at - now())}` }),
+        el('span', { style: 'text-align:right', text: `${lab('done', info)} ${c.done} / ${L.length}명` + (c.need ? ` · 확인 필요 ${c.need}명` : '') })) : null,
       helps.map(m => el('div', { class: 'banner alert', role: 'alert' },
         el('b', { text: `${m.name} 님이 도움을 요청했어요` }),
         el('div', { text: detailOf(m, info) }),
@@ -853,23 +864,41 @@ async function viewLeader(key) {
     let body;
     if (tab === 'status') {
       const sorted = L.sort((a, b) => ST[a.st].rank - ST[b.st].rank || a.name.localeCompare(b.name, 'ko'));
+      const invite = big => el('div', { class: 'card stack' },
+        el('h2', { text: big ? '참여 링크를 보내세요' : '참여 링크' }),
+        big ? el('div', { class: 'sub', text: '카톡방에 링크를 보내면, 참여자는 앱 설치 없이 이름만 적고 들어와요.' }) : null,
+        el('div', { class: big ? 'stack' : 'two', style: 'gap:8px' },
+          el('button', { class: 'btn full' + (big ? '' : ' small'), style: 'background:#FEE500;color:#191919', text: big ? '카카오톡으로 참여 링크 보내기' : '카톡으로 보내기', onclick: shareKakao }),
+          el('button', { class: 'btn line full small', text: '링크 복사', onclick: () => copyLink() })));
       body = [
-        planCard(),
-        phaseCard(L),
+        // 1) 어디로, 언제까지 + 출발하기
+        goalCard(L),
+        // 2) 몇 명이 어떤 상태인지
+        el('div', { class: 'three' },
+          el('div', { class: 'cnt' }, el('b', { text: c.done }), el('span', { text: lab('done', info) })),
+          el('div', { class: 'cnt' }, el('b', { text: c.moving }), el('span', { text: lab('moving', info) })),
+          el('div', { class: 'cnt' + (c.need ? ' warn' : '') }, el('b', { text: c.need }), el('span', { text: '확인 필요' }))),
+        (info.startLat == null || info.meetLat == null) ? el('div', { class: 'banner info' },
+          el('b', { text: '집결지와 도착지 위치를 지도에 찍어주세요' }),
+          el('div', { text: '찍어두면 참여자에게 방향과 거리가 보이고, 도착한 사람이 그곳에 모여 표시돼요.' }),
+          el('button', { class: 'btn line small', style: 'align-self:flex-start', text: '지도에서 지정하기', onclick: () => setTab('map') })) : null,
         noticeCard(L),
-        el('div', { class: 'card stack' },
-          el('div', { class: 'row', style: 'justify-content:space-between' }, el('h2', { text: '참여 링크' }), el('span', { class: 'sub', text: `${L.length}명 참여` })),
-          el('button', { class: 'btn full', style: 'background:#FEE500;color:#191919', text: '카카오톡으로 참여 링크 보내기', onclick: shareKakao }),
-          el('button', { class: 'btn line full small', text: '링크 복사', onclick: () => copyLink() }),
-          el('div', { class: 'row', style: 'justify-content:space-between;flex-wrap:wrap' },
-            el('button', { class: 'link', text: '공동 인솔자 링크 복사', onclick: coLeaderLink }),
-            el('a', { class: 'link', href: joinUrl(), target: '_blank', rel: 'noopener', text: '참여자 화면 미리보기' }))),
-        L.length ? el('h2', { style: 'margin-top:4px', text: '확인이 필요한 사람부터' }) : el('p', { class: 'sub center', text: '아직 참여한 사람이 없어요. 참여 링크를 카톡방에 보내세요.' }),
-        sorted.map(m => { const s = ST[m.st]; return el('button', { class: 'member', onclick: () => { focus = m.id; setTab('map'); } },
-          el('span', { class: 'dot', style: `background:${s.color}` }),
-          el('div', { class: 'grow' }, el('div', { class: 'nm', text: m.name }), el('div', { class: 'dt', text: detailOf(m, info) })),
-          el('span', { class: 'chip', style: `background:${s.bg};color:${s.fg}`, text: lab(m.st, info) })); }),
-        el('button', { class: 'link', style: 'margin-top:16px;color:var(--alert-ink)', text: '나들이 끝내기', onclick: endTrip })
+        // 3) 사람 목록 (아직 아무도 없으면 링크 보내기가 먼저)
+        L.length ? [
+          el('h2', { style: 'margin-top:4px', text: '확인이 필요한 사람부터' }),
+          sorted.map(m => { const s = ST[m.st]; return el('button', { class: 'member', onclick: () => { focus = m.id; setTab('map'); } },
+            el('span', { class: 'dot', style: `background:${s.color}` }),
+            el('div', { class: 'grow' }, el('div', { class: 'nm', text: m.name }), el('div', { class: 'dt', text: detailOf(m, info) })),
+            el('span', { class: 'chip', style: `background:${s.bg};color:${s.fg}`, text: lab(m.st, info) })); }),
+          invite(false)
+        ] : invite(true),
+        // 4) 자주 안 쓰는 것은 접어두기
+        more('plan', '나들이 계획 · 수정', planCard()),
+        more('etc', '그 밖의 기능',
+          el('div', { class: 'stack', style: 'gap:0' },
+            el('button', { class: 'link', style: 'align-self:flex-start', text: '공동 인솔자 링크 복사 (부대장님께만)', onclick: coLeaderLink }),
+            el('a', { class: 'link', style: 'align-self:flex-start', href: joinUrl(), target: '_blank', rel: 'noopener', text: '참여자 화면 미리보기' }),
+            el('button', { class: 'link', style: 'align-self:flex-start;color:var(--alert-ink)', text: '나들이 끝내기', onclick: endTrip })))
       ];
     } else if (tab === 'map') {
       body = [
@@ -911,7 +940,7 @@ async function viewLeader(key) {
       ];
     }
 
-    root.replaceChildren(roleBar('leader'), ...head.flat(), ...body.flat().filter(Boolean));
+    root.replaceChildren(roleBar('leader'), ...head.flat().filter(Boolean), ...body.flat(2).filter(Boolean));
     nav.replaceChildren(...[['status', '인원 현황'], ['map', '지도'], ['bus', '탑승 확인']].map(([k, label]) =>
       el('button', { 'aria-current': tab === k ? 'page' : null, onclick: () => setTab(k) }, label)));
     if (tab === 'map') drawMap();
