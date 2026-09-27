@@ -412,7 +412,9 @@ async function drawBragCard(o) {
       font(700, 30); const tw = g.measureText(label).width + 32; const lx = Math.min(Math.max(p[0] - tw / 2, px + 16), px + pw - tw - 16), ly = p[1] - 76 < py + 16 ? p[1] + 34 : p[1] - 76;
       rr(lx, ly, tw, 46, 23); g.fillStyle = '#FFFDF8'; g.fill(); g.fillStyle = PINE; g.textBaseline = 'middle'; g.fillText(label, lx + 16, ly + 24); g.textBaseline = 'alphabetic';
     };
-    mark(P[0], '#FFFDF8', '출발'); mark(P[P.length - 1], ACC, '도착');
+    const A = P[0], B = P[P.length - 1];
+    if (Math.hypot(A[0] - B[0], A[1] - B[1]) < 70) mark(A, ACC, '출발·도착');   // 원점으로 돌아오는 코스
+    else { mark(A, '#FFFDF8', '출발'); mark(B, ACC, '도착'); }
   } else {
     font(700, 52); g.fillStyle = '#FFFDF8'; g.textAlign = 'center';
     g.fillText(fit(o.startPlace, pw - 120), px + pw / 2, py + ph / 2 - 50);
@@ -440,7 +442,6 @@ function openBrag(info, t, count, allDone) {
   const img = el('img', { alt: '나들이 자랑 카드 미리보기', style: 'width:100%;border-radius:16px;display:block;box-shadow:var(--shadow);background:#EFE9DC;aspect-ratio:4/5' });
   const opts = el('div', { class: 'mapbar' });
   const cnt = el('input', { type: 'checkbox', id: 'bg-c', checked: true, onchange: () => { showCount = cnt.checked; draw(); } });
-  let blob = null;
   async function draw() {
     opts.replaceChildren(...[['plan', '예정 경로', plan], ['mine', '내 이동 기록', mine], ['none', '경로 안 보이기', true]].filter(x => x[2])
       .map(([k, label]) => el('button', { class: 'btn small ' + (which === k ? 'dark' : 'line'), text: label, onclick: () => { which = k; draw(); } })));
@@ -452,14 +453,39 @@ function openBrag(info, t, count, allDone) {
     if (which === 'mine') { const tr = trackLoad(t), st = trackStats(tr); if (st.ms > 0) stats.push(dur(st.ms)); }
     else if (info.startAt != null && info.meetAt > info.startAt) stats.push(`${dur(info.meetAt - info.startAt)} 일정`);
     if (showCount && count) stats.push(allDone ? `✓ ${count}명 모두 도착` : `함께한 ${count}명`);
-    const cv = await drawBragCard({
+    cardOpts = {
       name: info.name, dateText: `${sd.getFullYear()}년 ${sd.getMonth() + 1}월 ${sd.getDate()}일 (${'일월화수목금토'[sd.getDay()]})`,
       route, startPlace: info.startPlace || '출발 집결지', endPlace: info.meetPlace || '도착지',
-      startTime: fmtClock(info.startAt ?? info.meetAt), endTime: fmtClock(info.meetAt), stats });
-    img.src = cv.toDataURL('image/png');
-    blob = await new Promise(r => cv.toBlob(r, 'image/png'));
+      startTime: fmtClock(info.startAt ?? info.meetAt), endTime: fmtClock(info.meetAt), stats };
+    await card.draw(cardOpts);
   }
-  const fname = () => `다왔나_${info.name.replace(/[\\/:*?"<>|]/g, '')}_자랑카드.png`;
+  let cardOpts = null;
+  const card = bragView(img, () => cardOpts);
+  const bg = el('div', { class: 'sheet-bg', onclick: e => { if (e.target === bg) bg.remove(); } });
+  bg.append(el('div', { class: 'sheet', role: 'dialog', 'aria-label': '나들이 자랑하기' },
+    el('h2', { text: '나들이 자랑하기' }),
+    el('p', { class: 'sub', style: 'margin:0', text: '카톡방이나 SNS에 올릴 그림 한 장을 만들어요. 참여자 이름과 위치는 들어가지 않아요.' }),
+    img, opts,
+    count ? el('div', { class: 'check' }, cnt, el('label', { for: 'bg-c', text: '참여 인원 수 보이기' })) : null,
+    ...card.actions,
+    el('button', { class: 'btn line small', text: '닫기', onclick: () => bg.remove() })));
+  document.body.append(bg);
+  draw();
+}
+// 카톡 안의 브라우저는 사진 저장·공유를 막아요. 그때는 카드 내용을 링크에 담아 크롬으로 넘겨요.
+const IN_KAKAO = /KAKAOTALK/i.test(navigator.userAgent);
+const b64u = s => btoa(unescape(encodeURIComponent(s))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const unb64u = s => decodeURIComponent(escape(atob(s.replace(/-/g, '+').replace(/_/g, '/'))));
+function bragLink(o) {
+  let r = o.route;
+  if (r && r.length > 150) { const step = Math.ceil(r.length / 150); r = r.filter((_, i) => i % step === 0 || i === r.length - 1); }
+  const small = Object.assign({}, o, { route: r ? r.map(q => [+q[0].toFixed(4), +q[1].toFixed(4)]) : null });
+  return `${location.origin}${location.pathname}?brag=${b64u(JSON.stringify(small))}`;
+}
+// 미리보기 그림 + 저장/공유 버튼 묶음. draw(opts)로 카드를 다시 그려요.
+function bragView(img, getOpts) {
+  let blob = null;
+  const fname = () => `다왔나_${(getOpts()?.name || '나들이').replace(/[\\/:*?"<>|]/g, '')}_자랑카드.png`;
   const save = () => {
     if (!blob) return;
     const a = el('a', { href: URL.createObjectURL(blob), download: fname() }); document.body.append(a); a.click(); a.remove();
@@ -469,20 +495,41 @@ function openBrag(info, t, count, allDone) {
     if (!blob) return;
     const file = new File([blob], fname(), { type: 'image/png' });
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      try { await navigator.share({ files: [file], title: info.name, text: `[다왔나] ${info.name}` }); } catch {}
+      try { await navigator.share({ files: [file], title: getOpts().name, text: `[다왔나] ${getOpts().name}` }); } catch {}
     } else save();
   };
-  const bg = el('div', { class: 'sheet-bg', onclick: e => { if (e.target === bg) bg.remove(); } });
-  bg.append(el('div', { class: 'sheet', role: 'dialog', 'aria-label': '나들이 자랑하기' },
-    el('h2', { text: '나들이 자랑하기' }),
-    el('p', { class: 'sub', style: 'margin:0', text: '카톡방이나 SNS에 올릴 그림 한 장을 만들어요. 참여자 이름과 위치는 들어가지 않아요.' }),
-    img, opts,
-    count ? el('div', { class: 'check' }, cnt, el('label', { for: 'bg-c', text: '참여 인원 수 보이기' })) : null,
+  const actions = IN_KAKAO ? [
+    el('button', { class: 'btn primary full', text: '크롬에서 열어 저장하기', onclick: () => {
+      const o = getOpts(); if (!o) return;
+      location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(bragLink(o));
+    } }),
+    el('p', { class: 'sub', style: 'margin:0', text: '카카오톡 안에서는 사진 저장이 안 돼요. 위 버튼을 누르면 크롬에서 같은 카드가 열리고, 거기서 저장하거나 공유할 수 있어요.' })
+  ] : [
     el('div', { class: 'two' }, el('button', { class: 'btn line', text: '사진으로 저장', onclick: save }), el('button', { class: 'btn primary', text: '공유하기', onclick: share })),
-    el('p', { class: 'sub', style: 'margin:0', text: '저장이 안 되면 위 그림을 길게 눌러 저장하세요.' }),
-    el('button', { class: 'btn line small', text: '닫기', onclick: () => bg.remove() })));
-  document.body.append(bg);
-  draw();
+    el('p', { class: 'sub', style: 'margin:0', text: '저장이 안 되면 위 그림을 길게 눌러 저장하세요.' })
+  ];
+  return {
+    actions,
+    async draw(o) {
+      const cv = await drawBragCard(o);
+      img.src = cv.toDataURL('image/png');
+      blob = await new Promise(r => cv.toBlob(r, 'image/png'));
+    }
+  };
+}
+// ?brag=... 링크로 열면 그 카드만 보여줘요 (카톡에서 크롬으로 넘어왔을 때)
+function viewBragLink() {
+  let o = null;
+  try { o = JSON.parse(unb64u(qs.get('brag'))); } catch {}
+  if (!o || typeof o.name !== 'string') { location.replace('./'); return; }
+  const img = el('img', { alt: '나들이 자랑 카드', style: 'width:100%;border-radius:16px;display:block;box-shadow:var(--shadow);background:#EFE9DC;aspect-ratio:4/5' });
+  const card = bragView(img, () => o);
+  app.replaceChildren(el('div', { class: 'stack' },
+    roleBar('leader'),
+    el('h1', { text: '나들이 자랑 카드' }),
+    img, ...card.actions,
+    el('a', { class: 'link', href: './', style: 'align-self:center', text: '다왔나 처음으로' })));
+  card.draw(o);
 }
 function trackCard(t, going) {
   const tr = trackLoad(t);
@@ -640,6 +687,7 @@ async function endTripAll(t, st) {
 }
 
 function route() {
+  if (qs.get('brag')) return viewBragLink();
   if (!tripId) return viewHome();
   if (qs.get('m') === '1') return viewMember();   // 참여 링크는 항상 참여자 화면
   const leaders = ls.get('leaderKeys', {});
