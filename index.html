@@ -105,6 +105,7 @@ body.noscroll{overflow:hidden}
 .toast{position:fixed;left:16px;right:16px;bottom:calc(84px + env(safe-area-inset-bottom,0px));max-width:488px;margin:0 auto;background:rgba(30,59,47,.96);color:#fff;border-radius:16px;padding:14px 18px;font-size:15px;z-index:2000;box-shadow:0 8px 24px rgba(60,45,20,.2)}
 .sheet-bg{position:fixed;inset:0;background:rgba(20,30,24,.5);z-index:3000;display:flex;align-items:flex-end;justify-content:center}
 .sheet{background:#fff;width:100%;max-width:520px;border-radius:28px 28px 0 0;padding:24px 20px calc(20px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:10px;max-height:85vh;overflow:auto}
+.sheet>*{flex-shrink:0}
 .preset{background:var(--soft);border:none;border-radius:16px;padding:16px;text-align:left;font-size:16px;font-weight:500}
 .check{display:flex;gap:12px;align-items:flex-start}
 .check input{width:24px;height:24px;margin:2px 0 0;accent-color:var(--forest);flex-shrink:0}
@@ -346,6 +347,142 @@ function openMyTracks(onPick) {
       : el('p', { class: 'sub center', text: '이 휴대폰에 남아 있는 이동 기록이 없어요.' }),
     el('button', { class: 'btn line small', text: '닫기', onclick: () => bg.remove() })));
   document.body.append(bg);
+}
+// ---------- 나들이 자랑 카드 (그림 한 장) ----------
+// 참여자 이름·위치는 넣지 않아요. 지도 대신 경로 모양만 그려요.
+function cssImg(v) {   // CSS의 url("data:...")에서 그림을 꺼내요
+  const m = /url\("((?:[^"\\]|\\.)*)"\)/.exec(v || '');
+  if (!m) return Promise.resolve(null);
+  return new Promise(res => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = m[1].replace(/\\(.)/g, '$1'); });
+}
+function pathLen(pts) { let d = 0; for (let i = 1; i < pts.length; i++) d += dist(pts[i - 1][0], pts[i - 1][1], pts[i][0], pts[i][1]); return d; }
+async function drawBragCard(o) {
+  const W = 1080, H = 1350, F = "'Pretendard Variable',Pretendard,-apple-system,'Apple SD Gothic Neo',sans-serif";
+  try { await Promise.all([document.fonts.load(`700 60px ${F}`), document.fonts.load(`500 30px ${F}`)]); } catch {}
+  const [hills, contour] = await Promise.all([cssImg(getComputedStyle(document.body).backgroundImage),
+    cssImg(getComputedStyle(document.documentElement).getPropertyValue('--contour'))]);
+  const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  const g = cv.getContext('2d');
+  const PINE = '#1E3B2F', ACC = '#F4A259', INK = '#1F2B24', MUTED = '#6B6A5E';
+  const rr = (x, y, w, h, r) => { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); };
+  const font = (w, s) => { g.font = `${w} ${s}px ${F}`; };
+  const fit = (text, maxW) => { if (g.measureText(text).width <= maxW) return text; let s = text; while (s.length > 1 && g.measureText(s + '…').width > maxW) s = s.slice(0, -1); return s + '…'; };
+  const wrap = (text, maxW, maxLines) => {
+    const lines = []; let cur = '';
+    for (const ch of text) { if (g.measureText(cur + ch).width > maxW && cur) { lines.push(cur); cur = ch.trimStart(); } else cur += ch; }
+    if (cur) lines.push(cur);
+    if (lines.length > maxLines) {
+      lines.length = maxLines; let s = lines[maxLines - 1];
+      while (s.length > 1 && g.measureText(s + '…').width > maxW) s = s.slice(0, -1);
+      lines[maxLines - 1] = s + '…';
+    }
+    return lines;
+  };
+  // 바탕 + 맨 위 풍경
+  g.fillStyle = '#F4F0E6'; g.fillRect(0, 0, W, H);
+  if (hills) g.drawImage(hills, 0, 0, W, W * 320 / 600);
+  // 로고
+  rr(72, 64, 72, 72, 18); g.fillStyle = PINE; g.fill();
+  g.fillStyle = ACC; g.beginPath(); g.moveTo(108, 76); g.bezierCurveTo(89, 76, 84, 90, 84, 97); g.bezierCurveTo(84, 110, 108, 126, 108, 126); g.bezierCurveTo(108, 126, 132, 110, 132, 97); g.bezierCurveTo(132, 90, 127, 76, 108, 76); g.fill();
+  g.strokeStyle = PINE; g.lineWidth = 6; g.lineCap = 'round'; g.lineJoin = 'round'; g.beginPath(); g.moveTo(98, 97); g.lineTo(105, 104); g.lineTo(119, 90); g.stroke();
+  font(700, 38); g.fillStyle = PINE; g.textBaseline = 'middle'; g.fillText('다왔나', 162, 101);
+  // 제목, 날짜
+  g.textBaseline = 'alphabetic';
+  font(700, 76); g.fillStyle = INK;
+  const tl = wrap(o.name, W - 144, 2); tl.forEach((s, i) => g.fillText(s, 72, 330 + i * 92));
+  let y = 330 + (tl.length - 1) * 92 + 64;
+  font(500, 36); g.fillStyle = MUTED; g.fillText(o.dateText, 72, y);
+  // 경로 판
+  const px = 72, py = Math.max(y + 48, 520), pw = W - 144, ph = 1040 - py;
+  rr(px, py, pw, ph, 48); g.fillStyle = PINE; g.fill();
+  g.save(); rr(px, py, pw, ph, 48); g.clip();
+  if (contour) for (let cx = px - 60; cx < px + pw; cx += 260) for (let cy = py - 40; cy < py + ph; cy += 220) g.drawImage(contour, cx, cy, 260, 220);
+  const R = o.route;
+  if (R && R.length > 1) {
+    const lat0 = R.reduce((s, q) => s + q[0], 0) / R.length, k = Math.cos(lat0 * Math.PI / 180);
+    const xs = R.map(q => q[1] * k), ys = R.map(q => -q[0]);
+    const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+    const pad = 90, sc = Math.min((pw - pad * 2) / Math.max(x1 - x0, 1e-9), (ph - pad * 2) / Math.max(y1 - y0, 1e-9));
+    const ox = px + (pw - (x1 - x0) * sc) / 2, oy = py + (ph - (y1 - y0) * sc) / 2;
+    const P = R.map((q, i) => [ox + (xs[i] - x0) * sc, oy + (ys[i] - y0) * sc]);
+    const line = (w, c) => { g.beginPath(); P.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); g.lineWidth = w; g.strokeStyle = c; g.lineCap = 'round'; g.lineJoin = 'round'; g.stroke(); };
+    line(26, 'rgba(255,255,255,.14)'); line(12, ACC);
+    const mark = (p, fill, label) => {
+      g.beginPath(); g.arc(p[0], p[1], 20, 0, Math.PI * 2); g.fillStyle = fill; g.fill(); g.lineWidth = 7; g.strokeStyle = PINE; g.stroke();
+      font(700, 30); const tw = g.measureText(label).width + 32; const lx = Math.min(Math.max(p[0] - tw / 2, px + 16), px + pw - tw - 16), ly = p[1] - 76 < py + 16 ? p[1] + 34 : p[1] - 76;
+      rr(lx, ly, tw, 46, 23); g.fillStyle = '#FFFDF8'; g.fill(); g.fillStyle = PINE; g.textBaseline = 'middle'; g.fillText(label, lx + 16, ly + 24); g.textBaseline = 'alphabetic';
+    };
+    mark(P[0], '#FFFDF8', '출발'); mark(P[P.length - 1], ACC, '도착');
+  } else {
+    font(700, 52); g.fillStyle = '#FFFDF8'; g.textAlign = 'center';
+    g.fillText(fit(o.startPlace, pw - 120), px + pw / 2, py + ph / 2 - 50);
+    g.fillStyle = ACC; g.fillText('↓', px + pw / 2, py + ph / 2 + 16);
+    g.fillStyle = '#FFFDF8'; g.fillText(fit(o.endPlace, pw - 120), px + pw / 2, py + ph / 2 + 86); g.textAlign = 'left';
+  }
+  g.restore();
+  // 출발 / 도착
+  const col = (x, lbl, time, place) => {
+    font(600, 28); g.fillStyle = MUTED; g.fillText(`${lbl} ${time}`, x, 1100);
+    font(700, 38); g.fillStyle = INK; g.fillText(fit(place, pw / 2 - 24), x, 1150);
+  };
+  col(72, '출발', o.startTime, o.startPlace); col(72 + pw / 2 + 12, '도착', o.endTime, o.endPlace);
+  // 숫자 칩
+  let cx = 72; font(700, 30);
+  o.stats.forEach(s => { const w = g.measureText(s).width + 44; rr(cx, 1196, w, 60, 30); g.fillStyle = s.startsWith('✓') ? '#E1EEE4' : '#EFE9DC'; g.fill(); g.fillStyle = s.startsWith('✓') ? '#1B4332' : INK; g.textBaseline = 'middle'; g.fillText(s, cx + 22, 1227); g.textBaseline = 'alphabetic'; cx += w + 12; });
+  font(500, 26); g.fillStyle = '#9A9585'; g.textAlign = 'center'; g.fillText('다왔나로 만든 나들이', W / 2, 1310); g.textAlign = 'left';
+  return cv;
+}
+// info: 나들이 계획, t: 나들이 ID, count: 참여 인원, allDone: 모두 도착했는지
+function openBrag(info, t, count, allDone) {
+  const plan = hasRoute(info) ? info.route : null;
+  const mine = trackLoad(t).length > 1 ? trackLoad(t).map(q => [q[0], q[1]]) : null;
+  let which = mine && isGo(info) ? 'mine' : plan ? 'plan' : mine ? 'mine' : 'none', showCount = true;
+  const img = el('img', { alt: '나들이 자랑 카드 미리보기', style: 'width:100%;border-radius:16px;display:block;box-shadow:var(--shadow);background:#EFE9DC;aspect-ratio:4/5' });
+  const opts = el('div', { class: 'mapbar' });
+  const cnt = el('input', { type: 'checkbox', id: 'bg-c', checked: true, onchange: () => { showCount = cnt.checked; draw(); } });
+  let blob = null;
+  async function draw() {
+    opts.replaceChildren(...[['plan', '예정 경로', plan], ['mine', '내 이동 기록', mine], ['none', '경로 안 보이기', true]].filter(x => x[2])
+      .map(([k, label]) => el('button', { class: 'btn small ' + (which === k ? 'dark' : 'line'), text: label, onclick: () => { which = k; draw(); } })));
+    const route = which === 'plan' ? plan : which === 'mine' ? mine : null;
+    const sd = new Date(info.startAt ?? info.meetAt);
+    const stats = [];
+    if (route) stats.push(`${which === 'mine' ? '걸은 거리' : '거리'} ${fmtDist(pathLen(route))}`);
+    const dur = ms => fmtDur(ms).replace(/ 0분$/, '');
+    if (which === 'mine') { const tr = trackLoad(t), st = trackStats(tr); if (st.ms > 0) stats.push(dur(st.ms)); }
+    else if (info.startAt != null && info.meetAt > info.startAt) stats.push(`${dur(info.meetAt - info.startAt)} 일정`);
+    if (showCount && count) stats.push(allDone ? `✓ ${count}명 모두 도착` : `함께한 ${count}명`);
+    const cv = await drawBragCard({
+      name: info.name, dateText: `${sd.getFullYear()}년 ${sd.getMonth() + 1}월 ${sd.getDate()}일 (${'일월화수목금토'[sd.getDay()]})`,
+      route, startPlace: info.startPlace || '출발 집결지', endPlace: info.meetPlace || '도착지',
+      startTime: fmtClock(info.startAt ?? info.meetAt), endTime: fmtClock(info.meetAt), stats });
+    img.src = cv.toDataURL('image/png');
+    blob = await new Promise(r => cv.toBlob(r, 'image/png'));
+  }
+  const fname = () => `다왔나_${info.name.replace(/[\\/:*?"<>|]/g, '')}_자랑카드.png`;
+  const save = () => {
+    if (!blob) return;
+    const a = el('a', { href: URL.createObjectURL(blob), download: fname() }); document.body.append(a); a.click(); a.remove();
+    toast('자랑 카드를 사진으로 저장했어요');
+  };
+  const share = async () => {
+    if (!blob) return;
+    const file = new File([blob], fname(), { type: 'image/png' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file], title: info.name, text: `[다왔나] ${info.name}` }); } catch {}
+    } else save();
+  };
+  const bg = el('div', { class: 'sheet-bg', onclick: e => { if (e.target === bg) bg.remove(); } });
+  bg.append(el('div', { class: 'sheet', role: 'dialog', 'aria-label': '나들이 자랑하기' },
+    el('h2', { text: '나들이 자랑하기' }),
+    el('p', { class: 'sub', style: 'margin:0', text: '카톡방이나 SNS에 올릴 그림 한 장을 만들어요. 참여자 이름과 위치는 들어가지 않아요.' }),
+    img, opts,
+    count ? el('div', { class: 'check' }, cnt, el('label', { for: 'bg-c', text: '참여 인원 수 보이기' })) : null,
+    el('div', { class: 'two' }, el('button', { class: 'btn line', text: '사진으로 저장', onclick: save }), el('button', { class: 'btn primary', text: '공유하기', onclick: share })),
+    el('p', { class: 'sub', style: 'margin:0', text: '저장이 안 되면 위 그림을 길게 눌러 저장하세요.' }),
+    el('button', { class: 'btn line small', text: '닫기', onclick: () => bg.remove() })));
+  document.body.append(bg);
+  draw();
 }
 function trackCard(t, going) {
   const tr = trackLoad(t);
@@ -975,6 +1112,7 @@ async function viewLeader(key) {
             el('span', { class: 'chip', style: `background:${s.bg};color:${s.fg}`, text: lab(m.st, info) })); }),
           invite(false)
         ] : invite(true),
+        el('button', { class: 'btn line full', text: '나들이 자랑 카드 만들기', onclick: () => openBrag(info, tripId, L.length, isGo(info) && L.length > 0 && L.every(m => m.st === 'done')) }),
         // 4) 자주 안 쓰는 것은 접어두기
         more('plan', '나들이 계획 · 수정', planCard()),
         more('etc', '그 밖의 기능',
