@@ -520,6 +520,20 @@ function openBrag(info, t, count, allDone) {
 const IN_KAKAO = /KAKAOTALK/i.test(navigator.userAgent);
 const b64u = s => btoa(unescape(encodeURIComponent(s))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 const unb64u = s => decodeURIComponent(escape(atob(s.replace(/-/g, '+').replace(/_/g, '/'))));
+// 짧은 링크: 카드 내용을 서버(allhere/v1/share/{번호})에 저장하고 링크에는 번호만 넣어요.
+// 시험용 공개 서버라 며칠 뒤 사라질 수 있어요. 저장에 실패하면 긴 링크를 써요.
+const shortCache = {};
+async function shortLink(o) {
+  const long = bragLink(o), key = long;
+  if (shortCache[key]) return shortCache[key];
+  try {
+    for (let i = 0; i < 50 && !connected; i++) await new Promise(r => setTimeout(r, 100));
+    if (!connected) return long;
+    const id = rid(8), payload = JSON.parse(unb64u(new URL(long).searchParams.get('brag')));
+    await pub(`allhere/v1/share/${id}`, payload);
+    return (shortCache[key] = `${location.origin}${location.pathname}?s=${id}`);
+  } catch { return long; }
+}
 function bragLink(o) {
   let r = o.route;
   if (r && r.length > 150) { const step = Math.ceil(r.length / 150); r = r.filter((_, i) => i % step === 0 || i === r.length - 1); }
@@ -545,19 +559,21 @@ function bragView(img, getOpts) {
     } else save();
   };
   // 받은 사람이 움직이는 지도에서 경로를 볼 수 있는 링크
+  let linkP = null;   // '보내기' 창을 열 때 미리 짧은 링크를 만들어 둬요
   const shareLink = async () => {
     const o = getOpts(); if (!o) return;
-    const url = bragLink(o), text = `[다왔나] ${o.name} 경로를 지도에서 보세요`;
-    if (navigator.share && !IN_KAKAO) { try { await navigator.share({ title: o.name, text, url }); return; } catch (e) { if (e && e.name === 'AbortError') return; } }
+    const url = await (linkP || shortLink(o)), text = `[다왔나] ${o.name} 경로 지도`;
+    if (navigator.share && !IN_KAKAO) { try { await navigator.share({ text, url }); return; } catch (e) { if (e && e.name === 'AbortError') return; } }
     navigator.clipboard.writeText(`${text}\n${url}`).then(() => toast('지도 링크를 복사했어요. 카톡방에 붙여넣으세요'), () => prompt('이 링크를 복사하세요', url));
   };
-  const openOther = () => { const o = getOpts(); if (o) location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(bragLink(o)); };
+  const openOther = async () => { const o = getOpts(); if (o) location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(await (linkP || shortLink(o))); };
   // 버튼은 '보내기' 하나만 보이고, 누르면 방법을 골라요
   const item = (title, desc, fn) => el('button', { class: 'preset', onclick: () => { menu.remove(); fn(); } },
     el('b', { style: 'display:block', text: title }), el('span', { class: 'sub', text: desc }));
   let menu = null;
   const openMenu = () => {
-    menu = el('div', { class: 'sheet-bg', style: 'z-index:3200', onclick: e => { if (e.target === menu) menu.remove(); } });
+    const o = getOpts(); linkP = o ? shortLink(o) : null;
+    menu =el('div', { class: 'sheet-bg', style: 'z-index:3200', onclick: e => { if (e.target === menu) menu.remove(); } });
     menu.append(el('div', { class: 'sheet', role: 'dialog', 'aria-label': '보내기' },
       el('h2', { text: '어떻게 보낼까요?' }),
       ...(IN_KAKAO ? [
@@ -583,10 +599,36 @@ function bragView(img, getOpts) {
 }
 // ?brag=... 링크로 열면 그 카드만 보여줘요 (카톡에서 다른 브라우저로 넘어왔을 때)
 // 받은 사람이 보는 화면: 움직이는 지도에 경로, 카카오맵 길찾기, GPX 받기, 자랑 카드
-function viewBragLink() {
-  let o = null;
-  try { o = JSON.parse(unb64u(qs.get('brag'))); } catch {}
+// ?s=번호 짧은 링크: 서버에서 카드 내용을 받아 와서 보여줘요
+function viewShareLink() {
+  const id = qs.get('s');
+  if (!/^[a-z0-9]{6,16}$/.test(id || '')) { location.replace('./'); return; }
+  app.replaceChildren(el('div', { class: 'stack' }, roleBar('leader', '나들이 경로'), el('p', { class: 'sub center', style: 'margin-top:40px', text: '경로를 불러오는 중이에요…' })));
+  const topic = `allhere/v1/share/${id}`;
+  let done = false;
+  client.on('message', (t, buf) => {
+    if (t !== topic || done) return;
+    let v = null; try { v = JSON.parse(buf.toString()); } catch {}
+    if (!v || typeof v.name !== 'string') return;
+    done = true; client.unsubscribe(topic); viewBragLink(v);
+  });
+  subTopic = topic; if (connected) client.subscribe(topic, { qos: 1 });
+  setTimeout(() => {
+    if (done) return;
+    app.replaceChildren(el('div', { class: 'stack' }, roleBar('leader', '나들이 경로'),
+      el('div', { class: 'banner info', style: 'margin-top:24px' }, el('b', { text: '경로를 찾지 못했어요' }),
+        el('div', { text: '링크가 오래되어 지워졌거나 인터넷 연결이 약해요. 보낸 사람에게 링크를 다시 받아 보세요.' })),
+      el('a', { class: 'btn primary full', href: './?new=1', text: '다왔나로 나들이 만들기' })));
+  }, 12000);
+}
+function viewBragLink(given) {
+  let o = given || null;
+  if (!o) try { o = JSON.parse(unb64u(qs.get('brag'))); } catch {}
   if (!o || typeof o.name !== 'string') { location.replace('./'); return; }
+  // 서버나 링크에서 온 값은 글자로만 써요
+  const s = (v, n) => typeof v === 'string' ? v.slice(0, n) : '';
+  o = { name: s(o.name, 40), dateText: s(o.dateText, 30), startPlace: s(o.startPlace, 30), endPlace: s(o.endPlace, 30), startTime: s(o.startTime, 5), endTime: s(o.endTime, 5),
+    stats: Array.isArray(o.stats) ? o.stats.slice(0, 4).map(x => s(x, 30)) : [], route: Array.isArray(o.route) ? o.route.slice(0, 400) : null };
   const R = Array.isArray(o.route) ? o.route.filter(q => Array.isArray(q) && Number.isFinite(q[0]) && Number.isFinite(q[1])) : [];
   const img = el('img', { alt: '나들이 자랑 카드', style: 'width:100%;border-radius:16px;display:block;box-shadow:var(--shadow);background:#EFE9DC;aspect-ratio:4/5' });
   const card = bragView(img, () => o);
@@ -802,6 +844,7 @@ async function endTripAll(t, st) {
 }
 
 function route() {
+  if (qs.get('s')) return viewShareLink();
   if (qs.get('brag')) return viewBragLink();
   if (!tripId) return viewHome();
   if (qs.get('m') === '1') return viewMember();   // 참여 링크는 항상 참여자 화면
