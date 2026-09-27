@@ -420,7 +420,7 @@ function cleanInfo(v) {
   if (!v || typeof v !== 'object') return null;
   return { name: str(v.name, 40), leaderName: str(v.leaderName, 20), meetAt: num(v.meetAt) || Date.now(), meetPlace: str(v.meetPlace, 30) || '집결지', meetLat: num(v.meetLat), meetLng: num(v.meetLng),
     startAt: num(v.startAt), startPlace: str(v.startPlace, 30) || '출발 집결지', startLat: num(v.startLat), startLng: num(v.startLng),
-    phase: v.phase === 'go' ? 'go' : 'gather', pinHash: str(v.pinHash, 64), departedAt: num(v.departedAt),
+    phase: v.phase === 'go' ? 'go' : 'gather', pinHash: str(v.pinHash, 64), leaderKeyHash: str(v.leaderKeyHash, 64), departedAt: num(v.departedAt),
     route: Array.isArray(v.route) ? v.route.filter(q => Array.isArray(q) && Number.isFinite(q[0]) && Number.isFinite(q[1])).slice(0, 500).map(q => [q[0], q[1]]) : null };
 }
 // 산행 하나를 구독하고, 바뀔 때마다 cb(state) 호출. info가 4초 넘게 안 오면 없는 산행으로 봐요.
@@ -580,7 +580,8 @@ function viewHome() {
     btn.disabled = true; btn.textContent = '만드는 중…';
     try {
       const t = rid(10), key = rid(24);
-      await pub(base(t) + '/info', { name, leaderName, startAt, startPlace: place || '출발 집결지', meetAt, meetPlace: endPlace || '도착지', phase: 'gather', ...geo(), pinHash: await pinHash(t, pin) });
+      const pinDigest = await pinHash(t, pin), leaderKeyDigest = await pinHash(t, key);
+      await pub(base(t) + '/info', { name, leaderName, startAt, startPlace: place || '출발 집결지', meetAt, meetPlace: endPlace || '도착지', phase: 'gather', ...geo(), pinHash: pinDigest, leaderKeyHash: leaderKeyDigest });
       const keys = ls.get('leaderKeys', {}); keys[t] = key; ls.set('leaderKeys', keys);
       ls.set('leaderName', leaderName);
       const pins = ls.get('leaderPins', {}); pins[t] = pin; ls.set('leaderPins', pins);
@@ -621,9 +622,6 @@ function viewHome() {
 // 2) 인솔자 화면
 // =====================================================================
 async function viewLeader(key) {
-  const keys = ls.get('leaderKeys', {}); keys[tripId] = key; ls.set('leaderKeys', keys);
-  if (keyParam) history.replaceState(null, '', `?t=${tripId}`);
-
   let info = null, members = {}, boarded = {}, tab = 'status', focus = null;
   let map = null, layer = null, meetMarker = null, pickMode = null, myMarker = null, myPos = null, myWatch = null, fitted = false, drawMode = false, drawPts = [], lastLeaderSent = null, lastLeaderAt = 0;
   const seenOff = new Set(), beepedMsg = new Set();
@@ -637,8 +635,12 @@ async function viewLeader(key) {
 
   const mapBox = el('div', { id: 'map' });
 
-  const trip = watchTrip(tripId, st => {
-    if (st.info === undefined) return;
+  let leaderVerified = false, leaderVerifying = false;
+  const savedKeys = ls.get('leaderKeys', {});
+  const legacyKey = !keyParam ? savedKeys[tripId] : null;
+  const credentials = (keyParam ? [key] : [key, ls.get('leaderPins', {})[tripId]])
+    .filter((value, index, values) => typeof value === 'string' && value && values.indexOf(value) === index);
+  const renderTrip = st => {
     if (!st.info) { root.replaceChildren(roleBar('leader'), el('div', { class: 'banner info' }, el('b', { text: '끝난 나들이예요' }), el('a', { class: 'btn line small', href: './', text: '새 단체 나들이 만들기' }))); nav.remove(); return; }
     info = st.info; members = st.members; boarded = st.boarded; lnotice = st.notice;
     savePlan(tripId, info);
@@ -646,6 +648,40 @@ async function viewLeader(key) {
       if (m.status === 'help' && !seenHelp.has(id + m.statusTs)) { seenHelp.add(id + m.statusTs); beep(); }
     }
     render();
+  };
+  const trip = watchTrip(tripId, st => {
+    if (st.info === undefined) return;
+    if (st.info && !leaderVerified) {
+      if (leaderVerifying) return;
+      leaderVerifying = true;
+      Promise.all(credentials.map(async credential => ({ credential, hash: await pinHash(tripId, credential) })))
+        .then(async matches => {
+          const accepted = matches.find(({ hash }) => hash === st.info?.leaderKeyHash)
+            || (!keyParam ? (() => {
+              const pinMatch = matches.find(({ hash }) => hash === st.info?.pinHash);
+              return pinMatch ? { ...pinMatch, migrate: true, rotate: true } : null;
+            })() : null)
+            || (!st.info.leaderKeyHash && legacyKey ? { credential: legacyKey, migrate: true } : null);
+          if (!accepted) { location.replace(`?t=${tripId}&m=1`); return; }
+          if (accepted.migrate) {
+            try {
+              const leaderKey = accepted.rotate ? rid(24) : accepted.credential;
+              const leaderKeyHash = await pinHash(tripId, leaderKey);
+              await pub(base(tripId) + '/info', Object.assign({}, st.info, { leaderKeyHash }));
+              const keys = ls.get('leaderKeys', {}); keys[tripId] = leaderKey; ls.set('leaderKeys', keys);
+              leaderVerified = true; renderTrip(st);
+            } catch { location.replace(`?t=${tripId}&m=1`); }
+            return;
+          }
+          leaderVerified = true;
+          const keys = ls.get('leaderKeys', {}); keys[tripId] = accepted.credential; ls.set('leaderKeys', keys);
+          if (keyParam) history.replaceState(null, '', `?t=${tripId}`);
+          renderTrip(st);
+        })
+        .catch(() => location.replace(`?t=${tripId}&m=1`));
+      return;
+    }
+    renderTrip(st);
   });
   setInterval(() => info && render(), 30000);
 
