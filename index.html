@@ -653,7 +653,59 @@ route();
 // =====================================================================
 // 1) 산행 만들기
 // =====================================================================
+// 이 휴대폰에 남아 있는 지난 나들이 (내가 만든 계획 + 참여해서 남긴 이동 기록)
+function pastTrips() {
+  const byT = {}, trips = ls.get('myTrips', []);
+  const at = (t, fallback) => (trips.find(m => m.t === t) || {}).meetAt ?? fallback;
+  const hmTs = (base, hm, plusDay) => { const d = new Date(base); const [h, m] = (hm || '').split(':').map(Number); if (Number.isFinite(h)) d.setHours(h, m || 0, 0, 0); return d.getTime() + (plusDay ? 864e5 : 0); };
+  for (const pl of ls.get('plans', [])) {
+    const tr = trackLoad(pl.id), day = at(pl.id, tr.length ? tr[0][2] : pl.savedAt);
+    const startAt = hmTs(day, pl.startTime), end0 = hmTs(day, pl.endTime);
+    byT[pl.id] = { t: pl.id, info: { name: pl.name, startPlace: pl.startPlace, meetPlace: pl.meetPlace, startAt, meetAt: end0 > startAt ? end0 : hmTs(day, pl.endTime, true), route: pl.route, phase: 'go' } };
+  }
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i); if (!k || !k.startsWith('track:')) continue;
+    const t = k.slice(6), tr = trackLoad(t); if (byT[t] || tr.length < 2) continue;
+    byT[t] = { t, info: { name: ls.get('trackName:' + t, '나들이'), startPlace: '출발 지점', meetPlace: '도착 지점', startAt: tr[0][2], meetAt: tr[tr.length - 1][2], route: null, phase: 'go' } };
+  }
+  return Object.values(byT).sort((a, b) => b.info.startAt - a.info.startAt);
+}
+function openPastTrips() {
+  const list = pastTrips();
+  const bg = el('div', { class: 'sheet-bg', onclick: e => { if (e.target === bg) bg.remove(); } });
+  bg.append(el('div', { class: 'sheet', role: 'dialog', 'aria-label': '다녀온 나들이 자랑하기' },
+    el('h2', { text: '어떤 나들이를 자랑할까요?' }),
+    el('p', { class: 'sub', style: 'margin:0', text: '이 휴대폰으로 만들었거나 다녀온 나들이예요. 고르면 자랑 카드를 만들어요.' }),
+    list.length ? list.map(x => { const d = new Date(x.info.startAt), tr = trackLoad(x.t);
+      return el('button', { class: 'member', onclick: () => { bg.remove(); openBrag(x.info, x.t, 0, false); } },
+        el('div', { class: 'grow' }, el('div', { class: 'nm', text: x.info.name }),
+          el('div', { class: 'dt', text: `${d.getMonth() + 1}월 ${d.getDate()}일` + (hasRoute(x.info) ? ' · 예정 경로' : '') + (tr.length > 1 ? ` · 이동 기록 ${fmtDist(trackStats(tr).d)}` : '') })),
+        el('span', { class: 'chip', style: 'background:var(--forest-soft);color:var(--forest-ink)', text: '자랑하기' })); })
+      : el('p', { class: 'sub center', text: '아직 이 휴대폰에 남은 나들이가 없어요. 나들이를 만들거나 참여하면 여기에 쌓여요.' }),
+    el('button', { class: 'btn line small', text: '닫기', onclick: () => bg.remove() })));
+  document.body.append(bg);
+}
+// 첫 화면: 새 나들이 만들기 / 다녀온 나들이 자랑하기
+function viewLanding() {
+  const mine = ls.get('myTrips', []);
+  const bigBtn = (title, desc, cls, onclick) => el('button', { class: 'card', style: 'border:none;text-align:left;display:flex;flex-direction:column;gap:6px;padding:22px 20px;cursor:pointer' + (cls ? ';background:var(--pine);color:#fff' : ''), onclick },
+    el('b', { style: 'font-size:21px;letter-spacing:-.02em' + (cls ? ';color:var(--accent)' : ';color:var(--pine)'), text: title }),
+    el('span', { style: 'font-size:15px;' + (cls ? 'color:#D5DED7' : 'color:var(--muted)'), text: desc }));
+  app.replaceChildren(el('div', { class: 'stack' },
+    roleBar('leader'),
+    el('div', { style: 'padding:28px 0 36px' },
+      el('h1', { style: 'font-size:34px', text: '다왔나' }),
+      el('p', { class: 'sub', style: 'margin:6px 0 0;font-size:16px;color:#4A5249', text: '단체 나들이, 다 왔나 한눈에' })),
+    bigBtn('새 나들이 만들기', '계획을 세우고 참여 링크를 카톡방에 보내요', true, () => { location.href = '?new=1'; }),
+    bigBtn('다녀온 나들이 자랑하기', '지난 나들이를 예쁜 카드 한 장으로 만들어 올려요', false, openPastTrips),
+    mine.length ? el('div', { class: 'stack', style: 'margin-top:16px' },
+      el('h2', { text: '내가 만든 나들이' }),
+      mine.map(m => el('a', { class: 'member', href: `?t=${m.t}`, style: 'text-decoration:none;color:inherit' },
+        el('div', { class: 'grow' }, el('div', { class: 'nm', text: m.name }), el('div', { class: 'dt', text: new Date(m.meetAt).toLocaleString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' 집결' }))))
+    ) : null));
+}
 function viewHome() {
+  if (qs.get('new') !== '1') return viewLanding();
   const today = new Date(); const pad = n => String(n).padStart(2, '0');
   const iName = el('input', { type: 'text', id: 'n', placeholder: '예: 10월 정기산행, 제주 단체여행, 공원 산책', maxlength: 40 });
   const iLeader = el('input', { type: 'text', id: 'l', placeholder: '예: 김대장', maxlength: 20, value: ls.get('leaderName', '') });
@@ -789,6 +841,7 @@ function viewHome() {
 
   app.replaceChildren(el('div', { class: 'stack' },
     roleBar('leader'),
+    el('a', { class: 'link', href: './', style: 'align-self:flex-start;padding:0', text: '← 처음으로' }),
     el('h1', { text: '단체 나들이 만들기' }),
     el('p', { class: 'sub', style: 'margin:0', text: '만들고 나면 참여 링크를 카톡방에 보내세요. 참여자는 앱 설치 없이 링크로 들어와요.' }),
     plansN ? el('button', { class: 'btn line full', text: `지난 계획 불러오기 (${plansN}개)`, onclick: openPlans }) : null,
@@ -803,12 +856,7 @@ function viewHome() {
     el('p', { class: 'sub', style: 'margin:0', text: '부인솔자처럼 참여자 중 인솔을 도울 사람이 이 번호로 인솔자 화면에 들어올 수 있어요.' }),
     el('p', { class: 'sub', style: 'margin:0', text: '집결지와 도착지 위치, 예정 경로는 지금 정해도 되고 만든 뒤 지도 탭에서 정해도 돼요.' }),
 
-    btn,
-    mine.length ? el('div', { class: 'stack', style: 'margin-top:12px' },
-      el('h2', { text: '내가 만든 나들이' }),
-      mine.map(m => el('a', { class: 'member', href: `?t=${m.t}`, style: 'text-decoration:none;color:inherit' },
-        el('div', { class: 'grow' }, el('div', { class: 'nm', text: m.name }), el('div', { class: 'dt', text: new Date(m.meetAt).toLocaleString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' 집결' }))))
-    ) : null
+    btn
   ));
 }
 
@@ -835,7 +883,7 @@ async function viewLeader(key) {
   const credentials = (keyParam ? [key] : [key, ls.get('leaderPins', {})[tripId]])
     .filter((value, index, values) => typeof value === 'string' && value && values.indexOf(value) === index);
   const renderTrip = st => {
-    if (!st.info) { root.replaceChildren(roleBar('leader'), el('div', { class: 'banner info' }, el('b', { text: '끝난 나들이예요' }), el('a', { class: 'btn line small', href: './', text: '새 단체 나들이 만들기' }))); nav.remove(); return; }
+    if (!st.info) { root.replaceChildren(roleBar('leader'), el('div', { class: 'banner info' }, el('b', { text: '끝난 나들이예요' }), el('a', { class: 'btn line small', href: './?new=1', text: '새 단체 나들이 만들기' }))); nav.remove(); return; }
     info = st.info; members = st.members; boarded = st.boarded; lnotice = st.notice;
     savePlan(tripId, info);
     for (const [id, m] of Object.entries(members)) {
