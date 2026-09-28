@@ -310,7 +310,27 @@ async function pinHash(t, pin) {
 function randPin() { const a = new Uint32Array(1); crypto.getRandomValues(a); return String(a[0] % 10000).padStart(4, '0'); }
 // ---------- 나의 이동 기록 (내 휴대폰에만 저장돼요) ----------
 const TRACK_MIN_M = 15, TRACK_MAX_ACC = 60;
-const trackLoad = t => ls.get('track:' + t, []);
+const trackLoad = t => String(t).startsWith('album_') ? albumTrack(t) : ls.get('track:' + t, []);
+// ---------- 여러 날 여행 묶기 ----------
+// albums: [{ id: 'album_…', name, mode, days: [기록 ID…], at(만든 때), last(마지막으로 붙인 때) }]
+const albumsLoad = () => ls.get('albums', []);
+const albumGet = aid => albumsLoad().find(a => a.id === aid) || null;
+function albumSave(a) { ls.set('albums', [a, ...albumsLoad().filter(x => x.id !== a.id)].slice(0, 30)); }
+function albumTrack(aid) {
+  const a = albumGet(aid); if (!a) return [];
+  return a.days.flatMap(d => ls.get('track:' + d, [])).sort((p, q) => p[2] - q[2]);
+}
+// 자랑 카드·목록용 여행 정보 (날짜 범위, n박 m일)
+function albumInfo(aid) {
+  const a = albumGet(aid), tr = albumTrack(aid); if (!a || tr.length < 2) return null;
+  const s = new Date(tr[0][2]), e = new Date(tr[tr.length - 1][2]);
+  const day0 = new Date(s.getFullYear(), s.getMonth(), s.getDate()), day1 = new Date(e.getFullYear(), e.getMonth(), e.getDate());
+  const nights = Math.round((day1 - day0) / 864e5), wd = d => '일월화수목금토'[d.getDay()];
+  const range = nights ? `${s.getFullYear()}년 ${s.getMonth() + 1}월 ${s.getDate()}일 (${wd(s)}) ~ ${e.getMonth() !== s.getMonth() ? e.getMonth() + 1 + '월 ' : ''}${e.getDate()}일 (${wd(e)})` : null;
+  const firstP = ls.get('walkPlaces:' + a.days[0], {}), lastP = ls.get('walkPlaces:' + a.days[a.days.length - 1], {}), own = ls.get('walkPlaces:' + aid, {});
+  return { name: a.name, startPlace: own.start || firstP.start || '출발 지점', meetPlace: own.end || lastP.end || '도착 지점', startAt: tr[0][2], meetAt: tr[tr.length - 1][2],
+    route: null, phase: 'go', dateText: range, durText: nights ? `${nights}박 ${nights + 1}일` : null, days: a.days.length };
+}
 // ---------- 이동 중 찍은 사진 (이 기기의 IndexedDB에만 저장) ----------
 // 기록 하나: { id, t(나들이/기록 ID), ts, lat, lng, blob(최대 1280px JPEG), thumb(160px dataURL) }
 let photoDbP = null;
@@ -322,6 +342,7 @@ function photoDb() {
   }));
 }
 async function photoList(t) {
+  if (String(t).startsWith('album_')) { const a = albumGet(t); return a ? (await Promise.all(a.days.map(photoList))).flat().sort((p, q) => p.ts - q.ts) : []; }   // 여행 전체: 모든 날의 사진
   try {
     const db = await photoDb();
     return await new Promise((res, rej) => { const q = db.transaction('photos').objectStore('photos').index('t').getAll(t); q.onsuccess = () => res(q.result.sort((a, b) => a.ts - b.ts)); q.onerror = () => rej(q.error); });
@@ -413,6 +434,7 @@ function modeGrid(sel, on) {
 }
 const modeOfT = t => modeByK(ls.get('walkMode:' + t, 'hike'));
 const fmtPace = (d, ms) => { if (d < 50 || ms <= 0) return '-'; const s = Math.round(ms / 1000 / (d / 1000)); return `${Math.floor(s / 60)}'${String(s % 60).padStart(2, '0')}"`; };
+const mdOf = ts => { const d = new Date(ts); return `${d.getMonth() + 1}/${d.getDate()} `; };
 const fmtSpeed = (d, ms) => ms > 0 ? `${(d / 1000 / (ms / 3600000)).toFixed(1)}km/h` : '-';
 function trackStats(tr, kmh) {
   let d = 0; for (let i = 1; i < tr.length; i++) d += dist(tr[i - 1][0], tr[i - 1][1], tr[i][0], tr[i][1]);
@@ -428,7 +450,7 @@ function trackModes(tr, kmh) {
   const m = ['w'];
   for (let i = 1; i < tr.length; i++) {
     const dt = (tr[i][2] - tr[i - 1][2]) / 1000, d = dist(tr[i - 1][0], tr[i - 1][1], tr[i][0], tr[i][1]);
-    m.push(dt > 0 && d / dt > lim ? 'c' : 'w');
+    m.push(dt > 0 && d / dt > lim || (dt > 20 * 60 && d > 1000) ? 'c' : 'w');   // 20분 넘게 끊겼다 1km 넘게 떨어져 이어지면 탈것으로
   }
   // 신호 대기처럼 잠깐 느려지거나, GPS가 튀어 잠깐 빨라진 곳은 앞뒤에 맞춰요
   for (let pass = 0; pass < 2; pass++)
@@ -694,13 +716,14 @@ function openBrag(info, t, count, allDone) {
       if (M.k === 'run') stats.push(`페이스 ${fmtPace(st.walk, st.ms)}`);
       if (M.k === 'bike') stats.push(`평균 ${fmtSpeed(st.walk, st.ms)}`);
     } else if (route) stats.push(`거리 ${fmtDist(pathLen(route))}`);
-    if (which === 'mine') { const st = trackStats(trackLoad(t), M.car); if (st.ms > 0) stats.push(dur(st.ms)); }
+    if (info.durText) stats.push(info.durText);
+    else if (which === 'mine') { const st = trackStats(trackLoad(t), M.car); if (st.ms > 0) stats.push(dur(st.ms)); }
     else if (info.startAt != null && info.meetAt > info.startAt) stats.push(`${dur(info.meetAt - info.startAt)} 일정`);
     if (showCount && count) stats.push(allDone ? `✓ ${count}명 모두 도착` : `함께한 ${count}명`);
     cardOpts = {
-      name: info.name, dateText: `${sd.getFullYear()}년 ${sd.getMonth() + 1}월 ${sd.getDate()}일 (${'일월화수목금토'[sd.getDay()]})`,
+      name: info.name, dateText: info.dateText || `${sd.getFullYear()}년 ${sd.getMonth() + 1}월 ${sd.getDate()}일 (${'일월화수목금토'[sd.getDay()]})`,
       route, startPlace: info.startPlace || '출발 집결지', endPlace: info.meetPlace || '도착지',
-      startTime: fmtClock(info.startAt ?? info.meetAt), endTime: fmtClock(info.meetAt), stats,
+      startTime: (info.durText ? mdOf(info.startAt) : '') + fmtClock(info.startAt ?? info.meetAt), endTime: (info.durText ? mdOf(info.meetAt) : '') + fmtClock(info.meetAt), stats,   // 여러 날이면 날짜도
       modes: which === 'mine' ? trackModes(trackLoad(t), M.car) : null,
       modeLabel: ls.get('walkMode:' + t, null) ? `${M.ic} ${M.label}` : '' };
     if (phs === null) { phs = await cardPhotos(t); if (phs.recs.length) phBox.style.display = ''; }
@@ -1119,7 +1142,10 @@ function pastTrips() {
     const wp = ls.get('walkPlaces:' + t, {});
     byT[t] = { t, info: { name: ls.get('trackName:' + t, '나들이'), startPlace: wp.start || '출발 지점', meetPlace: wp.end || '도착 지점', startAt: tr[0][2], meetAt: tr[tr.length - 1][2], route: null, phase: 'go' } };
   }
-  return Object.values(byT).sort((a, b) => b.info.startAt - a.info.startAt);
+  // 여러 날 여행은 전체를 한 줄로 (하루치 기록도 따로 남겨 둬요)
+  for (const a of albumsLoad()) { const info = albumInfo(a.id); if (info) byT[a.id] = { t: a.id, info, album: true }; }
+  const key = x => x.album ? x.info.meetAt + 1 : x.info.startAt;   // 여행 전체는 그 여행의 하루치 기록보다 위에
+  return Object.values(byT).sort((a, b) => key(b) - key(a));
 }
 function openPastTrips() {
   const list = pastTrips();
@@ -1130,7 +1156,7 @@ function openPastTrips() {
     list.length ? list.map(x => { const d = new Date(x.info.startAt), tr = trackLoad(x.t);
       return el('button', { class: 'member', onclick: () => { bg.remove(); openBrag(x.info, x.t, 0, false); } },
         el('div', { class: 'grow' }, el('div', { class: 'nm', text: x.info.name }),
-          el('div', { class: 'dt', text: (ls.get('walkMode:' + x.t, null) ? `${modeOfT(x.t).ic} ${modeOfT(x.t).label} · ` : '') + `${d.getMonth() + 1}월 ${d.getDate()}일` + (hasRoute(x.info) ? ' · 예정 경로' : '') + (tr.length > 1 ? ` · 이동 기록 ${fmtDist(trackStats(tr, modeOfT(x.t).car).d)}` : '') })),
+          el('div', { class: 'dt', text: x.album ? `${modeOfT(x.t).ic} 여러 날 ${modeOfT(x.t).label} · ${d.getMonth() + 1}월 ${d.getDate()}일부터 · ${x.info.durText || '하루'} · 기록 ${x.info.days}개` : (ls.get('walkMode:' + x.t, null) ? `${modeOfT(x.t).ic} ${modeOfT(x.t).label} · ` : '') + `${d.getMonth() + 1}월 ${d.getDate()}일` + (hasRoute(x.info) ? ' · 예정 경로' : '') + (tr.length > 1 ? ` · 이동 기록 ${fmtDist(trackStats(tr, modeOfT(x.t).car).d)}` : '') })),
         el('span', { class: 'chip', style: 'background:var(--forest-soft);color:var(--forest-ink)', text: '자랑하기' })); })
       : el('p', { class: 'sub center', text: '아직 이 휴대폰에 남은 나들이가 없어요. 나들이를 만들거나 참여하면 여기에 쌓여요.' }),
     el('button', { class: 'btn line small', text: '닫기', onclick: () => bg.remove() })));
@@ -1242,9 +1268,29 @@ function viewWalk() {
       stats();
     }, 0);
   }
+  // 여러 날 여행: 오늘만 / 새 여행 시작 / 최근 여행 이어서
+  const MULTI = ['travel', 'backpack', 'camp'];
+  let tripSel = 'day', tripName = '';
+  const recentAlbums = () => albumsLoad().filter(a => Date.now() - (a.last || a.at) < 14 * 864e5).slice(0, 3);
+  function tripChoice() {
+    const opt = (k, label) => el('button', { class: 'btn small ' + (tripSel === k ? 'dark' : 'line'), text: label, onclick: () => { tripSel = k; draw(); } });
+    const iT = el('input', { type: 'text', id: 'tn', maxlength: 30, value: tripName, placeholder: `예: 제주 ${modeByK(pick).label}`, oninput: () => { tripName = iT.value; } });
+    return el('div', { class: 'card stack', style: 'gap:10px' },
+      el('b', { text: '여러 날 여행인가요?' }),
+      el('div', { class: 'mapbar' }, opt('day', '오늘만'), opt('new', '새 여행 시작'),
+        recentAlbums().map(a => opt(a.id, `'${a.name}' ${a.days.length + 1}일차 이어서`))),
+      tripSel === 'new' ? el('label', { class: 'f', for: 'tn' }, '여행 이름', iT) : null,
+      el('div', { class: 'sub', text: tripSel === 'day' ? '오늘 기록만 따로 남겨요.' : '날마다 따로 기록하고, 자랑할 때 여행 전체를 한 장으로 모아 볼 수 있어요.' }));
+  }
   function start() {
     id = 'walk_' + rid(8); ls.set('walkNow', id); ls.set('walkAt', Date.now());
     ls.set('walkMode:' + id, pick); ls.set('lastMode', pick); ls.set('trackName:' + id, `${dayName} ${modeByK(pick).label}`);
+    if (MULTI.includes(pick) && tripSel !== 'day') {
+      let a = tripSel === 'new' ? null : albumGet(tripSel);
+      if (!a) { a = { id: 'album_' + rid(8), name: tripName.trim() || `${dayName} ${modeByK(pick).label}`, mode: pick, days: [], at: Date.now() }; ls.set('walkMode:' + a.id, pick); }
+      a.days.push(id); a.last = Date.now(); albumSave(a);
+      ls.set('walkAlbum:' + id, a.id); ls.set('trackName:' + id, `${a.name} ${a.days.length}일차`);
+    }
     wantWake = true; lockWake(); startGps(); draw();
   }
   function finish() {
@@ -1252,6 +1298,8 @@ function viewWalk() {
     if (tr.length < 2) {
       if (!confirm('아직 기록된 길이 거의 없어요. 그만둘까요?')) return;
       stopGps(); try { wake?.release(); } catch {} ls.set('track:' + id, []); ls.set('walkNow', null);
+      const aid = ls.get('walkAlbum:' + id, null), al = aid && albumGet(aid);   // 여행에서도 빼요 (빈 여행이면 여행도 지워요)
+      if (al) { al.days = al.days.filter(d => d !== id); if (al.days.length) albumSave(al); else ls.set('albums', albumsLoad().filter(x => x.id !== aid)); }
       photoList(id).then(ps => Promise.all(ps.map(p => photoDel(p.id)))).finally(() => { location.href = './'; }); return;
     }
     const iN = el('input', { type: 'text', id: 'wn', maxlength: 40, value: nameOf() });
@@ -1280,22 +1328,25 @@ function viewWalk() {
       const tr = trackLoad(done), st = trackStats(tr, M().car);
       const wp = ls.get('walkPlaces:' + done, {});
       const info = { name: ls.get('trackName:' + done, defName()), startPlace: wp.start || '출발 지점', meetPlace: wp.end || '도착 지점', startAt: tr[0][2], meetAt: tr[tr.length - 1][2], route: null, phase: 'go' };
-      root.replaceChildren(roleBar('leader', '내 지도일기'),
+      root.replaceChildren(...[roleBar('leader', '내 지도일기'),
         el('div', { class: 'banner ok', style: 'margin-top:12px' }, el('b', { text: `"${info.name}" 지도일기에 남겼어요!` }), el('div', { text: `${M().did} 거리 ${fmtDist(st.walk)} · ${fmtDur(st.ms)}. 지도일기 자랑하기 목록에도 남아 있어요.` })),
         el('button', { class: 'btn primary full big', text: '자랑 카드 만들기', onclick: () => openBrag(info, done, 0, false) }),
-        el('a', { class: 'btn line full', href: './', text: '처음으로' }));
+        (() => { const aid = ls.get('walkAlbum:' + done, null), ai = aid && albumInfo(aid);
+          return ai && ai.days > 1 ? el('button', { class: 'btn line full', text: `'${ai.name}' 여행 전체 자랑 카드`, onclick: () => openBrag(ai, aid, 0, false) }) : null; })(),
+        el('a', { class: 'btn line full', href: './', text: '처음으로' })].filter(Boolean));
       return;
     }
     if (!id) {
-      root.replaceChildren(roleBar('leader', '내 지도일기'),
+      root.replaceChildren(...[roleBar('leader', '내 지도일기'),
         el('a', { class: 'link', href: './', style: 'align-self:flex-start;padding:0', text: '← 처음으로' }),
         el('h1', { text: '지금 기록하기' }),
         el('div', { class: 'sub', text: '무엇을 하러 가세요?' }),
         modeGrid(pick, k => { if (k === 'group') { location.href = '?new=1'; return; } pick = k; draw(); }),
+        MULTI.includes(pick) ? tripChoice() : null,
         el('div', { class: 'card stack', style: 'gap:8px' },
           el('div', { text: `시작을 누르고 다니면, 누빈 길이 지도에 그려지고 지도일기로 남아요.` }),
           el('div', { class: 'sub', text: '기록은 이 휴대폰에만 저장돼요. 웹앱이라 화면이 꺼지면 기록이 멈춰서, 기록하는 동안 화면을 켜 둘게요.' })),
-        el('button', { class: 'btn primary full big', text: `${modeByK(pick).ic} ${modeByK(pick).label} 시작하기`, onclick: start }));
+        el('button', { class: 'btn primary full big', text: `${modeByK(pick).ic} ${modeByK(pick).label} 시작하기`, onclick: start })].filter(Boolean));
       return;
     }
     startGps(); ensureMap();
