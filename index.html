@@ -323,7 +323,7 @@ function headingTracker() {
   };
 }
 // 휴대폰이 보는 방향(북쪽=0도, 휴대폰 위쪽 기준). 아이폰은 허락이 필요해서 누를 때(참여하기 등) 물어봐요.
-// 3초 넘게 센서 소식이 없으면 null → 가는 방향 화살표로 대신해요.
+// 30초 넘게 센서 소식이 없으면 null → 가는 방향 화살표로 대신해요.
 function facingWatcher(onChange) {
   let face = null, at = 0, on = false, waiting = false, sent = null;
   const needAsk = () => window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === 'function';
@@ -357,7 +357,7 @@ function facingWatcher(onChange) {
       on = false; face = null; sent = null;
       removeEventListener('deviceorientationabsolute', onOrient); removeEventListener('deviceorientation', onOrient);
     },
-    get: () => (on && face != null && Date.now() - at < 3000 ? face : null)
+    get: () => (on && face != null && Date.now() - at < 30000 ? face : null)
   };
 }
 // 지도의 '나' 표시: 휴대폰이 보는 쪽으로 부채꼴 빛(face), 그걸 모르면 가는 방향 화살표(head)
@@ -2175,18 +2175,14 @@ function viewMember() {
   leaveWarn = () => me && me.status !== 'done' ? '첫 화면으로 가면 위치 공유가 멈춰요. 첫 화면의 "참여 중인 나들이"에서 다시 들어올 수 있어요. 갈까요?' : null;
   const mBox = el('div', { class: 'mapbox' });
   // 방향: 휴대폰이 보는 쪽(facing)을 먼저 쓰고, 모르면 내가 가는 방향(heading). 지도의 '나'와 목표 카드 안내가 이 기준
-  let mmap = null, mlayer = null, mfit = false, heading = null, lastBearing = null, meMk = null, arrowRot = null;
+  let mmap = null, mlayer = null, mfit = false, heading = null, lastBearing = null, meMk = null;
   const trackHead = headingTracker();
   const facing = facingWatcher(() => { updateArrow(); if (meMk) meMk.setIcon(meIcon('#2563A8', '#fff', heading, facing.get())); });
-  const arrowBox = el('div', { style: 'width:56px;height:56px;border-radius:28px;background:rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:transform .2s' });
-  arrowBox.innerHTML = '<svg width="34" height="34" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 L19 20 L12 16 L5 20 Z" fill="#F6C89F"/></svg>';
   const dirEl = el('div', { style: 'font-size:14px;color:#B7C6BA' });
   function updateArrow() {
     if (lastBearing == null) return;
     const face = facing.get(), base = face ?? heading;
     const rot = base == null ? lastBearing : lastBearing - base;
-    arrowRot = arrowRot == null ? rot : arrowRot + ((rot - arrowRot) % 360 + 540) % 360 - 180;   // 0도↔360도에서 한 바퀴 돌지 않게
-    arrowBox.style.transform = `rotate(${arrowRot}deg)`;
     dirEl.textContent = face != null ? `휴대폰이 향한 쪽에서 ${REL8[dir8(rot)]}` : heading != null ? `가는 방향에서 ${REL8[dir8(rot)]}` : `${DIR8[dir8(lastBearing)]}쪽 (지도 위쪽이 북쪽)`;
   }
   function drawMemberMap() {
@@ -2230,6 +2226,7 @@ function viewMember() {
     if (st.info === undefined) return;
     info = st.info;
     if (!info) { stopGps(); return renderEnded(); }
+    if (joined[tripId] && joined[tripId].name !== info.name) { joined[tripId] = { name: info.name, at: info.startAt ?? info.meetAt }; ls.set('joined', joined); }   // 첫 화면 목록에 나들이 이름이 보이게
     others = st.members; leaderPos = st.leader;
     me = st.members[uid] || null;
     if (me && me.status !== 'done') startGps(); else stopGps();
@@ -2375,7 +2372,7 @@ function viewMember() {
         el('div', { class: 'row', style: 'justify-content:space-between;align-items:flex-start;gap:12px' },
           el('div', { class: 'grow' }, el('div', { class: 'lbl', text: going ? '도착지' : '집결지' }), el('div', { class: 'place', text: T.place }),
             el('div', { class: 'lbl', text: info.quick && info.meetPlace === '정하지 않음' ? '계획 없이 출발한 나들이예요. 인솔자를 따라가세요' : `${fmtClock(T.at)} ${going ? '도착 예정' : '출발'}` }))),
-        !done && meetDist != null ? el('div', { class: 'dir' }, arrowBox,
+        !done && meetDist != null ? el('div', { class: 'dir' },
           el('div', { class: 'grow' }, el('b', { style: 'font-size:22px', text: `${fmtDist(meetDist)}` }), dirEl))
           : !done ? el('div', { class: 'lbl', text: T.lat == null ? (info.quick ? '도착지가 정해지면 방향과 거리가 보여요' : '인솔자가 지도에 위치를 아직 찍지 않았어요') : '내 위치를 찾는 중이에요' }) : null),
       // 2) 인솔자 알림 (확인하면 사라져요)
