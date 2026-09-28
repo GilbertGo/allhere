@@ -88,6 +88,7 @@ body[data-role=member]{--ground:#EEF4FB}
 body.noscroll{overflow:hidden}
 .fs-btn{background:#fff;border:none;border-radius:12px;padding:8px 12px;font:700 14px 'Pretendard Variable',Pretendard,-apple-system,sans-serif;color:var(--ink);cursor:pointer;min-height:40px;box-shadow:0 2px 8px rgba(60,45,20,.18)}
 .rt-arrow{background:none;border:none}
+.ph-pin{background:none;border:none}.ph-pin img{width:44px!important;height:44px!important;object-fit:cover;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35);display:block}
 .goal{background:var(--ink);color:#fff;border-radius:24px;padding:20px;display:flex;flex-direction:column;gap:14px}
 .goal .lbl{font-size:13px;color:#B3AC9C}
 .goal .place{font-size:21px;font-weight:700;line-height:1.3;letter-spacing:-.02em}
@@ -296,6 +297,78 @@ function randPin() { const a = new Uint32Array(1); crypto.getRandomValues(a); re
 // ---------- 나의 이동 기록 (내 휴대폰에만 저장돼요) ----------
 const TRACK_MIN_M = 15, TRACK_MAX_ACC = 60;
 const trackLoad = t => ls.get('track:' + t, []);
+// ---------- 이동 중 찍은 사진 (이 기기의 IndexedDB에만 저장) ----------
+// 기록 하나: { id, t(나들이/발도장 ID), ts, lat, lng, blob(최대 1280px JPEG), thumb(160px dataURL) }
+let photoDbP = null;
+function photoDb() {
+  return photoDbP || (photoDbP = new Promise((res, rej) => {
+    const r = indexedDB.open('baldojang', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('photos', { keyPath: 'id' }).createIndex('t', 't');
+    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+  }));
+}
+async function photoList(t) {
+  try {
+    const db = await photoDb();
+    return await new Promise((res, rej) => { const q = db.transaction('photos').objectStore('photos').index('t').getAll(t); q.onsuccess = () => res(q.result.sort((a, b) => a.ts - b.ts)); q.onerror = () => rej(q.error); });
+  } catch { return []; }
+}
+async function photoPut(rec) {
+  const db = await photoDb();
+  return new Promise((res, rej) => { const tx = db.transaction('photos', 'readwrite'); tx.objectStore('photos').put(rec); tx.oncomplete = res; tx.onerror = () => rej(tx.error); });
+}
+async function photoDel(id) {
+  const db = await photoDb();
+  return new Promise(res => { const tx = db.transaction('photos', 'readwrite'); tx.objectStore('photos').delete(id); tx.oncomplete = res; tx.onerror = res; });
+}
+async function shrinkImage(file, max, type, q) {
+  const bmp = await createImageBitmap(file);
+  const s = Math.min(1, max / Math.max(bmp.width, bmp.height)), c = document.createElement('canvas');
+  c.width = Math.round(bmp.width * s); c.height = Math.round(bmp.height * s);
+  c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+  return type === 'url' ? c.toDataURL('image/jpeg', q) : new Promise(r => c.toBlob(r, 'image/jpeg', q));
+}
+// 사진 위치: 방금 잡힌 위치가 있으면 그곳, 아니면 이동 기록에서 찍은 시각과 가장 가까운 지점
+function photoPlace(t, ts, now) {
+  if (now && Math.abs(now.ts - ts) < 3 * 60000) return [now.lat, now.lng];
+  const tr = trackLoad(t); if (!tr.length) return null;
+  let best = tr[0]; for (const q of tr) if (Math.abs(q[2] - ts) < Math.abs(best[2] - ts)) best = q;
+  return Math.abs(best[2] - ts) < 30 * 60000 ? [best[0], best[1]] : null;
+}
+async function addPhotos(t, files, now) {
+  let n = 0;
+  for (const f of files) {
+    try {
+      const ts = f.lastModified && Math.abs(Date.now() - f.lastModified) < 7 * 864e5 ? f.lastModified : Date.now();
+      const at = photoPlace(t, ts, now);
+      await photoPut({ id: rid(10), t, ts, lat: at ? at[0] : null, lng: at ? at[1] : null, blob: await shrinkImage(f, 1280, 'blob', 0.82), thumb: await shrinkImage(f, 160, 'url', 0.7) });
+      n++;
+    } catch {}
+  }
+  return n;
+}
+// 자랑 카드용: 사진을 모두 읽고, 그중 3장(처음·가운데·끝)을 그림으로 준비해요
+async function cardPhotos(t) {
+  const recs = await photoList(t);
+  const idx = recs.length <= 3 ? recs.map((_, i) => i) : [0, Math.floor((recs.length - 1) / 2), recs.length - 1];
+  const pick = [];
+  for (const i of idx) { try { pick.push({ lat: recs[i].lat, lng: recs[i].lng, img: await createImageBitmap(recs[i].blob) }); } catch {} }
+  return { recs, pick };
+}
+// 지도에 사진 동그라미를 놓아요. 누르면 크게 보여줘요.
+function photoMarkers(map, layer, photos) {
+  photos.filter(p => p.lat != null).forEach(p => {
+    L.marker([p.lat, p.lng], { icon: L.divIcon({ className: 'ph-pin', iconSize: [44, 44], iconAnchor: [22, 22], html: `<img src="${p.thumb}" alt="">` }) })
+      .on('click', () => showPhoto(p)).addTo(layer || map);
+  });
+}
+function showPhoto(p) {
+  const url = URL.createObjectURL(p.blob);
+  const bg = el('div', { class: 'sheet-bg', style: 'z-index:4000;align-items:center;background:rgba(0,0,0,.85)', onclick: () => { bg.remove(); URL.revokeObjectURL(url); } },
+    el('img', { src: url, alt: '찍은 사진', style: 'max-width:100%;max-height:85vh;border-radius:12px' }),
+    el('div', { style: 'position:absolute;bottom:calc(24px + env(safe-area-inset-bottom,0px));color:#fff;font-size:14px', text: `${fmtClock(p.ts)} · 누르면 닫혀요` }));
+  document.body.append(bg);
+}
 function trackAdd(t, lat, lng, acc, name) {
   if (acc > TRACK_MAX_ACC) return;
   const tr = trackLoad(t), lp = tr[tr.length - 1];
@@ -388,7 +461,8 @@ async function mapTiles(g, R, px, py, pw, ph) {
   if (!tiles.length || tiles.some(t => !t.im)) return null;
   g.fillStyle = '#F2EFE9'; g.fillRect(px, py, pw, ph);
   tiles.forEach(t => g.drawImage(t.im, px + (t.tx * 256 - wx0) * S, py + (t.ty * 256 - wy0) * S, 256 * S + 1, 256 * S + 1));
-  return R.map(q => { const p = mercPx(q[0], q[1], z); return [px + (p[0] - wx0) * S, py + (p[1] - wy0) * S]; });
+  const proj = q => { const p = mercPx(q[0], q[1], z); return [px + (p[0] - wx0) * S, py + (p[1] - wy0) * S]; };
+  return { P: R.map(proj), proj };
 }
 async function drawBragCard(o) {
   const W = 1080, H = 1350, F = "'Pretendard Variable',Pretendard,-apple-system,'Apple SD Gothic Neo',sans-serif";
@@ -433,22 +507,26 @@ async function drawBragCard(o) {
   let y = 330 + (tl.length - 1) * 92 + 64;
   font(500, 36); g.fillStyle = MUTED; g.fillText(o.dateText, 72, y);
   // 경로 판
-  const px = 72, py = Math.max(y + 48, 520), pw = W - 144, ph = 1040 - py;
+  const PH = (o.photos || []).slice(0, 3);   // 사진이 있으면 지도를 줄이고 아래에 사진 3장
+  const px = 72, py = Math.max(y + 48, 520), pw = W - 144, ph = (PH.length ? 870 : 1040) - py;
   rr(px, py, pw, ph, 48); g.fillStyle = PINE; g.fill();
   g.save(); rr(px, py, pw, ph, 48); g.clip();
   if (contour) for (let cx = px - 60; cx < px + pw; cx += 260) for (let cy = py - 40; cy < py + ph; cy += 220) g.drawImage(contour, cx, cy, 260, 220);
   const R = o.route;
   if (R && R.length > 1) {
     // 진짜 지도 위에 그려요. 지도를 못 받으면(인터넷 끊김 등) 등고선 바탕에 경로 모양만 그려요.
-    let P = o.noMap ? null : await mapTiles(g, R, px, py, pw, ph);
-    const onMap = !!P;
-    if (!P) {
+    const M = o.noMap ? null : await mapTiles(g, R, px, py, pw, ph);
+    const onMap = !!M;
+    let P, proj;
+    if (M) ({ P, proj } = M);
+    else {
       const lat0 = R.reduce((s, q) => s + q[0], 0) / R.length, k = Math.cos(lat0 * Math.PI / 180);
       const xs = R.map(q => q[1] * k), ys = R.map(q => -q[0]);
       const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
       const pad = 90, sc = Math.min((pw - pad * 2) / Math.max(x1 - x0, 1e-9), (ph - pad * 2) / Math.max(y1 - y0, 1e-9));
       const ox = px + (pw - (x1 - x0) * sc) / 2, oy = py + (ph - (y1 - y0) * sc) / 2;
-      P = R.map((q, i) => [ox + (xs[i] - x0) * sc, oy + (ys[i] - y0) * sc]);
+      proj = q => [ox + (q[1] * k - x0) * sc, oy + (-q[0] - y0) * sc];
+      P = R.map(proj);
     }
     const line = (w, c) => { g.beginPath(); P.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); g.lineWidth = w; g.strokeStyle = c; g.lineCap = 'round'; g.lineJoin = 'round'; g.stroke(); };
     if (onMap) { line(24, '#FFFFFF'); line(12, '#E4572E'); } else { line(26, 'rgba(255,255,255,.14)'); line(12, ACC); }
@@ -465,6 +543,14 @@ async function drawBragCard(o) {
     const A = P[0], B = P[P.length - 1];
     if (Math.hypot(A[0] - B[0], A[1] - B[1]) < 70) mark(A, ACC, '출발·도착');   // 원점으로 돌아오는 코스
     else { mark(A, '#FFFDF8', '출발'); mark(B, ACC, '도착'); }
+    // 사진 찍은 곳: 번호 동그라미 (아래 사진과 번호가 같아요)
+    PH.forEach((p, i) => {
+      if (p.lat == null) return;
+      const [x, yy] = proj([p.lat, p.lng]);
+      if (x < px || x > px + pw || yy < py || yy > py + ph) return;
+      g.beginPath(); g.arc(x, yy, 22, 0, Math.PI * 2); g.fillStyle = '#FFFDF8'; g.fill(); g.lineWidth = 5; g.strokeStyle = '#E4572E'; g.stroke();
+      font(800, 26); g.fillStyle = '#E4572E'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(String(i + 1), x, yy + 1); g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+    });
   } else {
     font(700, 52); g.fillStyle = '#FFFDF8'; g.textAlign = 'center';
     g.fillText(fit(o.startPlace, pw - 120), px + pw / 2, py + ph / 2 - 50);
@@ -472,6 +558,18 @@ async function drawBragCard(o) {
     g.fillStyle = '#FFFDF8'; g.fillText(fit(o.endPlace, pw - 120), px + pw / 2, py + ph / 2 + 86); g.textAlign = 'left';
   }
   g.restore();
+  // 사진 3장 (가운데를 채워 잘라 넣어요)
+  if (PH.length) {
+    const gap = 16, sw = (pw - gap * 2) / 3, sh = 150, sy = 890;
+    PH.forEach((p, i) => {
+      const x = px + i * (sw + gap), im = p.img, s = Math.max(sw / im.width, sh / im.height);
+      g.save(); rr(x, sy, sw, sh, 22); g.clip();
+      g.drawImage(im, x + (sw - im.width * s) / 2, sy + (sh - im.height * s) / 2, im.width * s, im.height * s);
+      g.restore();
+      g.beginPath(); g.arc(x + 26, sy + 26, 18, 0, Math.PI * 2); g.fillStyle = '#FFFDF8'; g.fill();
+      font(800, 22); g.fillStyle = '#E4572E'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(String(i + 1), x + 26, sy + 27); g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+    });
+  }
   // 출발 / 도착
   const col = (x, lbl, time, place) => {
     font(600, 28); g.fillStyle = MUTED; g.fillText(`${lbl} ${time}`, x, 1100);
@@ -492,6 +590,10 @@ function openBrag(info, t, count, allDone) {
   const img = el('img', { alt: '나들이 자랑 카드 미리보기', style: 'width:100%;border-radius:16px;display:block;box-shadow:var(--shadow);background:#EFE9DC;aspect-ratio:4/5' });
   const opts = el('div', { class: 'mapbar' });
   const cnt = el('input', { type: 'checkbox', id: 'bg-c', checked: true, onchange: () => { showCount = cnt.checked; draw(); } });
+  // 이동 중 찍은 사진 (있으면 카드에 3장, 큰 지도에는 전부)
+  let phs = null, usePh = true;
+  const phIn = el('input', { type: 'checkbox', id: 'bg-p', checked: true, onchange: () => { usePh = phIn.checked; draw(); } });
+  const phBox = el('div', { class: 'check', style: 'display:none' }, phIn, el('label', { for: 'bg-p', text: '찍은 사진 넣기' }));
   async function draw() {
     opts.replaceChildren(...[['plan', '예정 경로', plan], ['mine', '내 이동 기록', mine], ['none', '경로 안 보이기', true]].filter(x => x[2])
       .map(([k, label]) => el('button', { class: 'btn small ' + (which === k ? 'dark' : 'line'), text: label, onclick: () => { which = k; draw(); } })));
@@ -507,6 +609,8 @@ function openBrag(info, t, count, allDone) {
       name: info.name, dateText: `${sd.getFullYear()}년 ${sd.getMonth() + 1}월 ${sd.getDate()}일 (${'일월화수목금토'[sd.getDay()]})`,
       route, startPlace: info.startPlace || '출발 집결지', endPlace: info.meetPlace || '도착지',
       startTime: fmtClock(info.startAt ?? info.meetAt), endTime: fmtClock(info.meetAt), stats };
+    if (phs === null) { phs = await cardPhotos(t); if (phs.recs.length) phBox.style.display = ''; }
+    if (usePh && phs.recs.length) { cardOpts.photos = phs.pick; cardOpts.photoRecs = phs.recs; }
     await card.draw(cardOpts);
   }
   let cardOpts = null;
@@ -517,6 +621,7 @@ function openBrag(info, t, count, allDone) {
     el('p', { class: 'sub', style: 'margin:0', text: '카톡방이나 SNS에 올릴 그림 한 장을 만들어요. 참여자 이름과 위치는 들어가지 않아요. 그림을 누르면 지도로 크게 볼 수 있어요.' }),
     img, opts,
     count ? el('div', { class: 'check' }, cnt, el('label', { for: 'bg-c', text: '참여 인원 수 보이기' })) : null,
+    phBox,
     ...card.actions,
     el('button', { class: 'btn line small', text: '닫기', onclick: () => bg.remove() })));
   document.body.append(bg);
@@ -551,7 +656,7 @@ async function shortLink(o) {
 function bragLink(o) {
   let r = o.route;
   if (r && r.length > 150) { const step = Math.ceil(r.length / 150); r = r.filter((_, i) => i % step === 0 || i === r.length - 1); }
-  const small = Object.assign({}, o, { route: r ? r.map(q => [+q[0].toFixed(4), +q[1].toFixed(4)]) : null });
+  const small = Object.assign({}, o, { route: r ? r.map(q => [+q[0].toFixed(4), +q[1].toFixed(4)]) : null, photos: undefined, photoRecs: undefined });   // 사진은 링크에 넣지 않아요
   return `${location.origin}${location.pathname}?brag=${b64u(JSON.stringify(small))}`;
 }
 // 미리보기 그림 + 저장/공유 버튼 묶음. draw(opts)로 카드를 다시 그려요.
@@ -680,7 +785,7 @@ function viewBragLink(given) {
   if (R.length > 1) setTimeout(() => { addFullBtn(routeMap(mapEl, R), mapEl); }, 0);
 }
 // 움직이는 지도에 경로와 출발·도착을 그려요
-function routeMap(mapEl, R) {
+function routeMap(mapEl, R, photos) {
   const m = L.map(mapEl);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(m);
   L.polyline(R, { color: '#FFFFFF', weight: 9, opacity: 0.9 }).addTo(m);
@@ -690,6 +795,7 @@ function routeMap(mapEl, R) {
   const pin = (p, label, fill) => L.circleMarker(p, { radius: 9, color: '#1E3B2F', weight: 3, fillColor: fill, fillOpacity: 1 })
     .bindTooltip(label, { permanent: true, direction: 'top', className: 'nm', offset: [0, -8] }).addTo(m);
   if (same) pin(A, '출발·도착', '#F4A259'); else { pin(A, '출발', '#FFFDF8'); pin(B, '도착', '#F4A259'); }
+  if (photos && photos.length) photoMarkers(m, null, photos);
   m.fitBounds(R, { padding: [30, 30] });
   // 화면 배치가 끝난 뒤 크기를 다시 재고 경로를 맞춰요 (처음에 위쪽이 잘리던 문제)
   setTimeout(() => { if (!mapEl.isConnected) return; m.invalidateSize(); m.fitBounds(R, { padding: [30, 30] }); }, 300);
@@ -706,7 +812,7 @@ function openRouteMap(o) {
       el('button', { class: 'btn small', style: 'background:var(--accent);color:var(--pine)', text: '닫기', onclick: () => { box.remove(); document.body.classList.remove('noscroll'); } })),
     mapEl);
   document.body.append(box); document.body.classList.add('noscroll');
-  setTimeout(() => routeMap(mapEl, R), 0);
+  setTimeout(() => routeMap(mapEl, R, o.photoRecs), 0);
 }
 function trackCard(t, going) {
   const tr = trackLoad(t);
@@ -936,7 +1042,7 @@ function viewLanding() {
 }
 // 혼자 걷기 기록: 앱을 켜 두고 걸으면 다닌 길이 발도장으로 남아요 (이 휴대폰에만 저장)
 function viewWalk() {
-  let id = ls.get('walkNow', null), watch = null, wake = null, wantWake = true, map = null, line = null, dot = null, follow = true, gps = 'wait';
+  let id = ls.get('walkNow', null), watch = null, wake = null, wantWake = true, map = null, line = null, dot = null, follow = true, gps = 'wait', phLayer = null, lastFix = null, nPhotos = 0;
   const today = new Date(), defName = `${today.getMonth() + 1}월 ${today.getDate()}일 발도장`;
   const nameOf = () => ls.get('trackName:' + id, defName);
   const mapEl = el('div', { class: 'mapbox', style: 'height:46vh;min-height:280px' });
@@ -958,7 +1064,7 @@ function viewWalk() {
     if (watch != null || !navigator.geolocation) return;
     watch = navigator.geolocation.watchPosition(p => {
       const was = gps; gps = 'on';
-      const ll = [p.coords.latitude, p.coords.longitude];
+      const ll = [p.coords.latitude, p.coords.longitude]; lastFix = { lat: ll[0], lng: ll[1], ts: Date.now() };
       trackAdd(id, ll[0], ll[1], p.coords.accuracy, nameOf());
       if (map) {
         if (!dot) dot = L.circleMarker(ll, { radius: 9, color: '#FFFFFF', weight: 3, fillColor: '#1E3B2F', fillOpacity: 1 }).addTo(map); else dot.setLatLng(ll);
@@ -968,12 +1074,28 @@ function viewWalk() {
     }, e => { gps = e.code === 1 ? 'denied' : 'wait'; draw(); }, { enableHighAccuracy: true, maximumAge: 5000, timeout: 30000 });
   }
   function stopGps() { if (watch != null) navigator.geolocation.clearWatch(watch); watch = null; }
+  // 사진: 카메라나 사진첩에서 골라서, 찍은 곳에 붙여요
+  const camIn = el('input', { type: 'file', accept: 'image/*', multiple: true, style: 'display:none', onchange: async () => {
+    const files = [...camIn.files]; camIn.value = ''; if (!files.length) return;
+    toast('사진을 넣는 중이에요…');
+    const n = await addPhotos(id, files, lastFix);
+    toast(n ? `사진 ${n}장을 발도장에 붙였어요` : '사진을 넣지 못했어요');
+    if (wantWake && !wake) lockWake();
+    refreshPhotos();
+  } });
+  async function refreshPhotos() {
+    const ps = id ? await photoList(id) : [];
+    const was = nPhotos; nPhotos = ps.length;
+    if (phLayer) { phLayer.clearLayers(); photoMarkers(map, phLayer, ps); }
+    if (was !== nPhotos && !done) draw();
+  }
   function ensureMap() {
     if (map) { setTimeout(() => map.invalidateSize(), 0); return; }
     setTimeout(() => {
       map = L.map(mapEl).setView([37.5665, 126.978], 13);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(map);
       map.on('dragstart', () => { follow = false; draw(); });
+      phLayer = L.layerGroup().addTo(map); refreshPhotos();
       const tr = trackLoad(id);
       if (tr.length) map.setView([tr[tr.length - 1][0], tr[tr.length - 1][1]], 16);
       stats();
@@ -987,7 +1109,8 @@ function viewWalk() {
     const tr = trackLoad(id);
     if (tr.length < 2) {
       if (!confirm('아직 기록된 길이 거의 없어요. 그만둘까요?')) return;
-      stopGps(); try { wake?.release(); } catch {} ls.set('track:' + id, []); ls.set('walkNow', null); location.href = './'; return;
+      stopGps(); try { wake?.release(); } catch {} ls.set('track:' + id, []); ls.set('walkNow', null);
+      photoList(id).then(ps => Promise.all(ps.map(p => photoDel(p.id)))).finally(() => { location.href = './'; }); return;
     }
     const iN = el('input', { type: 'text', id: 'wn', maxlength: 40, value: nameOf() });
     const bg = el('div', { class: 'sheet-bg' });
@@ -1039,7 +1162,10 @@ function viewWalk() {
         wake ? null : el('button', { class: 'btn small dark', style: 'height:38px;white-space:nowrap', text: '화면 켜두기', onclick: () => { wantWake = true; lockWake(); } })),
       mapEl,
       follow ? null : el('button', { class: 'btn line small', style: 'align-self:flex-start', text: '내 위치 따라가기', onclick: () => { follow = true; const tr = trackLoad(id); if (map && tr.length) map.setView([tr[tr.length - 1][0], tr[tr.length - 1][1]], 16); draw(); } }),
-      el('button', { class: 'btn primary full big', text: '끝내기', onclick: finish }),
+      el('div', { class: 'two' },
+        el('button', { class: 'btn line', text: nPhotos ? `사진 찍기 (${nPhotos}장)` : '사진 찍기', onclick: () => camIn.click() }),
+        el('button', { class: 'btn primary', text: '끝내기', onclick: finish })),
+      camIn,
       el('a', { class: 'link', href: './', style: 'align-self:center;color:var(--muted)', text: '처음으로 (다시 들어오면 이어서 기록해요)' })].filter(Boolean));
     stats();
   }
