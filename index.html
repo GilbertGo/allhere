@@ -90,6 +90,10 @@ body[data-role=member]{--ground:#EEF4FB}
 body.noscroll{overflow:hidden}
 .fs-btn{background:#fff;border:none;border-radius:12px;padding:8px 12px;font:700 14px 'Pretendard Variable',Pretendard,-apple-system,sans-serif;color:var(--ink);cursor:pointer;min-height:40px;box-shadow:0 2px 8px rgba(60,45,20,.18)}
 .rt-arrow{background:none;border:none}
+.modes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.mode{border:none;border-radius:18px;background:var(--card);box-shadow:var(--shadow);padding:14px 6px 12px;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:14px;font-weight:700;color:var(--pine)}
+.mode .ic{font-size:28px;line-height:1.1}
+.mode.on{background:var(--pine);color:var(--accent)}
 .ph-pin{background:none;border:none}.ph-pin img{width:44px!important;height:44px!important;object-fit:cover;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35);display:block}
 .goal{background:var(--ink);color:#fff;border-radius:24px;padding:20px;display:flex;flex-direction:column;gap:14px}
 .goal .lbl{font-size:13px;color:#B3AC9C}
@@ -388,20 +392,43 @@ function trackAdd(t, lat, lng, acc, name) {
   ls.set('track:' + t, tr);
   if (name) ls.set('trackName:' + t, name);
 }
-function trackStats(tr) {
+// ---------- 기록 모드 ----------
+// car: 이 속도(km/h)보다 빠르면 차(탈것)로 간 길로 봐요. did: 거리 앞에 붙는 말
+const MODES = [
+  { k: 'hike', label: '하이킹·산행', ic: '🥾', car: 15, did: '걸은' },
+  { k: 'run', label: '러닝', ic: '🏃', car: 25, did: '달린' },
+  { k: 'bike', label: '자전거', ic: '🚴', car: 45, did: '탄' },
+  { k: 'backpack', label: '백패킹', ic: '🎒', car: 15, did: '걸은' },
+  { k: 'camp', label: '캠핑', ic: '🏕️', car: 15, did: '걸은' },
+  { k: 'travel', label: '여행', ic: '✈️', car: 15, did: '걸은' },
+  { k: 'date', label: '데이트', ic: '💕', car: 15, did: '걸은' },
+  { k: 'group', label: '단체 나들이', ic: '🚌', car: 15, did: '걸은' }
+];
+const modeByK = k => MODES.find(m => m.k === k) || MODES[0];
+// 모드 고르는 타일 (sel: 지금 고른 것, on: 눌렀을 때)
+function modeGrid(sel, on) {
+  return el('div', { class: 'modes', role: 'group', 'aria-label': '기록 모드' },
+    MODES.map(m => el('button', { class: 'mode' + (m.k === sel ? ' on' : ''), 'aria-pressed': m.k === sel ? 'true' : 'false', onclick: () => on(m.k) },
+      el('span', { class: 'ic', 'aria-hidden': 'true', text: m.ic }), el('span', { text: m.label }))));
+}
+const modeOfT = t => modeByK(ls.get('walkMode:' + t, 'hike'));
+const fmtPace = (d, ms) => { if (d < 50 || ms <= 0) return '-'; const s = Math.round(ms / 1000 / (d / 1000)); return `${Math.floor(s / 60)}'${String(s % 60).padStart(2, '0')}"`; };
+const fmtSpeed = (d, ms) => ms > 0 ? `${(d / 1000 / (ms / 3600000)).toFixed(1)}km/h` : '-';
+function trackStats(tr, kmh) {
   let d = 0; for (let i = 1; i < tr.length; i++) d += dist(tr[i - 1][0], tr[i - 1][1], tr[i][0], tr[i][1]);
-  const m = trackModes(tr);
+  const m = trackModes(tr, kmh);
   let walk = 0; for (let i = 1; i < tr.length; i++) if (m[i] === 'w') walk += dist(tr[i - 1][0], tr[i - 1][1], tr[i][0], tr[i][1]);
   return { d, walk, ms: tr.length > 1 ? tr[tr.length - 1][2] - tr[0][2] : 0 };
 }
 // ---------- 걸은 구간 / 차로 간 구간 나누기 ----------
 // 점마다 한 글자: 'w' 걸어서 온 길, 'c' 차(탈것)로 온 길. 시속 15km보다 빠르면 차로 봐요.
-const CAR_MS = 15 / 3.6;
-function trackModes(tr) {
+const CAR_MS = 15 / 3.6;   // 기본값 (모드마다 다르게 줄 수 있어요)
+function trackModes(tr, kmh) {
+  const lim = kmh ? kmh / 3.6 : CAR_MS;
   const m = ['w'];
   for (let i = 1; i < tr.length; i++) {
     const dt = (tr[i][2] - tr[i - 1][2]) / 1000, d = dist(tr[i - 1][0], tr[i - 1][1], tr[i][0], tr[i][1]);
-    m.push(dt > 0 && d / dt > CAR_MS ? 'c' : 'w');
+    m.push(dt > 0 && d / dt > lim ? 'c' : 'w');
   }
   // 신호 대기처럼 잠깐 느려지거나, GPS가 튀어 잠깐 빨라진 곳은 앞뒤에 맞춰요
   for (let pass = 0; pass < 2; pass++)
@@ -552,7 +579,7 @@ async function drawBragCard(o) {
   font(700, 76); g.fillStyle = INK;
   const tl = wrap(o.name, W - 144, 2); tl.forEach((s, i) => g.fillText(s, 72, 330 + i * 92));
   let y = 330 + (tl.length - 1) * 92 + 64;
-  font(500, 36); g.fillStyle = MUTED; g.fillText(o.dateText, 72, y);
+  font(500, 36); g.fillStyle = MUTED; g.fillText(o.dateText + (o.modeLabel ? '  ·  ' + o.modeLabel : ''), 72, y);
   // 경로 판
   const PH = (o.photos || []).slice(0, 3);   // 사진이 있으면 지도를 줄이고 아래에 사진 3장
   const px = 72, py = Math.max(y + 48, 520), pw = W - 144, ph = (PH.length ? 870 : 1040) - py;
@@ -659,20 +686,23 @@ function openBrag(info, t, count, allDone) {
     const route = which === 'plan' ? plan : which === 'mine' ? mine : null;
     const sd = new Date(info.startAt ?? info.meetAt);
     const stats = [];
+    const M = modeOfT(t), dur = ms => fmtDur(ms).replace(/ 0분$/, '');
     if (route && which === 'mine') {
-      const st = trackStats(trackLoad(t));
-      if (st.d - st.walk > 300) stats.push(`걸은 거리 ${fmtDist(st.walk)}`, `전체 이동 ${fmtDist(st.d)}`);   // 차로 간 길이 있으면 따로
-      else stats.push(`걸은 거리 ${fmtDist(st.d)}`);
+      const st = trackStats(trackLoad(t), M.car);
+      if (st.d - st.walk > 300) stats.push(`${M.did} 거리 ${fmtDist(st.walk)}`, `전체 이동 ${fmtDist(st.d)}`);   // 차로 간 길이 있으면 따로
+      else stats.push(`${M.did} 거리 ${fmtDist(st.d)}`);
+      if (M.k === 'run') stats.push(`페이스 ${fmtPace(st.walk, st.ms)}`);
+      if (M.k === 'bike') stats.push(`평균 ${fmtSpeed(st.walk, st.ms)}`);
     } else if (route) stats.push(`거리 ${fmtDist(pathLen(route))}`);
-    const dur = ms => fmtDur(ms).replace(/ 0분$/, '');
-    if (which === 'mine') { const tr = trackLoad(t), st = trackStats(tr); if (st.ms > 0) stats.push(dur(st.ms)); }
+    if (which === 'mine') { const st = trackStats(trackLoad(t), M.car); if (st.ms > 0) stats.push(dur(st.ms)); }
     else if (info.startAt != null && info.meetAt > info.startAt) stats.push(`${dur(info.meetAt - info.startAt)} 일정`);
     if (showCount && count) stats.push(allDone ? `✓ ${count}명 모두 도착` : `함께한 ${count}명`);
     cardOpts = {
       name: info.name, dateText: `${sd.getFullYear()}년 ${sd.getMonth() + 1}월 ${sd.getDate()}일 (${'일월화수목금토'[sd.getDay()]})`,
       route, startPlace: info.startPlace || '출발 집결지', endPlace: info.meetPlace || '도착지',
       startTime: fmtClock(info.startAt ?? info.meetAt), endTime: fmtClock(info.meetAt), stats,
-      modes: which === 'mine' ? trackModes(trackLoad(t)) : null };
+      modes: which === 'mine' ? trackModes(trackLoad(t), M.car) : null,
+      modeLabel: ls.get('walkMode:' + t, null) ? `${M.ic} ${M.label}` : '' };
     if (phs === null) { phs = await cardPhotos(t); if (phs.recs.length) phBox.style.display = ''; }
     if (usePh && phs.recs.length) { cardOpts.photos = phs.pick; cardOpts.photoRecs = phs.recs; }
     await card.draw(cardOpts);
@@ -829,7 +859,7 @@ function viewBragLink(given) {
   if (!o || typeof o.name !== 'string') { location.replace('./'); return; }
   // 서버나 링크에서 온 값은 글자로만 써요
   const s = (v, n) => typeof v === 'string' ? v.slice(0, n) : '';
-  o = { name: s(o.name, 40), dateText: s(o.dateText, 30), startPlace: s(o.startPlace, 30), endPlace: s(o.endPlace, 30), startTime: s(o.startTime, 5), endTime: s(o.endTime, 5),
+  o = { name: s(o.name, 40), dateText: s(o.dateText, 30), modeLabel: s(o.modeLabel, 20), startPlace: s(o.startPlace, 30), endPlace: s(o.endPlace, 30), startTime: s(o.startTime, 5), endTime: s(o.endTime, 5),
     stats: Array.isArray(o.stats) ? o.stats.slice(0, 4).map(x => s(x, 30)) : [], route: Array.isArray(o.route) ? o.route.slice(0, 400) : null,
     modes: typeof o.modes === 'string' && /^[wc]*$/.test(o.modes) ? o.modes : null };
   if (o.modes && (!o.route || o.modes.length !== o.route.length)) o.modes = null;
@@ -849,7 +879,7 @@ function viewBragLink(given) {
     roleBar('leader', '나들이 경로'),
     // 1) 이름, 날짜, 한 줄 요약
     el('div', { class: 'stack', style: 'gap:4px' },
-      el('div', { class: 'sub', text: o.dateText || '' }),
+      el('div', { class: 'sub', text: (o.dateText || '') + (o.modeLabel ? ' · ' + o.modeLabel : '') }),
       el('h1', { text: o.name }),
       el('div', { style: 'font-size:15px;color:#4A5249;font-weight:600', text: `${o.startPlace} ${o.startTime} → ${o.endPlace} ${o.endTime}` }),
       o.stats.length ? el('div', { class: 'sub', text: o.stats.join(' · ') }) : null),
@@ -1100,7 +1130,7 @@ function openPastTrips() {
     list.length ? list.map(x => { const d = new Date(x.info.startAt), tr = trackLoad(x.t);
       return el('button', { class: 'member', onclick: () => { bg.remove(); openBrag(x.info, x.t, 0, false); } },
         el('div', { class: 'grow' }, el('div', { class: 'nm', text: x.info.name }),
-          el('div', { class: 'dt', text: `${d.getMonth() + 1}월 ${d.getDate()}일` + (hasRoute(x.info) ? ' · 예정 경로' : '') + (tr.length > 1 ? ` · 이동 기록 ${fmtDist(trackStats(tr).d)}` : '') })),
+          el('div', { class: 'dt', text: (ls.get('walkMode:' + x.t, null) ? `${modeOfT(x.t).ic} ${modeOfT(x.t).label} · ` : '') + `${d.getMonth() + 1}월 ${d.getDate()}일` + (hasRoute(x.info) ? ' · 예정 경로' : '') + (tr.length > 1 ? ` · 이동 기록 ${fmtDist(trackStats(tr, modeOfT(x.t).car).d)}` : '') })),
         el('span', { class: 'chip', style: 'background:var(--forest-soft);color:var(--forest-ink)', text: '자랑하기' })); })
       : el('p', { class: 'sub center', text: '아직 이 휴대폰에 남은 나들이가 없어요. 나들이를 만들거나 참여하면 여기에 쌓여요.' }),
     el('button', { class: 'btn line small', text: '닫기', onclick: () => bg.remove() })));
@@ -1118,13 +1148,15 @@ function viewLanding() {
     el('div', { style: 'padding:28px 0 36px' },
       el('h1', { style: 'font-size:34px', text: '누비' }),
       el('p', { class: 'sub', style: 'margin:6px 0 0;font-size:16px;color:#4A5249', text: '누빈 길을 남기는 지도일기' })),
-    bigBtn('새 나들이 만들기', '계획을 세우고 참여 링크를 카톡방에 보내요', true, () => { location.href = '?new=1'; }),
-    ls.get('walkNow', null)
-      ? bigBtn('기록 중 · 이어서 보기', '다니던 길을 계속 기록해요', false, () => { location.href = '?walk=1'; })
-      : bigBtn('지금 기록하기', '앱을 켜 두고 다니면 누빈 길이 지도일기로 남아요', false, () => { location.href = '?walk=1'; }),
+    // 기록 중이면 이어서 보기가 맨 위
+    ls.get('walkNow', null) ? bigBtn(`${modeOfT(ls.get('walkNow')).ic} 기록 중 · 이어서 보기`, '다니던 길을 계속 기록해요', true, () => { location.href = '?walk=1'; }) : null,
+    // 기록 시작: 모드를 고르면 바로 기록 화면으로 (단체 나들이는 나들이 만들기로)
+    el('h2', { style: 'margin-top:4px', text: '기록 시작' }),
+    modeGrid(null, k => { location.href = k === 'group' ? '?new=1' : `?walk=1&mode=${k}`; }),
+    el('div', { class: 'sub', style: 'margin-top:-4px', text: '앱을 켜 두고 다니면 누빈 길이 지도일기로 남아요. 🚌 단체 나들이는 참여 링크를 보내 일행을 챙겨요.' }),
     bigBtn('지도일기 자랑하기', '다녀온 길을 예쁜 카드 한 장으로 만들어 올려요', false, openPastTrips),
     mine.length ? el('div', { class: 'stack', style: 'margin-top:16px' },
-      el('h2', { text: '내가 만든 나들이' }),
+      el('h2', { text: '내가 만든 단체 나들이' }),
       mine.map(m => el('a', { class: 'member', href: `?t=${m.t}`, style: 'text-decoration:none;color:inherit' },
         el('div', { class: 'grow' }, el('div', { class: 'nm', text: m.name }), el('div', { class: 'dt', text: new Date(m.meetAt).toLocaleString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' 집결' }))))
     ) : null,
@@ -1139,25 +1171,31 @@ function viewLanding() {
 function viewWalk() {
   let id = ls.get('walkNow', null), watch = null, wake = null, wantWake = true, map = null, line = null, dot = null, follow = true, gps = 'wait', phLayer = null, lastFix = null, nPhotos = 0;
   leaveWarn = () => id && !done ? '첫 화면으로 가면 기록이 잠깐 멈춰요. 다시 들어오면 이어서 기록해요. 갈까요?' : null;
-  const today = new Date(), defName = `${today.getMonth() + 1}월 ${today.getDate()}일 기록`;
-  const nameOf = () => ls.get('trackName:' + id, defName);
+  let pick = qs.get('mode') || ls.get('lastMode', 'hike');   // 고른 모드
+  if (pick === 'group') { location.replace('?new=1'); return; }
+  const M = () => id ? modeOfT(id) : modeByK(pick);
+  const today = new Date(), dayName = `${today.getMonth() + 1}월 ${today.getDate()}일`;
+  const defName = () => `${dayName} ${M().label}`;
+  const nameOf = () => ls.get('trackName:' + id, defName());
   const mapEl = el('div', { class: 'mapbox', style: 'height:46vh;min-height:280px' });
   const tDur = el('b', { style: 'font-size:28px;font-variant-numeric:tabular-nums', text: '0분' });
   const tDist = el('b', { style: 'font-size:28px;font-variant-numeric:tabular-nums', text: '0m' });
   const tAll = el('div', { class: 'sub center', style: 'margin-top:-4px' });
+  const tDistLbl = el('span', { text: '걸은 거리' });
   const root = el('div', { class: 'stack' });
   app.replaceChildren(root);
   const lockWake = async () => { try { wake = await navigator.wakeLock.request('screen'); wake.addEventListener('release', () => { wake = null; draw(); }); } catch { wake = null; } draw(); };
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && id && wantWake && !wake) lockWake(); });
   function stats() {
-    const tr = id ? trackLoad(id) : [], st = trackStats(tr), at = ls.get('walkAt', Date.now());
-    tDur.textContent = fmtDur(Math.max(0, Date.now() - at)); tDist.textContent = fmtDist(st.walk);
-    tAll.textContent = st.d - st.walk > 300 ? `차로 이동한 길까지 모두 ${fmtDist(st.d)}` : '';
+    const m = M(), tr = id ? trackLoad(id) : [], st = trackStats(tr, m.car), at = ls.get('walkAt', Date.now());
+    tDur.textContent = fmtDur(Math.max(0, Date.now() - at)); tDist.textContent = fmtDist(st.walk); tDistLbl.textContent = `${m.did} 거리`;
+    const extra = m.k === 'run' ? `평균 페이스 ${fmtPace(st.walk, st.ms)} /km` : m.k === 'bike' ? `평균 속도 ${fmtSpeed(st.walk, st.ms)}` : '';
+    tAll.textContent = [extra, st.d - st.walk > 300 ? `차로 이동한 길까지 모두 ${fmtDist(st.d)}` : ''].filter(Boolean).join(' · ');
     if (map) {
       // 걸은 길은 주황 실선, 차로 간 길은 회색 점선
       if (!line) line = L.layerGroup().addTo(map);
       line.clearLayers();
-      modeRuns(tr.map(q => [q[0], q[1]]), trackModes(tr)).forEach(r => L.polyline(r.pts, r.car ? { color: '#6B7280', weight: 4, dashArray: '8 8' } : { color: '#E4572E', weight: 5 }).addTo(line));
+      modeRuns(tr.map(q => [q[0], q[1]]), trackModes(tr, m.car)).forEach(r => L.polyline(r.pts, r.car ? { color: '#6B7280', weight: 4, dashArray: '8 8' } : { color: '#E4572E', weight: 5 }).addTo(line));
     }
   }
   function startGps() {
@@ -1205,7 +1243,8 @@ function viewWalk() {
     }, 0);
   }
   function start() {
-    id = 'walk_' + rid(8); ls.set('walkNow', id); ls.set('walkAt', Date.now()); ls.set('trackName:' + id, defName);
+    id = 'walk_' + rid(8); ls.set('walkNow', id); ls.set('walkAt', Date.now());
+    ls.set('walkMode:' + id, pick); ls.set('lastMode', pick); ls.set('trackName:' + id, `${dayName} ${modeByK(pick).label}`);
     wantWake = true; lockWake(); startGps(); draw();
   }
   function finish() {
@@ -1220,15 +1259,15 @@ function viewWalk() {
     const bg = el('div', { class: 'sheet-bg' });
     bg.append(el('div', { class: 'sheet', role: 'dialog', 'aria-label': '기록 저장' },
       el('h2', { text: '기록을 끝낼까요?' }),
-      el('p', { class: 'sub', style: 'margin:0', text: `걸은 거리 ${fmtDist(trackStats(tr).walk)} · ${fmtDur(trackStats(tr).ms)}. 이름을 정하면 저장하고 기록을 끝내요.` }),
+      el('p', { class: 'sub', style: 'margin:0', text: `${M().did} 거리 ${fmtDist(trackStats(tr, M().car).walk)} · ${fmtDur(trackStats(tr).ms)}. 이름을 정하면 저장하고 기록을 끝내요.` }),
       el('label', { class: 'f', for: 'wn' }, '이름', iN),
       el('div', { class: 'two' },
         el('label', { class: 'f', for: 'ws' }, '출발한 곳 (선택)', iS),
         el('label', { class: 'f', for: 'we' }, '도착한 곳 (선택)', iE)),
       el('div', { class: 'row' },
-        el('button', { class: 'btn line small grow', text: '계속 걷기', onclick: () => bg.remove() }),
+        el('button', { class: 'btn line small grow', text: '계속하기', onclick: () => bg.remove() }),
         el('button', { class: 'btn primary small grow', text: '저장하고 끝내기', onclick: () => {
-          ls.set('trackName:' + id, iN.value.trim() || defName);
+          ls.set('trackName:' + id, iN.value.trim() || defName());
           ls.set('walkPlaces:' + id, { start: iS.value.trim(), end: iE.value.trim() });
           stopGps(); wantWake = false; try { wake?.release(); } catch {}
           ls.set('walkNow', null); bg.remove(); done = id; draw();
@@ -1238,11 +1277,11 @@ function viewWalk() {
   let done = null;
   function draw() {
     if (done) {
-      const tr = trackLoad(done), st = trackStats(tr);
+      const tr = trackLoad(done), st = trackStats(tr, M().car);
       const wp = ls.get('walkPlaces:' + done, {});
-      const info = { name: ls.get('trackName:' + done, defName), startPlace: wp.start || '출발 지점', meetPlace: wp.end || '도착 지점', startAt: tr[0][2], meetAt: tr[tr.length - 1][2], route: null, phase: 'go' };
+      const info = { name: ls.get('trackName:' + done, defName()), startPlace: wp.start || '출발 지점', meetPlace: wp.end || '도착 지점', startAt: tr[0][2], meetAt: tr[tr.length - 1][2], route: null, phase: 'go' };
       root.replaceChildren(roleBar('leader', '내 지도일기'),
-        el('div', { class: 'banner ok', style: 'margin-top:12px' }, el('b', { text: `"${info.name}" 지도일기에 남겼어요!` }), el('div', { text: `걸은 거리 ${fmtDist(st.walk)} · ${fmtDur(st.ms)}. 지도일기 자랑하기 목록에도 남아 있어요.` })),
+        el('div', { class: 'banner ok', style: 'margin-top:12px' }, el('b', { text: `"${info.name}" 지도일기에 남겼어요!` }), el('div', { text: `${M().did} 거리 ${fmtDist(st.walk)} · ${fmtDur(st.ms)}. 지도일기 자랑하기 목록에도 남아 있어요.` })),
         el('button', { class: 'btn primary full big', text: '자랑 카드 만들기', onclick: () => openBrag(info, done, 0, false) }),
         el('a', { class: 'btn line full', href: './', text: '처음으로' }));
       return;
@@ -1251,21 +1290,23 @@ function viewWalk() {
       root.replaceChildren(roleBar('leader', '내 지도일기'),
         el('a', { class: 'link', href: './', style: 'align-self:flex-start;padding:0', text: '← 처음으로' }),
         el('h1', { text: '지금 기록하기' }),
+        el('div', { class: 'sub', text: '무엇을 하러 가세요?' }),
+        modeGrid(pick, k => { if (k === 'group') { location.href = '?new=1'; return; } pick = k; draw(); }),
         el('div', { class: 'card stack', style: 'gap:8px' },
-          el('div', { text: '시작을 누르고 걸으면, 다닌 길이 지도에 그려지고 지도일기로 남아요.' }),
+          el('div', { text: `시작을 누르고 다니면, 누빈 길이 지도에 그려지고 지도일기로 남아요.` }),
           el('div', { class: 'sub', text: '기록은 이 휴대폰에만 저장돼요. 웹앱이라 화면이 꺼지면 기록이 멈춰서, 기록하는 동안 화면을 켜 둘게요.' })),
-        el('button', { class: 'btn primary full big', text: '시작하기', onclick: start }));
+        el('button', { class: 'btn primary full big', text: `${modeByK(pick).ic} ${modeByK(pick).label} 시작하기`, onclick: start }));
       return;
     }
     startGps(); ensureMap();
     root.replaceChildren(...[roleBar('leader', '내 지도일기'),
       el('div', { class: 'row', style: 'justify-content:space-between;align-items:flex-start' },
-        el('div', { class: 'grow' }, el('div', { class: 'sub', text: '기록 중' }), el('h1', { style: 'font-size:21px', text: nameOf() })),
+        el('div', { class: 'grow' }, el('div', { class: 'sub', text: `기록 중 · ${M().ic} ${M().label}` }), el('h1', { style: 'font-size:21px', text: nameOf() })),
         gps === 'on' ? el('span', { class: 'pill on' }, el('i'), '기록 중') : gps === 'denied' ? el('span', { class: 'pill bad' }, el('i'), '위치 권한 필요') : el('span', { class: 'pill off' }, el('i'), '위치 찾는 중')),
       gps === 'denied' ? el('div', { class: 'banner alert' }, el('b', { text: '위치 권한을 허용해 주세요' }), el('div', { text: '주소창 옆 자물쇠(또는 설정) 아이콘을 눌러 위치를 허용한 뒤 새로고침하세요.' })) : null,
       el('div', { class: 'two' },
         el('div', { class: 'cnt' }, tDur, el('span', { text: '다닌 시간' })),
-        el('div', { class: 'cnt' }, tDist, el('span', { text: '걸은 거리' }))),
+        el('div', { class: 'cnt' }, tDist, tDistLbl)),
       tAll,
       el('div', { class: 'wakebar ' + (wake ? 'on' : 'off') },
         el('span', { text: wake ? '화면을 켜두고 있어요. 기록이 계속돼요.' : '화면이 꺼지면 기록이 멈춰요.' }),
