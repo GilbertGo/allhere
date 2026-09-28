@@ -970,12 +970,23 @@ function bragView(img, getOpts) {
     const o = getOpts(); if (!o) return;
     let url; try { url = await shortLink(o); } catch { return toast('비밀코드 링크를 만들지 못했어요. 인터넷 연결을 확인해 주세요'); }
     const code = shortCodes[url], text = `[지도일기] ${o.name} 경로 지도${code ? ' (비밀코드는 따로 알려 드릴게요)' : ''}\n${url}`;
+    // 비밀코드는 공유 창을 열기 전에 먼저 보여주고, 버튼 아래에도 계속 남겨 둬요
+    // (공유가 끝나도 '취소됨'으로 알려 오는 휴대폰이 있어서요)
+    if (code) { showCode(code); codeNote(code); }
     if (navigator.share && !IN_KAKAO) {
-      try { await navigator.share({ text }); if (code) showCode(code); return; }
+      try { await navigator.share({ text }); return; }
       catch (e) { if (e && e.name === 'AbortError') return; if (e && e.name === 'NotAllowedError') return toast('준비됐어요. 링크 보내기를 한 번 더 눌러 주세요'); }
     }
     navigator.clipboard.writeText(text).then(() => toast('링크를 복사했어요. 카톡방에 붙여넣으세요'), () => prompt('이 링크를 복사하세요', url));
-    if (code) showCode(code);
+  };
+  // 버튼 아래에 남는 비밀코드 줄
+  const codeBox = el('div', { class: 'banner info', style: 'display:none' });
+  const codeNote = code => {
+    codeBox.style.display = '';
+    codeBox.replaceChildren(el('div', { class: 'row', style: 'justify-content:space-between;gap:10px' },
+      el('div', {}, el('div', { class: 'sub', style: 'color:inherit', text: '보낸 링크의 비밀코드' }),
+        el('b', { style: 'font-size:26px;letter-spacing:4px;font-variant-numeric:tabular-nums', text: code.slice(0, 3) + ' ' + code.slice(3) })),
+      el('button', { class: 'btn line small', text: '복사', onclick: () => navigator.clipboard.writeText(code).then(() => toast('비밀코드를 복사했어요'), () => {}) })));
   };
   const hint = el('p', { class: 'sub center', style: 'margin:0', text: IN_KAKAO ? '카카오톡 안에서는 사진을 보낼 수 없어서, 사진 보내기는 휴대폰의 기본 브라우저에서 열어요.' : '사진만 저장하려면 카드 그림을 길게 누르세요.' });
   // 카카오 키가 있으면: 사진 + '지도에서 보기' 버튼이 붙은 카톡 메시지 하나로 한꺼번에 보내요
@@ -987,7 +998,7 @@ function bragView(img, getOpts) {
       Kakao.Share.sendDefault({ objectType: 'feed',
         content: { title: o.name, description: `${o.dateText} · ${o.startPlace} → ${o.endPlace}`, imageUrl: up.infos.original.url, imageWidth: 1080, imageHeight: 1350, link: { mobileWebUrl: url, webUrl: url } },
         buttons: [{ title: '지도에서 보기', link: { mobileWebUrl: url, webUrl: url } }] });
-      if (shortCodes[url]) showCode(shortCodes[url]);
+      if (shortCodes[url]) { showCode(shortCodes[url]); codeNote(shortCodes[url]); }
     } catch { toast('카카오톡으로 보내지 못했어요. 잠시 뒤 다시 해 주세요'); }
   };
   // 카톡 안 → 기본 브라우저로 사진 저장하러 갈 때는 비밀코드 없이 (보내는 사람 본인이 보는 화면이라)
@@ -1000,7 +1011,7 @@ function bragView(img, getOpts) {
     el('div', { class: 'two' },
       el('button', { class: 'btn primary', text: '사진 보내기', onclick: IN_KAKAO ? () => openOther() : share }),
       el('button', { class: 'btn primary', text: '링크 보내기', onclick: shareLink })),
-    hint];
+    codeBox, hint];
   return {
     actions,
     async draw(o) {
