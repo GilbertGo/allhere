@@ -716,6 +716,7 @@ function openBrag(info, t, count, allDone) {
       if (M.k === 'run') stats.push(`페이스 ${fmtPace(st.walk, st.ms)}`);
       if (M.k === 'bike') stats.push(`평균 ${fmtSpeed(st.walk, st.ms)}`);
     } else if (route) stats.push(`거리 ${fmtDist(pathLen(route))}`);
+    if (info.live) stats.push('진행 중');   // 기록 중에 자랑할 때
     if (info.durText) stats.push(info.durText);
     else if (which === 'mine') { const st = trackStats(trackLoad(t), M.car); if (st.ms > 0) stats.push(dur(st.ms)); }
     else if (info.startAt != null && info.meetAt > info.startAt) stats.push(`${dur(info.meetAt - info.startAt)} 일정`);
@@ -1303,7 +1304,8 @@ function viewWalk() {
       photoList(id).then(ps => Promise.all(ps.map(p => photoDel(p.id)))).finally(() => { location.href = './'; }); return;
     }
     const iN = el('input', { type: 'text', id: 'wn', maxlength: 40, value: nameOf() });
-    const iS = el('input', { type: 'text', id: 'ws', maxlength: 30, placeholder: '예: 동네 공원' }), iE = el('input', { type: 'text', id: 'we', maxlength: 30, placeholder: '예: 뒷산 정상' });
+    const wp0 = ls.get('walkPlaces:' + id, {});   // 기록 중에 '장소 이름 적기'로 적어 둔 게 있으면 채워요
+    const iS = el('input', { type: 'text', id: 'ws', maxlength: 30, value: wp0.start || '', placeholder: '예: 동네 공원' }), iE = el('input', { type: 'text', id: 'we', maxlength: 30, value: wp0.end || '', placeholder: '예: 뒷산 정상' });
     const bg = el('div', { class: 'sheet-bg' });
     bg.append(el('div', { class: 'sheet', role: 'dialog', 'aria-label': '기록 저장' },
       el('h2', { text: '기록을 끝낼까요?' }),
@@ -1368,6 +1370,21 @@ function viewWalk() {
         el('button', { class: 'btn line', text: '사진 찍기', onclick: () => camIn.click() }),
         el('button', { class: 'btn line', text: '사진 불러오기', onclick: () => galIn.click() })),
       nPhotos ? el('div', { class: 'sub center', text: `이 기록에 사진 ${nPhotos}장이 붙어 있어요` }) : null,
+      // 기록을 끝내지 않고 지금까지 다닌 길로 자랑하기
+      (() => {
+        const aid = ls.get('walkAlbum:' + id, null), al = aid && albumGet(aid);
+        const today = el('button', { class: 'btn line full', text: al ? '오늘 자랑하기' : '지금까지 자랑하기', onclick: () => {
+          const tr = trackLoad(id); if (tr.length < 2) return toast('아직 기록된 길이 거의 없어요. 조금 더 다닌 뒤에 자랑해요');
+          const wp = ls.get('walkPlaces:' + id, {});
+          openBrag({ name: nameOf(), startPlace: wp.start || '출발 지점', meetPlace: wp.end || '지금 여기', startAt: tr[0][2], meetAt: tr[tr.length - 1][2], route: null, phase: 'go', live: true }, id, 0, false);
+        } });
+        if (!al || al.days.length < 2) return today;
+        return el('div', { class: 'two' }, today, el('button', { class: 'btn line full', text: '여행 전체 자랑하기', onclick: () => {
+          const ai = albumInfo(aid); if (!ai) return toast('아직 기록된 길이 거의 없어요');
+          if (!ls.get('walkPlaces:' + aid, {}).end) ai.meetPlace = '지금 여기';
+          openBrag(Object.assign(ai, { live: true }), aid, 0, false);
+        } }));
+      })(),
       el('button', { class: 'btn primary full big', text: '끝내기', onclick: finish }),
       camIn, galIn,
       el('a', { class: 'link', href: './', style: 'align-self:center;color:var(--muted)', text: '처음으로 (다시 들어오면 이어서 기록해요)' })].filter(Boolean));
