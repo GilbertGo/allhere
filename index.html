@@ -1075,14 +1075,17 @@ function viewWalk() {
   }
   function stopGps() { if (watch != null) navigator.geolocation.clearWatch(watch); watch = null; }
   // 사진: 카메라나 사진첩에서 골라서, 찍은 곳에 붙여요
-  const camIn = el('input', { type: 'file', accept: 'image/*', multiple: true, style: 'display:none', onchange: async () => {
-    const files = [...camIn.files]; camIn.value = ''; if (!files.length) return;
+  // 찍기: 바로 카메라(capture), 불러오기: 사진첩에서 여러 장
+  const onPick = async inp => {
+    const files = [...inp.files]; inp.value = ''; if (!files.length) return;
     toast('사진을 넣는 중이에요…');
     const n = await addPhotos(id, files, lastFix);
     toast(n ? `사진 ${n}장을 발도장에 붙였어요` : '사진을 넣지 못했어요');
     if (wantWake && !wake) lockWake();
     refreshPhotos();
-  } });
+  };
+  const camIn = el('input', { type: 'file', accept: 'image/*', capture: 'environment', style: 'display:none', onchange: () => onPick(camIn) });
+  const galIn = el('input', { type: 'file', accept: 'image/*', multiple: true, style: 'display:none', onchange: () => onPick(galIn) });
   async function refreshPhotos() {
     const ps = id ? await photoList(id) : [];
     const was = nPhotos; nPhotos = ps.length;
@@ -1163,9 +1166,11 @@ function viewWalk() {
       mapEl,
       follow ? null : el('button', { class: 'btn line small', style: 'align-self:flex-start', text: '내 위치 따라가기', onclick: () => { follow = true; const tr = trackLoad(id); if (map && tr.length) map.setView([tr[tr.length - 1][0], tr[tr.length - 1][1]], 16); draw(); } }),
       el('div', { class: 'two' },
-        el('button', { class: 'btn line', text: nPhotos ? `사진 찍기 (${nPhotos}장)` : '사진 찍기', onclick: () => camIn.click() }),
-        el('button', { class: 'btn primary', text: '끝내기', onclick: finish })),
-      camIn,
+        el('button', { class: 'btn line', text: '사진 찍기', onclick: () => camIn.click() }),
+        el('button', { class: 'btn line', text: '사진 불러오기', onclick: () => galIn.click() })),
+      nPhotos ? el('div', { class: 'sub center', text: `이 발도장에 사진 ${nPhotos}장이 붙어 있어요` }) : null,
+      el('button', { class: 'btn primary full big', text: '끝내기', onclick: finish }),
+      camIn, galIn,
       el('a', { class: 'link', href: './', style: 'align-self:center;color:var(--muted)', text: '처음으로 (다시 들어오면 이어서 기록해요)' })].filter(Boolean));
     stats();
   }
