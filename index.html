@@ -95,6 +95,8 @@ body.noscroll{overflow:hidden}
 .mode .ic{font-size:28px;line-height:1.1}
 .mode.on{background:var(--pine);color:var(--accent)}
 .spot-pin{background:#fff;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,.35);display:flex!important;align-items:center;justify-content:center;font-size:17px;line-height:1}
+.gallery{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch}
+.gallery img{width:96px;height:96px;object-fit:cover;border-radius:14px;flex-shrink:0;cursor:zoom-in;box-shadow:var(--shadow)}
 .ph-pin{background:none;border:none}.ph-pin img{width:44px!important;height:44px!important;object-fit:cover;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35);display:block}
 .goal{background:var(--ink);color:#fff;border-radius:24px;padding:20px;display:flex;flex-direction:column;gap:14px}
 .goal .lbl{font-size:13px;color:#B3AC9C}
@@ -721,6 +723,9 @@ function openBrag(info, t, count, allDone) {
   let phs = null, usePh = true;
   const phIn = el('input', { type: 'checkbox', id: 'bg-p', checked: true, onchange: () => { usePh = phIn.checked; draw(); } });
   const phBox = el('div', { class: 'check', style: 'display:none' }, phIn, el('label', { for: 'bg-p', text: '찍은 사진 넣기' }));
+  let sharePh = true;   // 지도 링크에도 사진을 (잠가서) 넣을지
+  const shIn = el('input', { type: 'checkbox', id: 'bg-s', checked: true, onchange: () => { sharePh = shIn.checked; if (cardOpts) cardOpts.sharePhotos = sharePh; } });
+  const shBox = el('div', { class: 'check', style: 'display:none' }, shIn, el('label', { for: 'bg-s', text: '지도 링크에도 사진 넣기 (링크를 받은 사람만 볼 수 있게 잠가서 올려요)' }));
   async function draw() {
     opts.replaceChildren(...[['plan', '예정 경로', plan], ['mine', '내 이동 기록', mine], ['none', '경로 안 보이기', true]].filter(x => x[2])
       .map(([k, label]) => el('button', { class: 'btn small ' + (which === k ? 'dark' : 'line'), text: label, onclick: () => { which = k; draw(); } })));
@@ -747,8 +752,8 @@ function openBrag(info, t, count, allDone) {
       modes: which === 'mine' ? trackModes(trackLoad(t), M.car) : null,
       spots: spotsOf(t).slice(0, 10).map(s => ({ n: s.n, lat: s.lat, lng: s.lng })),
       modeLabel: ls.get('walkMode:' + t, null) ? `${M.ic} ${M.label}` : '' };
-    if (phs === null) { phs = await cardPhotos(t); if (phs.recs.length) phBox.style.display = ''; }
-    if (usePh && phs.recs.length) { cardOpts.photos = phs.pick; cardOpts.photoRecs = phs.recs; }
+    if (phs === null) { phs = await cardPhotos(t); if (phs.recs.length) { phBox.style.display = ''; shBox.style.display = ''; } }
+    if (phs.recs.length) { cardOpts.photoRecs = phs.recs; cardOpts.sharePhotos = sharePh; if (usePh) cardOpts.photos = phs.pick; }
     await card.draw(cardOpts);
   }
   let cardOpts = null;
@@ -799,7 +804,7 @@ function openBrag(info, t, count, allDone) {
       document.body.append(pb);
     } }),
     count ? el('div', { class: 'check' }, cnt, el('label', { for: 'bg-c', text: '참여 인원 수 보이기' })) : null,
-    phBox,
+    phBox, shBox,
     ...card.actions,
     el('button', { class: 'btn line small', text: '닫기', onclick: () => bg.remove() })));
   document.body.append(bg);
@@ -820,17 +825,48 @@ const unb64u = s => decodeURIComponent(escape(atob(s.replace(/-/g, '+').replace(
 // 짧은 링크: 카드 내용을 서버(allhere/v1/share/{번호})에 저장하고 링크에는 번호만 넣어요.
 // 시험용 공개 서버라 며칠 뒤 사라질 수 있어요. 저장에 실패하면 긴 링크를 써요.
 const shortCache = {};
+// ---------- 링크로 사진 보내기: 사진은 잠가서(AES-GCM) 올리고, 여는 열쇠는 링크의 # 뒤에만 둬요 ----------
+// # 뒤는 서버로 가지 않아서, 공개 서버에는 알아볼 수 없는 데이터만 남아요.
+const u8b64 = u8 => { let s = ''; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(s); };
+const b64u8 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+async function sealBytes(buf, key) {
+  const iv = crypto.getRandomValues(new Uint8Array(12)), ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, buf));
+  const out = new Uint8Array(12 + ct.length); out.set(iv); out.set(ct, 12); return u8b64(out);
+}
+async function openBytes(s, key) { const u = b64u8(s); return crypto.subtle.decrypt({ name: 'AES-GCM', iv: u.subarray(0, 12) }, key, u.subarray(12)); }
+const SHARE_PHOTOS = 12;
 async function shortLink(o) {
-  const long = bragLink(o), key = long;
+  const recs = o.sharePhotos !== false && Array.isArray(o.photoRecs) ? o.photoRecs : [];
+  const long = bragLink(o), key = long + '|' + recs.map(r => r.id).join(',');
   if (shortCache[key]) return shortCache[key];
   try {
     for (let i = 0; i < 50 && !connected; i++) await new Promise(r => setTimeout(r, 100));
     if (!connected) return long;
     const id = rid(8), payload = JSON.parse(unb64u(new URL(long).searchParams.get('brag')));
+    let hash = '';
+    if (recs.length) {
+      // 사진은 최대 12장, 고르게 골라서 800px로 줄여 잠가 올려요
+      const step = Math.max(1, recs.length / SHARE_PHOTOS), pick = [];
+      for (let i = 0; i < recs.length && pick.length < SHARE_PHOTOS; i += step) pick.push(recs[Math.floor(i)]);
+      toast(`사진 ${pick.length}장을 잠가서 올리는 중이에요…`);
+      const k = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 128 }, true, ['encrypt', 'decrypt']);
+      let n = 0;
+      for (const r of pick) {
+        try {
+          const small = await shrinkImage(r.blob, 800, 'blob', 0.72);
+          await pub(`allhere/v1/share/${id}/p/${n}`, { d: await sealBytes(await small.arrayBuffer(), k), lat: r.lat, lng: r.lng, ts: r.ts });
+          n++;
+        } catch {}
+      }
+      payload.ph = n;
+      if (n) hash = '#k=' + u8b64(new Uint8Array(await crypto.subtle.exportKey('raw', k))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    }
     await pub(`allhere/v1/share/${id}`, payload);
-    return (shortCache[key] = `${location.origin}${location.pathname}?s=${id}`);
+    return (shortCache[key] = `${location.origin}${location.pathname}?s=${id}${hash}`);
   } catch { return long; }
 }
+// 링크 뒤에 &c=1 같은 것을 붙일 때 # 앞에 붙여요
+const addQuery = (url, q) => { const i = url.indexOf('#'); return i < 0 ? url + q : url.slice(0, i) + q + url.slice(i); };
 function bragLink(o) {
   const th = o.route ? thinRoute(o.route, typeof o.modes === 'string' && o.modes.length === o.route.length ? o.modes : null, 150) : { R: null, modes: null };
   const r = th.R;
@@ -859,7 +895,7 @@ function bragView(img, getOpts) {
   const shareLink = async () => {
     const o = getOpts(); if (!o) return;
     const url = await shortLink(o), text = `[지도일기] ${o.name} 경로 지도\n${url}`;
-    if (navigator.share && !IN_KAKAO) { try { await navigator.share({ text }); return; } catch (e) { if (e && e.name === 'AbortError') return; } }
+    if (navigator.share && !IN_KAKAO) { try { await navigator.share({ text }); return; } catch (e) { if (e && e.name === 'AbortError') return; if (e && e.name === 'NotAllowedError') return toast('준비됐어요. 링크 보내기를 한 번 더 눌러 주세요'); } }
     navigator.clipboard.writeText(text).then(() => toast('링크를 복사했어요. 카톡방에 붙여넣으세요'), () => prompt('이 링크를 복사하세요', url));
   };
   const hint = el('p', { class: 'sub center', style: 'margin:0', text: IN_KAKAO ? '카카오톡 안에서는 사진을 보낼 수 없어서, 사진 보내기는 휴대폰의 기본 브라우저에서 열어요.' : '사진만 저장하려면 카드 그림을 길게 누르세요.' });
@@ -874,7 +910,7 @@ function bragView(img, getOpts) {
         buttons: [{ title: '지도에서 보기', link: { mobileWebUrl: url, webUrl: url } }] });
     } catch { toast('카카오톡으로 보내지 못했어요. 잠시 뒤 다시 해 주세요'); }
   };
-  const openOther = async () => { const o = getOpts(); if (o) location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(await shortLink(o) + '&c=1'); };
+  const openOther = async () => { const o = getOpts(); if (o) location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(addQuery(await shortLink(o), '&c=1')); };
   let actions;
   if (kakaoOK()) {
     hint.textContent = '카드 사진과 "지도에서 보기" 버튼이 메시지 하나로 가요. 사진만 저장하려면 카드 그림을 길게 누르세요.';
@@ -902,13 +938,27 @@ function viewShareLink() {
   app.replaceChildren(el('div', { class: 'stack' }, roleBar('leader', '나들이 경로'), el('p', { class: 'sub center', style: 'margin-top:40px', text: '경로를 불러오는 중이에요…' })));
   const topic = `allhere/v1/share/${id}`;
   let done = false;
-  client.on('message', (t, buf) => {
+  // 사진: 링크의 # 뒤 열쇠로 풀어요. 열쇠가 없으면 사진은 못 봐요.
+  const feed = { recs: [], on: [] };
+  const km = /[#&]k=([A-Za-z0-9_-]+)/.exec(location.hash);
+  const keyP = km ? crypto.subtle.importKey('raw', b64u8(km[1].replace(/-/g, '+').replace(/_/g, '/')), 'AES-GCM', false, ['decrypt']).catch(() => null) : Promise.resolve(null);
+  client.on('message', async (t, buf) => {
+    if (t.startsWith(topic + '/p/')) {
+      const key = await keyP; if (!key) return;
+      try {
+        const v = JSON.parse(buf.toString());
+        const blob = new Blob([await openBytes(v.d, key)], { type: 'image/jpeg' });
+        const rec = { id: t, ts: num(v.ts) || 0, lat: num(v.lat), lng: num(v.lng), blob, thumb: await shrinkImage(blob, 160, 'url', 0.7) };
+        feed.recs.push(rec); feed.recs.sort((a, b) => a.ts - b.ts); feed.on.forEach(fn => fn(rec));
+      } catch {}
+      return;
+    }
     if (t !== topic || done) return;
     let v = null; try { v = JSON.parse(buf.toString()); } catch {}
     if (!v || typeof v.name !== 'string') return;
-    done = true; client.unsubscribe(topic); viewBragLink(v);
+    done = true; viewBragLink(v, feed);
   });
-  subTopic = topic; if (connected) client.subscribe(topic, { qos: 1 });
+  subTopic = topic + '/#'; if (connected) client.subscribe(subTopic, { qos: 1 });
   setTimeout(() => {
     if (done) return;
     app.replaceChildren(el('div', { class: 'stack' }, roleBar('leader', '나들이 경로'),
@@ -917,7 +967,7 @@ function viewShareLink() {
       el('a', { class: 'btn primary full', href: './?new=1', text: '지도일기로 나들이 만들기' })));
   }, 12000);
 }
-function viewBragLink(given) {
+function viewBragLink(given, feed) {
   let o = given || null;
   if (!o) try { o = JSON.parse(unb64u(qs.get('brag'))); } catch {}
   if (!o || typeof o.name !== 'string') { location.replace('./'); return; }
@@ -928,11 +978,26 @@ function viewBragLink(given) {
     modes: typeof o.modes === 'string' && /^[wc]*$/.test(o.modes) ? o.modes : null,
     // 기록 중에 보낸 링크의 '지금 여기'는 받는 사람에게는 '마지막 위치'
     ...(o.endPlace === '지금 여기' ? { endPlace: '마지막 위치' } : {}),
+    ph: Number.isFinite(o.ph) ? Math.max(0, Math.min(o.ph, 12)) : 0,
     spots: Array.isArray(o.spots) ? o.spots.slice(0, 10).filter(p => p && Number.isFinite(p.lat) && Number.isFinite(p.lng)).map(p => ({ n: s(p.n, 30) || '좋았던 곳', lat: p.lat, lng: p.lng })) : [] };
   if (o.modes && (!o.route || o.modes.length !== o.route.length)) o.modes = null;
   const R = Array.isArray(o.route) ? o.route.filter(q => Array.isArray(q) && Number.isFinite(q[0]) && Number.isFinite(q[1])) : [];
   const img = el('img', { alt: '나들이 자랑 카드', style: 'width:100%;border-radius:16px;display:block;box-shadow:var(--shadow);background:#EFE9DC;aspect-ratio:4/5' });
   const card = bragView(img, () => o), showCard = qs.get('c') === '1';
+  // 링크로 온 사진: 모아 보기 + 지도에 동그라미
+  let phLayer = null;
+  if (feed) o.photoRecs = feed.recs;   // 큰 지도에서도 사진이 보이게
+  const gal = el('div', { class: 'gallery' }), phCount = el('div', { class: 'sub' });
+  const phWrap = feed && o.ph ? el('div', { class: 'stack', style: 'gap:6px' }, el('b', { style: 'color:var(--pine)', text: '📷 사진' }), gal, phCount) : null;
+  const hasKey = /[#&]k=/.test(location.hash);
+  const refreshPh = () => {
+    if (!phWrap) return;
+    gal.replaceChildren(...feed.recs.map(r => el('img', { src: r.thumb, alt: '사진', onclick: () => showPhoto(r) })));
+    phCount.textContent = !hasKey ? '사진을 보려면 받은 링크를 끝까지 그대로 열어야 해요.'
+      : feed.recs.length < o.ph ? `사진을 불러오는 중이에요… (${feed.recs.length}/${o.ph})` : `${feed.recs.length}장 · 누르면 크게 보여요`;
+    if (phLayer) { phLayer.clearLayers(); photoMarkers(null, phLayer, feed.recs); }
+  };
+  if (feed) feed.on.push(refreshPh);
   const mapEl = el('div', { class: 'mapbox', style: 'height:56vh;min-height:320px' });
   const toGpx = () => {
     const x = v => String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' })[c]);
@@ -974,6 +1039,8 @@ function viewBragLink(given) {
       el('h1', { text: o.name }),
       el('div', { style: 'font-size:15px;color:#4A5249;font-weight:600', text: `${o.startPlace} ${o.startTime} → ${o.endPlace} ${o.endTime}` }),
       o.stats.length ? el('div', { class: 'sub', text: o.stats.join(' · ') }) : null),
+    // 사진 (잠가서 온 사진을 풀어서 보여줘요)
+    phWrap,
     // 2) 지도 + 길찾기
     R.length > 1 ? [
       mapEl,
@@ -991,8 +1058,10 @@ function viewBragLink(given) {
       el('div', { class: 'sub', text: '하이킹, 러닝, 자전거, 캠핑, 여행… 앱 설치 없이 다닌 길을 지도에 남기고 자랑해요.' }),
       el('a', { class: 'btn primary full small', href: './', text: '나도 지도일기 시작하기' }))));
   if (showCard) card.draw(o);
+  refreshPh();
   if (R.length > 1) setTimeout(() => {
     const m = routeMap(mapEl, R, null, o.modes, o.spots); addFullBtn(m, mapEl); destMap = m;
+    phLayer = L.layerGroup().addTo(m); if (feed) photoMarkers(m, phLayer, feed.recs);
     m.on('click', e => setDest({ n: '고른 곳', lat: +e.latlng.lat.toFixed(6), lng: +e.latlng.lng.toFixed(6), k: 'pick' }, true));
     setDest(dests[0]);
   }, 0);
