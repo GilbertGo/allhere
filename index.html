@@ -864,6 +864,7 @@ async function endTripAll(t, st) {
 }
 
 function route() {
+  if (qs.get('walk') === '1') return viewWalk();
   if (qs.get('s')) return viewShareLink();
   if (qs.get('brag')) return viewBragLink();
   if (!tripId) return viewHome();
@@ -923,12 +924,128 @@ function viewLanding() {
       el('h1', { style: 'font-size:34px', text: '발도장' }),
       el('p', { class: 'sub', style: 'margin:6px 0 0;font-size:16px;color:#4A5249', text: '다 같이 다녀왔다, 쾅!' })),
     bigBtn('새 나들이 만들기', '계획을 세우고 참여 링크를 카톡방에 보내요', true, () => { location.href = '?new=1'; }),
+    ls.get('walkNow', null)
+      ? bigBtn('발도장 찍는 중 · 이어서 보기', '걷던 길을 계속 기록해요', false, () => { location.href = '?walk=1'; })
+      : bigBtn('지금 발도장 찍기', '앱을 켜 두고 걸으면 다닌 길이 발도장으로 남아요', false, () => { location.href = '?walk=1'; }),
     bigBtn('발도장 자랑하기', '다녀온 나들이에 도장 쾅, 카드 한 장으로 만들어 올려요', false, openPastTrips),
     mine.length ? el('div', { class: 'stack', style: 'margin-top:16px' },
       el('h2', { text: '내가 만든 나들이' }),
       mine.map(m => el('a', { class: 'member', href: `?t=${m.t}`, style: 'text-decoration:none;color:inherit' },
         el('div', { class: 'grow' }, el('div', { class: 'nm', text: m.name }), el('div', { class: 'dt', text: new Date(m.meetAt).toLocaleString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' 집결' }))))
     ) : null));
+}
+// 혼자 걷기 기록: 앱을 켜 두고 걸으면 다닌 길이 발도장으로 남아요 (이 휴대폰에만 저장)
+function viewWalk() {
+  let id = ls.get('walkNow', null), watch = null, wake = null, wantWake = true, map = null, line = null, dot = null, follow = true, gps = 'wait';
+  const today = new Date(), defName = `${today.getMonth() + 1}월 ${today.getDate()}일 발도장`;
+  const nameOf = () => ls.get('trackName:' + id, defName);
+  const mapEl = el('div', { class: 'mapbox', style: 'height:46vh;min-height:280px' });
+  const tDur = el('b', { style: 'font-size:28px;font-variant-numeric:tabular-nums', text: '0분' });
+  const tDist = el('b', { style: 'font-size:28px;font-variant-numeric:tabular-nums', text: '0m' });
+  const root = el('div', { class: 'stack' });
+  app.replaceChildren(root);
+  const lockWake = async () => { try { wake = await navigator.wakeLock.request('screen'); wake.addEventListener('release', () => { wake = null; draw(); }); } catch { wake = null; } draw(); };
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && id && wantWake && !wake) lockWake(); });
+  function stats() {
+    const tr = id ? trackLoad(id) : [], st = trackStats(tr), at = ls.get('walkAt', Date.now());
+    tDur.textContent = fmtDur(Math.max(0, Date.now() - at)); tDist.textContent = fmtDist(st.d);
+    if (map) {
+      const pts = tr.map(q => [q[0], q[1]]);
+      if (!line) line = L.polyline(pts, { color: '#E4572E', weight: 5 }).addTo(map); else line.setLatLngs(pts);
+    }
+  }
+  function startGps() {
+    if (watch != null || !navigator.geolocation) return;
+    watch = navigator.geolocation.watchPosition(p => {
+      const was = gps; gps = 'on';
+      const ll = [p.coords.latitude, p.coords.longitude];
+      trackAdd(id, ll[0], ll[1], p.coords.accuracy, nameOf());
+      if (map) {
+        if (!dot) dot = L.circleMarker(ll, { radius: 9, color: '#FFFFFF', weight: 3, fillColor: '#1E3B2F', fillOpacity: 1 }).addTo(map); else dot.setLatLng(ll);
+        if (follow) map.setView(ll, Math.max(map.getZoom(), 16));
+      }
+      stats(); if (was !== 'on') draw();
+    }, e => { gps = e.code === 1 ? 'denied' : 'wait'; draw(); }, { enableHighAccuracy: true, maximumAge: 5000, timeout: 30000 });
+  }
+  function stopGps() { if (watch != null) navigator.geolocation.clearWatch(watch); watch = null; }
+  function ensureMap() {
+    if (map) { setTimeout(() => map.invalidateSize(), 0); return; }
+    setTimeout(() => {
+      map = L.map(mapEl).setView([37.5665, 126.978], 13);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(map);
+      map.on('dragstart', () => { follow = false; draw(); });
+      const tr = trackLoad(id);
+      if (tr.length) map.setView([tr[tr.length - 1][0], tr[tr.length - 1][1]], 16);
+      stats();
+    }, 0);
+  }
+  function start() {
+    id = 'walk_' + rid(8); ls.set('walkNow', id); ls.set('walkAt', Date.now()); ls.set('trackName:' + id, defName);
+    wantWake = true; lockWake(); startGps(); draw();
+  }
+  function finish() {
+    const tr = trackLoad(id);
+    if (tr.length < 2) {
+      if (!confirm('아직 기록된 길이 거의 없어요. 그만둘까요?')) return;
+      stopGps(); try { wake?.release(); } catch {} ls.set('track:' + id, []); ls.set('walkNow', null); location.href = './'; return;
+    }
+    const iN = el('input', { type: 'text', id: 'wn', maxlength: 40, value: nameOf() });
+    const bg = el('div', { class: 'sheet-bg' });
+    bg.append(el('div', { class: 'sheet', role: 'dialog', 'aria-label': '발도장 저장' },
+      el('h2', { text: '발도장 찍을까요?' }),
+      el('p', { class: 'sub', style: 'margin:0', text: `${fmtDist(trackStats(tr).d)} · ${fmtDur(trackStats(tr).ms)}. 이름을 정하면 저장하고 기록을 끝내요.` }),
+      el('label', { class: 'f', for: 'wn' }, '이름', iN),
+      el('div', { class: 'row' },
+        el('button', { class: 'btn line small grow', text: '계속 걷기', onclick: () => bg.remove() }),
+        el('button', { class: 'btn primary small grow', text: '저장하고 끝내기', onclick: () => {
+          ls.set('trackName:' + id, iN.value.trim() || defName);
+          stopGps(); wantWake = false; try { wake?.release(); } catch {}
+          ls.set('walkNow', null); bg.remove(); done = id; draw();
+        } }))));
+    document.body.append(bg);
+  }
+  let done = null;
+  function draw() {
+    if (done) {
+      const tr = trackLoad(done), st = trackStats(tr);
+      const info = { name: ls.get('trackName:' + done, defName), startPlace: '출발 지점', meetPlace: '도착 지점', startAt: tr[0][2], meetAt: tr[tr.length - 1][2], route: null, phase: 'go' };
+      root.replaceChildren(roleBar('leader', '내 발도장'),
+        el('div', { class: 'banner ok', style: 'margin-top:12px' }, el('b', { text: `"${info.name}" 발도장을 찍었어요!` }), el('div', { text: `${fmtDist(st.d)} · ${fmtDur(st.ms)}. 발도장 자랑하기 목록에도 남아 있어요.` })),
+        el('button', { class: 'btn primary full big', text: '자랑 카드 만들기', onclick: () => openBrag(info, done, 0, false) }),
+        el('a', { class: 'btn line full', href: './', text: '처음으로' }));
+      return;
+    }
+    if (!id) {
+      root.replaceChildren(roleBar('leader', '내 발도장'),
+        el('a', { class: 'link', href: './', style: 'align-self:flex-start;padding:0', text: '← 처음으로' }),
+        el('h1', { text: '지금 발도장 찍기' }),
+        el('div', { class: 'card stack', style: 'gap:8px' },
+          el('div', { text: '시작을 누르고 걸으면, 다닌 길이 지도에 그려지고 발도장으로 남아요.' }),
+          el('div', { class: 'sub', text: '기록은 이 휴대폰에만 저장돼요. 웹앱이라 화면이 꺼지면 기록이 멈춰서, 기록하는 동안 화면을 켜 둘게요.' })),
+        el('button', { class: 'btn primary full big', text: '시작하기', onclick: start }));
+      return;
+    }
+    startGps(); ensureMap();
+    root.replaceChildren(...[roleBar('leader', '내 발도장'),
+      el('div', { class: 'row', style: 'justify-content:space-between;align-items:flex-start' },
+        el('div', { class: 'grow' }, el('div', { class: 'sub', text: '발도장 찍는 중' }), el('h1', { style: 'font-size:21px', text: nameOf() })),
+        gps === 'on' ? el('span', { class: 'pill on' }, el('i'), '기록 중') : gps === 'denied' ? el('span', { class: 'pill bad' }, el('i'), '위치 권한 필요') : el('span', { class: 'pill off' }, el('i'), '위치 찾는 중')),
+      gps === 'denied' ? el('div', { class: 'banner alert' }, el('b', { text: '위치 권한을 허용해 주세요' }), el('div', { text: '주소창 옆 자물쇠(또는 설정) 아이콘을 눌러 위치를 허용한 뒤 새로고침하세요.' })) : null,
+      el('div', { class: 'two' },
+        el('div', { class: 'cnt' }, tDur, el('span', { text: '걸은 시간' })),
+        el('div', { class: 'cnt' }, tDist, el('span', { text: '걸은 거리' }))),
+      el('div', { class: 'wakebar ' + (wake ? 'on' : 'off') },
+        el('span', { text: wake ? '화면을 켜두고 있어요. 기록이 계속돼요.' : '화면이 꺼지면 기록이 멈춰요.' }),
+        wake ? null : el('button', { class: 'btn small dark', style: 'height:38px;white-space:nowrap', text: '화면 켜두기', onclick: () => { wantWake = true; lockWake(); } })),
+      mapEl,
+      follow ? null : el('button', { class: 'btn line small', style: 'align-self:flex-start', text: '내 위치 따라가기', onclick: () => { follow = true; const tr = trackLoad(id); if (map && tr.length) map.setView([tr[tr.length - 1][0], tr[tr.length - 1][1]], 16); draw(); } }),
+      el('button', { class: 'btn primary full big', text: '끝내기', onclick: finish }),
+      el('a', { class: 'link', href: './', style: 'align-self:center;color:var(--muted)', text: '처음으로 (다시 들어오면 이어서 기록해요)' })].filter(Boolean));
+    stats();
+  }
+  setInterval(() => { if (id && !done) stats(); }, 15000);
+  if (id) lockWake();
+  draw();
 }
 function viewHome() {
   if (qs.get('new') !== '1') return viewLanding();
