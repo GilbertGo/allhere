@@ -7,12 +7,11 @@
 - 인솔자가 나들이를 만들고 참여 링크를 카톡으로 보낸다. 참여자는 **앱 설치 없이** 링크로 들어와 이름만 적고 참여한다.
 - 흐름: 집결(출발 전) → 인솔자가 "출발하기" → 이동 → 도착지 도착.
 
-## 지도일기와 나뉨 (2026-09-28)
-- 한동안 이 앱이 여행 기록 앱(발도장 → 누비 → 지도일기)으로 커졌다가, **여행 기록 공유는 지도일기 앱으로 따로 나갔다**: 저장소 `GilbertGo/jidoilgi`, 주소 https://gilbertgo.github.io/jidoilgi/ (폴더 `Documents\GitHub\jidoilgi`, 인수인계는 그쪽 CLAUDE.md).
-- 이 앱의 `?walk=`, `?s=`, `?brag=` 주소는 `../mapdiary/`로 넘긴다(2026-09-29 지도일기 → Map Diary로 이름·주소 바뀜. 예전 `/jidoilgi/`도 `/mapdiary/`로 넘어감)(`JIDOILGI`, `#` 뒤 열쇠까지 그대로). 예전에 보낸 지도 링크도 그래서 계속 열린다.
-- 첫 화면 아래에 "다닌 길을 남기고 싶다면, Map Diary" 카드로 지도일기에 이어 둠. 지도일기의 "단체 나들이" 타일은 이 앱 `?new=1`로 온다.
-- 두 앱은 `gilbertgo.github.io` 아래라 **localStorage와 IndexedDB를 같이 쓴다.** 키 이름을 바꾸지 말 것.
-- **`index.html`에는 지도일기로 나간 코드(기록 화면 viewWalk, 받은 사람 화면 viewShareLink/viewBragLink, 모드·앨범·비밀코드 등)가 아직 남아 있다.** 이 앱에서는 열리지 않는다. 인솔자 화면의 "나들이 공유하기"는 공유 카드 코드(`openBrag`, `bragView`, `shortLink`)를 그대로 쓰므로 정리할 때 조심. 링크는 `/allhere/?s=`로 만들어지고 받은 사람은 지도일기로 넘어간다.
+## 다왔나 전용 (2026-09-29 Map Diary와 관계 끊음)
+- 한동안 이 앱이 여행 기록 앱(발도장 → 누비 → 지도일기)으로 커졌다가 2026-09-28 여행 기록은 따로 나갔다(지금 이름 Map Diary, 저장소 `GilbertGo/mapdiary`). **2026-09-29부터 다왔나는 단체 나들이 전용이고 Map Diary로 넘기거나 안내하지 않는다.** 서로 링크·코드로 이어 두지 말 것.
+- `?s=`, `?brag=`(나들이 공유하기가 만든 지도 링크, 예전에 보낸 링크 포함)는 다왔나가 직접 보여준다(`viewShareLink`/`viewBragLink`). `?walk=`는 첫 화면으로. 기록 화면(viewWalk)과 지난 기록 목록(pastTrips/openPastTrips)은 지웠다.
+- 같은 `gilbertgo.github.io` 아래라 localStorage·IndexedDB는 기술적으로 같이 쓴다(막을 수 없음). Map Diary는 목록에서 다왔나 나들이(`myTrips`, `joined`, `plans`)를 빼고 보여준다. 공유 키 이름(`track:` 등)은 바꾸지 말 것.
+- 인솔자 화면의 "나들이 공유하기"는 공유 카드 코드(`openBrag`, `bragView`, `shortLink`)를 쓴다. 모드·앨범·비밀코드 등 옛 여행 기록용 도우미 코드가 아직 조금 남아 있다(정리할 때 공유 카드와 받은 사람 화면이 쓰는지 확인).
 
 ## 배포
 - GitHub 저장소: `GilbertGo/allhere` (이 폴더), GitHub Pages로 배포
@@ -29,12 +28,12 @@
   - `firebase/index.html`은 Copilot이 만든 시험용 버전의 복사본(정식 버전 아님). 정리 필요.
 
 ## URL 규칙
-- `/allhere/` — 첫 화면: 새 나들이 만들기, 내가 만든 단체 나들이, 참여 중인 나들이, 지도일기 안내
+- `/allhere/` — 첫 화면: 새 나들이 만들기, 내가 만든 단체 나들이, 참여 중인 나들이
 - `/allhere/?new=1` — 단체 나들이 만들기 (인솔자)
 - `/allhere/?t=ID` — 인솔자 화면 (localStorage `leaderKeys`의 키 또는 `leaderPins`의 비밀번호가 서버의 `leaderKeyHash`/`pinHash`와 맞을 때. 안 맞으면 참여자 화면으로 보냄. 예전 나들이(`leaderKeyHash` 없음)는 저장된 키를 그대로 믿음)
 - `/allhere/?t=ID&m=1` — 참여자 화면 (참여 링크는 항상 이것)
 - `/allhere/?t=ID&k=키` — 공동 인솔자 링크 (키 또는 비밀번호 4자리)
-- `?walk=`, `?s=`, `?brag=` → 지도일기로 넘김
+- `?s=`, `?brag=` → 공유한 나들이 지도(받은 사람 화면), `?walk=` → 첫 화면
 - 모든 화면 맨 위 띠의 "⌂ 다왔나"를 누르면 첫 화면. 참여자 위치 공유 중이면 먼저 물어봄(`leaveWarn`)
 
 ## 주요 기능 (모두 구현됨)
@@ -55,7 +54,7 @@
 
 ## 남은 할 일 (우선순위)
 1. 실제 휴대폰 2대 이상으로 현장 시험 (특히 화면 꺼짐, 위치 정확도, 알림)
-2. 지도일기로 나간 코드 정리 (공유 카드 코드는 남겨야 함)
+2. 남은 옛 여행 기록용 도우미 코드 정리 (공유 카드·받은 사람 화면이 쓰는 것은 남겨야 함)
 3. 정식 버전(Firebase) 맞추고 배포
 4. 위치정보법상 위치기반서비스사업 신고 필요 여부 확인
 5. 앱 포장(Capacitor)으로 백그라운드 위치/푸시 알림
@@ -63,6 +62,6 @@
 ## 작업 방식
 - 수정 후 브라우저로 직접 열어 확인하고, 사용자에게 무엇이 바뀌었는지 쉬운 말로 설명.
 - 한 번에 크게 바꾸기보다 작게 바꾸고 확인.
-- 로컬 확인: 이 PC에는 python/node가 없다. PowerShell `HttpListener`로 `Documents\GitHub`를 띄워 `/allhere/`와 `/jidoilgi/`를 같이 확인했다(`.claude/launch.json`은 끝나면 지움). `file://`로 열면 정지된 사본이라 `?t=` 같은 주소 이동이 안 된다.
+- 로컬 확인: 이 PC에는 python/node가 없다. PowerShell `HttpListener`로 `Documents\GitHub`를 띄워 `/allhere/`를 확인했다(`.claude/launch.json`은 끝나면 지움). `file://`로 열면 정지된 사본이라 `?t=` 같은 주소 이동이 안 된다.
 - 시험으로 만든 나들이는 "나들이 끝내기"로 지우고 localStorage도 비울 것.
 - 사용자는 휴대폰에서 원격 모드로 캡처를 보내며 확인하는 경우가 많다.
