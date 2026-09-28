@@ -558,16 +558,26 @@ function bragView(img, getOpts) {
     const url = await shortLink(o), text = `[다왔나] ${o.name} 경로 지도\n${url}`;
     try { navigator.clipboard.writeText(text).catch(() => {}); } catch {}
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      try { await navigator.share({ files: [file], text }); toast('링크도 복사해 뒀어요. 링크가 안 붙었으면 붙여넣으세요'); }
+      try { await navigator.share({ files: [file], text }); step2(); }
       catch (e) { if (e && e.name === 'NotAllowedError') toast('준비됐어요. 보내기를 한 번 더 눌러 주세요'); }
     } else { save(); toast('사진을 저장하고 링크를 복사했어요. 카톡방에 사진과 링크를 같이 올리세요'); }
   };
+  // 카톡은 사진과 글을 같이 받으면 글을 버려요. 그래서 사진을 보낸 뒤 링크를 한 번 더 보내요.
+  const shareLink = async () => {
+    const o = getOpts(); if (!o) return;
+    const url = await shortLink(o), text = `[다왔나] ${o.name} 경로 지도`;
+    if (navigator.share) { try { await navigator.share({ text: `${text}\n${url}` }); linkBtn.style.display = 'none'; hint.textContent = '다 보냈어요!'; return; } catch (e) { if (e && e.name === 'AbortError') return; } }
+    navigator.clipboard.writeText(`${text}\n${url}`).then(() => toast('링크를 복사했어요. 카톡방에 붙여넣으세요'), () => prompt('이 링크를 복사하세요', url));
+  };
+  const linkBtn = el('button', { class: 'btn primary full big', style: 'display:none', text: '링크도 보내기', onclick: shareLink });
+  const hint = el('p', { class: 'sub center', style: 'margin:0', text: IN_KAKAO ? '카카오톡 안에서는 사진을 보낼 수 없어서, 휴대폰의 기본 브라우저에서 열어요.' : '사진만 저장하려면 카드 그림을 길게 누르세요.' });
+  const sendBtn = el('button', { class: 'btn primary full big', text: '보내기', onclick: IN_KAKAO ? () => openOther() : share });
+  const step2 = () => {
+    sendBtn.className = 'btn line full'; sendBtn.textContent = '사진 다시 보내기';
+    linkBtn.style.display = ''; hint.textContent = '사진을 보냈어요. 같은 방에 지도 링크도 보내 주세요. (링크는 복사돼 있어서 붙여넣어도 돼요)';
+  };
   const openOther = async () => { const o = getOpts(); if (o) location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(await shortLink(o) + '&c=1'); };
-  // '보내기' 한 번이면 사진 + 지도 링크가 가요. 카톡 안에서는 사진을 못 보내서 기본 브라우저로 넘겨요.
-  const actions = [
-    el('button', { class: 'btn primary full big', text: '보내기', onclick: IN_KAKAO ? openOther : share }),
-    el('p', { class: 'sub center', style: 'margin:0', text: IN_KAKAO ? '카카오톡 안에서는 사진을 보낼 수 없어서, 휴대폰의 기본 브라우저에서 열어요.' : '사진만 저장하려면 카드 그림을 길게 누르세요.' })
-  ];
+  const actions = [linkBtn, sendBtn, hint];
   return {
     actions,
     async draw(o) {
