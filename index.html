@@ -738,6 +738,26 @@ function openBrag(info, t, count, allDone) {
     el('h2', { text: '나들이 자랑하기' }),
     el('p', { class: 'sub', style: 'margin:0', text: '카톡방이나 SNS에 올릴 그림 한 장을 만들어요. 참여자 이름과 위치는 들어가지 않아요. 그림을 누르면 지도로 크게 볼 수 있어요.' }),
     img, opts,
+    // 제목 바꾸기: 내 기록·여행은 저장된 이름도 바꾸고, 단체 나들이는 카드 제목만 바꿔요
+    el('button', { class: 'link', style: 'align-self:flex-start;padding:2px 0', text: '제목 바꾸기', onclick: () => {
+      const iN = el('input', { type: 'text', id: 'bn', maxlength: 40, value: info.name });
+      const nb = el('div', { class: 'sheet-bg', style: 'z-index:3200', onclick: e => { if (e.target === nb) nb.remove(); } });
+      const isPlan = ls.get('plans', []).some(p => p.id === t);
+      nb.append(el('div', { class: 'sheet', role: 'dialog', 'aria-label': '제목 바꾸기' },
+        el('h2', { text: '제목 바꾸기' }),
+        el('label', { class: 'f', for: 'bn' }, '제목', iN),
+        isPlan ? el('p', { class: 'sub', style: 'margin:0', text: '자랑 카드의 제목만 바뀌어요. 단체 나들이 이름은 그대로예요.' }) : null,
+        el('div', { class: 'row' },
+          el('button', { class: 'btn line small grow', text: '닫기', onclick: () => nb.remove() }),
+          el('button', { class: 'btn primary small grow', text: '저장', onclick: () => {
+            const v = iN.value.trim(); if (!v) return toast('제목을 적어 주세요');
+            info.name = v;
+            if (String(t).startsWith('album_')) { const a = albumGet(t); if (a) { a.name = v; albumSave(a); } }
+            else if (!isPlan) ls.set('trackName:' + t, v);
+            nb.remove(); draw(); toast('제목을 바꿨어요');
+          } }))));
+      document.body.append(nb); setTimeout(() => { iN.focus(); iN.select(); }, 50);
+    } }),
     // 계획 없이 다닌 기록은 장소 이름을 여기서 적을 수 있어요
     ls.get('plans', []).some(p => p.id === t) ? null : el('button', { class: 'link', style: 'align-self:flex-start;padding:2px 0', text: '장소 이름 적기', onclick: () => {
       const wp = ls.get('walkPlaces:' + t, {});
@@ -1209,13 +1229,14 @@ function viewWalk() {
   const tDist = el('b', { style: 'font-size:28px;font-variant-numeric:tabular-nums', text: '0m' });
   const tAll = el('div', { class: 'sub center', style: 'margin-top:-4px' });
   const tDistLbl = el('span', { text: '걸은 거리' });
+  const tTitle = el('h1', { style: 'font-size:21px' });   // 기록 제목 (자랑하기에서 바꾸면 여기도 바뀌어요)
   const root = el('div', { class: 'stack' });
   app.replaceChildren(root);
   const lockWake = async () => { try { wake = await navigator.wakeLock.request('screen'); wake.addEventListener('release', () => { wake = null; draw(); }); } catch { wake = null; } draw(); };
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && id && wantWake && !wake) lockWake(); });
   function stats() {
     const m = M(), tr = id ? trackLoad(id) : [], st = trackStats(tr, m.car), at = ls.get('walkAt', Date.now());
-    tDur.textContent = fmtDur(Math.max(0, Date.now() - at)); tDist.textContent = fmtDist(st.walk); tDistLbl.textContent = `${m.did} 거리`;
+    tDur.textContent = fmtDur(Math.max(0, Date.now() - at)); tDist.textContent = fmtDist(st.walk); tDistLbl.textContent = `${m.did} 거리`; if (id) tTitle.textContent = nameOf();
     const extra = m.k === 'run' ? `평균 페이스 ${fmtPace(st.walk, st.ms)} /km` : m.k === 'bike' ? `평균 속도 ${fmtSpeed(st.walk, st.ms)}` : '';
     tAll.textContent = [extra, st.d - st.walk > 300 ? `차로 이동한 길까지 모두 ${fmtDist(st.d)}` : ''].filter(Boolean).join(' · ');
     if (map) {
@@ -1354,7 +1375,7 @@ function viewWalk() {
     startGps(); ensureMap();
     root.replaceChildren(...[roleBar('leader', '내 기록'),
       el('div', { class: 'row', style: 'justify-content:space-between;align-items:flex-start' },
-        el('div', { class: 'grow' }, el('div', { class: 'sub', text: `기록 중 · ${M().ic} ${M().label}` }), el('h1', { style: 'font-size:21px', text: nameOf() })),
+        el('div', { class: 'grow' }, el('div', { class: 'sub', text: `기록 중 · ${M().ic} ${M().label}` }), tTitle),
         gps === 'on' ? el('span', { class: 'pill on' }, el('i'), '기록 중') : gps === 'denied' ? el('span', { class: 'pill bad' }, el('i'), '위치 권한 필요') : el('span', { class: 'pill off' }, el('i'), '위치 찾는 중')),
       gps === 'denied' ? el('div', { class: 'banner alert' }, el('b', { text: '위치 권한을 허용해 주세요' }), el('div', { text: '주소창 옆 자물쇠(또는 설정) 아이콘을 눌러 위치를 허용한 뒤 새로고침하세요.' })) : null,
       el('div', { class: 'two' },
