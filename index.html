@@ -569,7 +569,7 @@ function bragView(img, getOpts) {
     if (navigator.share && !IN_KAKAO) { try { await navigator.share({ text, url }); return; } catch (e) { if (e && e.name === 'AbortError') return; } }
     navigator.clipboard.writeText(`${text}\n${url}`).then(() => toast('지도 링크를 복사했어요. 카톡방에 붙여넣으세요'), () => prompt('이 링크를 복사하세요', url));
   };
-  const openOther = async () => { const o = getOpts(); if (o) location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(await (linkP || shortLink(o))); };
+  const openOther = async () => { const o = getOpts(); if (o) location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(await (linkP || shortLink(o)) + '&c=1'); };
   // 버튼은 '보내기' 하나만 보이고, 누르면 방법을 골라요
   const item = (title, desc, fn) => el('button', { class: 'preset', onclick: () => { menu.remove(); fn(); } },
     el('b', { style: 'display:block', text: title }), el('span', { class: 'sub', text: desc }));
@@ -634,10 +634,8 @@ function viewBragLink(given) {
     stats: Array.isArray(o.stats) ? o.stats.slice(0, 4).map(x => s(x, 30)) : [], route: Array.isArray(o.route) ? o.route.slice(0, 400) : null };
   const R = Array.isArray(o.route) ? o.route.filter(q => Array.isArray(q) && Number.isFinite(q[0]) && Number.isFinite(q[1])) : [];
   const img = el('img', { alt: '나들이 자랑 카드', style: 'width:100%;border-radius:16px;display:block;box-shadow:var(--shadow);background:#EFE9DC;aspect-ratio:4/5' });
-  const card = bragView(img, () => o);
+  const card = bragView(img, () => o), showCard = qs.get('c') === '1';
   const mapEl = el('div', { class: 'mapbox', style: 'height:56vh;min-height:320px' });
-  const chip = s => el('span', { class: 'chip', style: s.startsWith('✓') ? 'background:var(--forest-soft);color:var(--forest-ink)' : 'background:var(--soft);color:var(--ink)', text: s });
-  const place = (lbl, time, name) => el('div', {}, el('div', { class: 'sub', text: `${lbl} ${time || ''}` }), el('b', { text: name || '' }));
   const toGpx = () => {
     const x = v => String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' })[c]);
     const gpx = `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="다왔나" xmlns="http://www.topografix.com/GPX/1/1"><trk><name>${x(o.name)}</name><trkseg>` +
@@ -648,20 +646,27 @@ function viewBragLink(given) {
   };
   app.replaceChildren(el('div', { class: 'stack' },
     roleBar('leader', '나들이 경로'),
-    el('div', {}, el('div', { class: 'sub', text: o.dateText || '' }), el('h1', { text: o.name })),
-    el('div', { class: 'card two' }, place('출발', o.startTime, o.startPlace), place('도착', o.endTime, o.endPlace)),
-    Array.isArray(o.stats) && o.stats.length ? el('div', { class: 'row', style: 'flex-wrap:wrap' }, o.stats.map(s => chip(String(s)))) : null,
+    // 1) 이름, 날짜, 한 줄 요약
+    el('div', { class: 'stack', style: 'gap:4px' },
+      el('div', { class: 'sub', text: o.dateText || '' }),
+      el('h1', { text: o.name }),
+      el('div', { style: 'font-size:15px;color:#4A5249;font-weight:600', text: `${o.startPlace} ${o.startTime} → ${o.endPlace} ${o.endTime}` }),
+      o.stats.length ? el('div', { class: 'sub', text: o.stats.join(' · ') }) : null),
+    // 2) 지도 + 길찾기
     R.length > 1 ? [
       mapEl,
       el('div', { class: 'two' },
         el('a', { class: 'btn line small', style: 'color:#191919', href: `https://map.kakao.com/link/to/${encodeURIComponent(o.startPlace || '출발')},${R[0][0]},${R[0][1]}`, target: '_blank', rel: 'noopener', text: '카카오맵 길찾기' }),
-        el('button', { class: 'btn line small', text: 'GPX 받기', onclick: toGpx })),
-      el('p', { class: 'sub', style: 'margin:0', text: '카카오맵 길찾기는 출발 지점까지 가는 길을 알려줘요. GPX는 트랭글, 램블러 같은 등산·걷기 앱에 경로를 넣을 때 써요.' })
+        el('button', { class: 'btn line small', text: 'GPX 받기 (등산앱)', onclick: toGpx }))
     ] : null,
-    el('h2', { style: 'margin-top:8px', text: '자랑 카드' }),
-    img, ...card.actions,
-    el('a', { class: 'btn primary full', href: './?new=1', style: 'margin-top:8px', text: '나도 다왔나로 나들이 만들기' })));
-  card.draw(o);
+    // 3) 자랑 카드 사진은 인솔자가 사진을 저장하러 넘어왔을 때만 (?c=1)
+    showCard ? [el('h2', { style: 'margin-top:8px', text: '자랑 카드' }), img, ...card.actions] : null,
+    // 4) 다왔나 소개
+    el('div', { class: 'card stack', style: 'gap:10px;margin-top:12px' },
+      el('b', { style: 'color:var(--pine);font-size:17px', text: '단체 나들이, 다왔나로 챙겨 보세요' }),
+      el('div', { class: 'sub', text: '참여자는 앱 설치 없이 링크로 들어오고, 인솔자는 누가 어디쯤 있는지 한눈에 봐요.' }),
+      el('a', { class: 'btn primary full small', href: './?new=1', text: '나도 나들이 만들기' }))));
+  if (showCard) card.draw(o);
   if (R.length > 1) setTimeout(() => { addFullBtn(routeMap(mapEl, R), mapEl); }, 0);
 }
 // 움직이는 지도에 경로와 출발·도착을 그려요
@@ -676,6 +681,8 @@ function routeMap(mapEl, R) {
     .bindTooltip(label, { permanent: true, direction: 'top', className: 'nm', offset: [0, -8] }).addTo(m);
   if (same) pin(A, '출발·도착', '#F4A259'); else { pin(A, '출발', '#FFFDF8'); pin(B, '도착', '#F4A259'); }
   m.fitBounds(R, { padding: [30, 30] });
+  // 화면 배치가 끝난 뒤 크기를 다시 재고 경로를 맞춰요 (처음에 위쪽이 잘리던 문제)
+  setTimeout(() => { if (!mapEl.isConnected) return; m.invalidateSize(); m.fitBounds(R, { padding: [30, 30] }); }, 300);
   return m;
 }
 // 카드 그림을 누르면 화면 가득 지도로 보여줘요
