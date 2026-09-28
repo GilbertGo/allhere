@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1E3B2F">
 <title>다왔나</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Crect%20rx%3D%2222%22%20fill%3D%22%231C2620%22/%3E%3Cpath%20d%3D%22M50%2016c-15.5%200-27%2011.4-27%2026%200%2019.5%2027%2042%2027%2042s27-22.5%2027-42c0-14.6-11.5-26-27-26z%22%20fill%3D%22%23F6C89F%22/%3E%3Cpath%20d%3D%22M38.5%2042.5l8%208%2015-16%22%20fill%3D%22none%22%20stroke%3D%22%231C2620%22%20stroke-width%3D%227%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
@@ -1468,6 +1470,12 @@ async function endTripAll(t, st) {
   await Promise.all([pub(b + '/info', null), pub(b + '/b', null), pub(b + '/n', null), pub(b + '/leader', null), ...Object.keys(st.members).map(id => pub(b + '/m/' + id, null))]);
 }
 
+// 바탕화면 아이콘: 이미 아이콘으로 열었는지, 크롬이 바로 설치 창을 띄울 수 있는지 (route보다 먼저 있어야 해요)
+const IS_APP = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+let installEvt = null;
+addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; });
+addEventListener('appinstalled', () => { installEvt = null; toast('바탕화면에 다왔나 아이콘을 두었어요'); });
+
 function route() {
   // 공유한 나들이 지도 링크(?s=, ?brag=)는 다왔나가 직접 보여줘요
   if (qs.get('s')) return viewShareLink();
@@ -1510,7 +1518,41 @@ function viewLanding() {
       el('h2', { text: '참여 중인 나들이' }),
       joinedList.map(j => el('a', { class: 'member', href: `?t=${j.t}&m=1`, style: 'text-decoration:none;color:inherit' },
         el('div', { class: 'grow' }, el('div', { class: 'nm', text: j.name }), el('div', { class: 'dt', text: j.at ? new Date(j.at).toLocaleString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' 집결' : '눌러서 다시 들어가기' }))))
-    ) : null));
+    ) : null,
+    // 바탕화면 아이콘 (이미 아이콘으로 열었으면 안 보여요)
+    IS_APP ? null : el('button', { class: 'link', style: 'align-self:center;margin-top:20px;color:var(--pine)', onclick: openInstall },
+      el('span', { class: 'with-ico', style: 'gap:6px' }, ico('pin', 18), '휴대폰 바탕화면에 다왔나 아이콘 두기'))));
+}
+// ---------- 바탕화면 아이콘 ----------
+// 크롬이 "설치할 수 있어요"라고 알려 주면 그걸로 바로 설치 창을 띄우고, 아니면 방법을 알려 드려요.
+function openInstall() {
+  if (installEvt) { const e = installEvt; installEvt = null; e.prompt(); return; }
+  const home = new URL('./', location.href).href;
+  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent), isAndroid = /Android/i.test(navigator.userAgent);
+  const step = (n, text) => el('div', { class: 'row', style: 'gap:10px;align-items:flex-start' },
+    el('b', { style: 'flex-shrink:0;width:24px;height:24px;border-radius:12px;background:var(--pine);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px', text: String(n) }),
+    el('div', { style: 'font-size:15px;line-height:1.5', text }));
+  const bg = el('div', { class: 'sheet-bg', onclick: e => { if (e.target === bg) bg.remove(); } });
+  bg.append(el('div', { class: 'sheet', role: 'dialog', 'aria-label': '바탕화면에 아이콘 두기' },
+    el('h2', { text: '바탕화면에 다왔나 아이콘 두기' }),
+    el('p', { class: 'sub', style: 'margin:0', text: '아이콘을 누르면 앱처럼 다왔나 첫 화면이 바로 열려요.' }),
+    ...(IN_KAKAO ? [
+      step(1, '카카오톡 안에서는 아이콘을 만들 수 없어요. 아래 버튼으로 휴대폰 브라우저에서 다시 여세요.'),
+      step(2, '열린 화면에서 이 버튼을 다시 누르세요.'),
+      el('button', { class: 'btn primary full', text: '휴대폰 브라우저에서 열기', onclick: () => { location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(home); } })
+    ] : isIOS ? [
+      step(1, '사파리 아래(또는 위)의 공유 버튼(네모에 위쪽 화살표)을 누르세요.'),
+      step(2, "목록을 내려서 '홈 화면에 추가'를 누르고, 오른쪽 위 '추가'를 누르세요.")
+    ] : [
+      step(1, "화면 맨 위에 ✕ 와 ˅ 가 보이면 다른 앱 안에서 열린 창이에요. 아래 '크롬 앱에서 열기'를 먼저 누르세요."),
+      step(2, "크롬 오른쪽 위 ⋮ 메뉴를 누르고 '홈 화면에 추가'(또는 '앱 설치')를 누르세요."),
+      step(3, "'설치' 또는 '추가'를 누르면 바탕화면에 다왔나 아이콘이 생겨요."),
+      isAndroid ? el('button', { class: 'btn primary full', text: '크롬 앱에서 열기', onclick: () => {
+        const u = new URL(home); location.href = `intent://${u.host}${u.pathname}#Intent;scheme=https;package=com.android.chrome;end`;
+      } }) : null
+    ]),
+    el('button', { class: 'btn line small', text: '닫기', onclick: () => bg.remove() })));
+  document.body.append(bg);
 }
 // 계획 없이 바로 출발: 이름만 정하고 '출발' 상태로 나들이를 만들어요. 인솔자 화면이 열려 있는 동안 걷는 길이 기록돼요.
 function openQuickStart() {

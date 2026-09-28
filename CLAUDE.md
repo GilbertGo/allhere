@@ -21,6 +21,7 @@
 
 ## 파일
 - `index.html` — **시험용 버전(현재 배포 중)**. 한 파일에 HTML/CSS/JS가 다 들어 있음.
+- `manifest.webmanifest`, `icon-192.png`, `icon-512.png`, `apple-touch-icon.png` — 바탕화면 아이콘(홈 화면에 추가). 첫 화면 맨 아래 "휴대폰 바탕화면에 다왔나 아이콘 두기"(`openInstall`): 크롬이 설치 창을 줄 수 있으면 바로, 아니면 방법 안내(카톡 안 → 외부 브라우저, 안드로이드 → 크롬 앱에서 열기 intent, 아이폰 → 공유 → 홈 화면에 추가). 아이콘으로 열면(`IS_APP`) 버튼 숨김
   - 실시간 통신: 공개 MQTT 브로커 `wss://broker.hivemq.com:8884/mqtt` (mqtt.js, retained 메시지). 토픽 `allhere/v1/{나들이ID}/...` (`info`, `m/{uid}`, `b`, `n`, `leader`), 짧은 링크용 `allhere/v1/share/{번호}`.
   - **보안이 약함**(공개 서버). 시험용으로만. 비밀번호는 SHA-256 해시로만 저장하지만 무차별 대입에 취약.
 - 정식 버전(Firebase용)은 `firebase/public/index.html` (+ `firebase/database.rules.snippet.json`, `firebase/README_Claude_Code에게.md`). 아직 배포 안 함. 배포 시 **새 Firebase 프로젝트** 사용.
