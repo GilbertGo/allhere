@@ -1398,8 +1398,8 @@ async function endTripAll(t, st) {
   await Promise.all([pub(b + '/info', null), pub(b + '/b', null), pub(b + '/n', null), pub(b + '/leader', null), ...Object.keys(st.members).map(id => pub(b + '/m/' + id, null))]);
 }
 
-// 기록·지도 링크는 지도일기 앱으로 옮겼어요 (gilbertgo.github.io/jidoilgi/). 예전 링크도 그대로 넘겨줘요(# 뒤 열쇠 포함).
-const JIDOILGI = '../jidoilgi/';
+// 기록·지도 링크는 Map Diary 앱으로 옮겼어요 (gilbertgo.github.io/mapdiary/, 예전 이름 지도일기). 예전 링크도 그대로 넘겨줘요(# 뒤 열쇠 포함).
+const JIDOILGI = '../mapdiary/';
 function route() {
   if (qs.get('walk') === '1' || qs.get('s') || qs.get('brag')) { location.replace(JIDOILGI + location.search + location.hash); return; }
   if (!tripId) return viewHome();
@@ -1477,10 +1477,10 @@ function viewLanding() {
       joinedList.map(j => el('a', { class: 'member', href: `?t=${j.t}&m=1`, style: 'text-decoration:none;color:inherit' },
         el('div', { class: 'grow' }, el('div', { class: 'nm', text: j.name }), el('div', { class: 'dt', text: j.at ? new Date(j.at).toLocaleString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' 집결' : '눌러서 다시 들어가기' }))))
     ) : null,
-    // 혼자·가족 여행 기록은 지도일기 앱으로
+    // 혼자·가족 여행 기록은 Map Diary 앱으로
     el('a', { class: 'card', href: JIDOILGI, style: 'margin-top:16px;text-decoration:none;color:inherit;display:flex;align-items:center;gap:14px' },
       el('span', { style: 'color:var(--forest)' }, ico('hike', 30)),
-      el('div', { class: 'grow' }, el('b', { style: 'color:var(--pine)', text: '다닌 길을 남기고 싶다면, 지도일기' }),
+      el('div', { class: 'grow' }, el('b', { style: 'color:var(--pine)', text: '다닌 길을 남기고 싶다면, Map Diary' }),
         el('div', { class: 'sub', text: '하이킹·러닝·자전거·여행 기록과 사진을 지도 한 장으로 공유해요' })),
       el('span', { class: 'sub', text: '→' }))));
 }

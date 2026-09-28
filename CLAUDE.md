@@ -9,8 +9,8 @@
 
 ## 지도일기와 나뉨 (2026-09-28)
 - 한동안 이 앱이 여행 기록 앱(발도장 → 누비 → 지도일기)으로 커졌다가, **여행 기록 공유는 지도일기 앱으로 따로 나갔다**: 저장소 `GilbertGo/jidoilgi`, 주소 https://gilbertgo.github.io/jidoilgi/ (폴더 `Documents\GitHub\jidoilgi`, 인수인계는 그쪽 CLAUDE.md).
-- 이 앱의 `?walk=`, `?s=`, `?brag=` 주소는 `../jidoilgi/`로 넘긴다(`JIDOILGI`, `#` 뒤 열쇠까지 그대로). 예전에 보낸 지도 링크도 그래서 계속 열린다.
-- 첫 화면 아래에 "다닌 길을 남기고 싶다면, 지도일기" 카드로 지도일기에 이어 둠. 지도일기의 "단체 나들이" 타일은 이 앱 `?new=1`로 온다.
+- 이 앱의 `?walk=`, `?s=`, `?brag=` 주소는 `../mapdiary/`로 넘긴다(2026-09-29 지도일기 → Map Diary로 이름·주소 바뀜. 예전 `/jidoilgi/`도 `/mapdiary/`로 넘어감)(`JIDOILGI`, `#` 뒤 열쇠까지 그대로). 예전에 보낸 지도 링크도 그래서 계속 열린다.
+- 첫 화면 아래에 "다닌 길을 남기고 싶다면, Map Diary" 카드로 지도일기에 이어 둠. 지도일기의 "단체 나들이" 타일은 이 앱 `?new=1`로 온다.
 - 두 앱은 `gilbertgo.github.io` 아래라 **localStorage와 IndexedDB를 같이 쓴다.** 키 이름을 바꾸지 말 것.
 - **`index.html`에는 지도일기로 나간 코드(기록 화면 viewWalk, 받은 사람 화면 viewShareLink/viewBragLink, 모드·앨범·비밀코드 등)가 아직 남아 있다.** 이 앱에서는 열리지 않는다. 인솔자 화면의 "나들이 공유하기"는 공유 카드 코드(`openBrag`, `bragView`, `shortLink`)를 그대로 쓰므로 정리할 때 조심. 링크는 `/allhere/?s=`로 만들어지고 받은 사람은 지도일기로 넘어간다.
 
