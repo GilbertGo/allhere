@@ -454,7 +454,8 @@ const ICONS = {
   group: ['M5.5 3.5h13A1.5 1.5 0 0 1 20 5v12H4V5a1.5 1.5 0 0 1 1.5-1.5z', 'M4 11h16', 'M7 17v2.5', 'M17 17v2.5', 'M7.5 14h.01', 'M16.5 14h.01'],
   star: ['M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.8l-5.2 2.8 1-5.8-4.3-4.1 5.9-.9z'],
   pin: ['M12 21s-6.5-6-6.5-11a6.5 6.5 0 0 1 13 0c0 5-6.5 11-6.5 11z', 'M9.8 10a2.2 2.2 0 1 0 4.4 0a2.2 2.2 0 1 0-4.4 0'],
-  camera: ['M3.5 8A1.5 1.5 0 0 1 5 6.5h2.5L9 4.5h6l1.5 2H19A1.5 1.5 0 0 1 20.5 8v10a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 18z', 'M8.5 12.5a3.5 3.5 0 1 0 7 0a3.5 3.5 0 1 0-7 0']
+  camera: ['M3.5 8A1.5 1.5 0 0 1 5 6.5h2.5L9 4.5h6l1.5 2H19A1.5 1.5 0 0 1 20.5 8v10a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 18z', 'M8.5 12.5a3.5 3.5 0 1 0 7 0a3.5 3.5 0 1 0-7 0'],
+  lock: ['M6 11h12v9a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 6 20z', 'M8.5 11V8a3.5 3.5 0 0 1 7 0v3', 'M12 15v2.5']
 };
 const icoSvg = (k, size, fill) => `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="${fill || 'none'}" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${(ICONS[k] || []).map(d => `<path d="${d}"/>`).join('')}</svg>`;
 function ico(k, size = 18, fill) { const s = el('span', { class: 'ico' }); s.innerHTML = icoSvg(k, size, fill); return s; }
@@ -755,6 +756,10 @@ function openBrag(info, t, count, allDone) {
   let phs = null, usePh = true;
   const phIn = el('input', { type: 'checkbox', id: 'bg-p', checked: true, onchange: () => { usePh = phIn.checked; draw(); } });
   const phBox = el('div', { class: 'check', style: 'display:none' }, phIn, el('label', { for: 'bg-p', text: '찍은 사진 넣기' }));
+  // 비밀코드: 켜면 링크를 받은 사람도 코드(6자리)를 알아야 볼 수 있어요
+  let secretOn = false;
+  const secIn = el('input', { type: 'checkbox', id: 'bg-x', onchange: () => { secretOn = secIn.checked; if (cardOpts) cardOpts.secret = secretOn; } });
+  const secBox = el('div', { class: 'check' }, secIn, el('label', { for: 'bg-x', text: '지도 링크에 비밀코드 걸기 (코드를 아는 사람만 볼 수 있어요)' }));
   let sharePh = true;   // 지도 링크에도 사진을 (잠가서) 넣을지
   const shIn = el('input', { type: 'checkbox', id: 'bg-s', checked: true, onchange: () => { sharePh = shIn.checked; if (cardOpts) cardOpts.sharePhotos = sharePh; } });
   const shBox = el('div', { class: 'check', style: 'display:none' }, shIn, el('label', { for: 'bg-s', text: '지도 링크에도 사진 넣기 (링크를 받은 사람만 볼 수 있게 잠가서 올려요)' }));
@@ -786,6 +791,7 @@ function openBrag(info, t, count, allDone) {
       modeLabel: ls.get('walkMode:' + t, null) ? M.label : '', modeK: ls.get('walkMode:' + t, null) ? M.k : '' };
     if (phs === null) { phs = await cardPhotos(t); if (phs.recs.length) { phBox.style.display = ''; shBox.style.display = ''; } }
     if (phs.recs.length) { cardOpts.photoRecs = phs.recs; cardOpts.sharePhotos = sharePh; if (usePh) cardOpts.photos = phs.pick; }
+    cardOpts.secret = secretOn;
     await card.draw(cardOpts);
   }
   let cardOpts = null;
@@ -836,7 +842,7 @@ function openBrag(info, t, count, allDone) {
       document.body.append(pb);
     } }),
     count ? el('div', { class: 'check' }, cnt, el('label', { for: 'bg-c', text: '참여 인원 수 보이기' })) : null,
-    phBox, shBox,
+    phBox, shBox, secBox,
     ...card.actions,
     el('button', { class: 'btn line small', text: '닫기', onclick: () => bg.remove() })));
   document.body.append(bg);
@@ -867,35 +873,71 @@ async function sealBytes(buf, key) {
 }
 async function openBytes(s, key) { const u = b64u8(s); return crypto.subtle.decrypt({ name: 'AES-GCM', iv: u.subarray(0, 12) }, key, u.subarray(12)); }
 const SHARE_PHOTOS = 12;
+const b64url = u8 => u8b64(u8).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const urlb64 = s => b64u8(s.replace(/-/g, '+').replace(/_/g, '/'));
+// 비밀코드 자물쇠: 링크 안의 열쇠(x)와 비밀코드(6자리)가 둘 다 있어야 열려요
+async function codeKey(code, x, salt) {
+  const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(`${code}:${x}`), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: 200000, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 128 }, false, ['encrypt', 'decrypt']);
+}
+const shortCodes = {};   // 링크 → 비밀코드 (보내는 사람에게 보여주려고)
 async function shortLink(o) {
   const recs = o.sharePhotos !== false && Array.isArray(o.photoRecs) ? o.photoRecs : [];
-  const long = bragLink(o), key = long + '|' + recs.map(r => r.id).join(',');
+  const long = bragLink(o), key = long + '|' + recs.map(r => r.id).join(',') + (o.secret ? '|secret' : '');
   if (shortCache[key]) return shortCache[key];
   try {
     for (let i = 0; i < 50 && !connected; i++) await new Promise(r => setTimeout(r, 100));
-    if (!connected) return long;
+    if (!connected) return o.secret ? Promise.reject(new Error('offline')) : long;
     const id = rid(8), payload = JSON.parse(unb64u(new URL(long).searchParams.get('brag')));
-    let hash = '';
+    let hash = '', k = null, code = null, salt = null;
+    if (o.secret) {
+      code = String(crypto.getRandomValues(new Uint32Array(1))[0] % 1000000).padStart(6, '0');
+      const x = b64url(crypto.getRandomValues(new Uint8Array(16)));
+      salt = crypto.getRandomValues(new Uint8Array(16));
+      k = await codeKey(code, x, salt); hash = '#x=' + x;
+    }
     if (recs.length) {
       // 사진은 최대 12장, 고르게 골라서 800px로 줄여 잠가 올려요
       const step = Math.max(1, recs.length / SHARE_PHOTOS), pick = [];
       for (let i = 0; i < recs.length && pick.length < SHARE_PHOTOS; i += step) pick.push(recs[Math.floor(i)]);
       toast(`사진 ${pick.length}장을 잠가서 올리는 중이에요…`);
-      const k = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 128 }, true, ['encrypt', 'decrypt']);
+      if (!k) k = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 128 }, true, ['encrypt', 'decrypt']);
       let n = 0;
       for (const r of pick) {
         try {
           const small = await shrinkImage(r.blob, 800, 'blob', 0.72);
-          await pub(`allhere/v1/share/${id}/p/${n}`, { d: await sealBytes(await small.arrayBuffer(), k), lat: r.lat, lng: r.lng, ts: r.ts });
+          // 비밀코드를 걸면 사진 위치·시각도 잠가요
+          const meta = { lat: r.lat, lng: r.lng, ts: r.ts };
+          await pub(`allhere/v1/share/${id}/p/${n}`, o.secret
+            ? { d: await sealBytes(await small.arrayBuffer(), k), m: await sealBytes(new TextEncoder().encode(JSON.stringify(meta)), k) }
+            : { d: await sealBytes(await small.arrayBuffer(), k), ...meta });
           n++;
         } catch {}
       }
       payload.ph = n;
-      if (n) hash = '#k=' + u8b64(new Uint8Array(await crypto.subtle.exportKey('raw', k))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+      if (n && !o.secret) hash = '#k=' + b64url(new Uint8Array(await crypto.subtle.exportKey('raw', k)));
     }
-    await pub(`allhere/v1/share/${id}`, payload);
-    return (shortCache[key] = `${location.origin}${location.pathname}?s=${id}${hash}`);
-  } catch { return long; }
+    // 비밀코드를 걸면 제목·경로·장소까지 모두 잠가서 올려요
+    await pub(`allhere/v1/share/${id}`, o.secret
+      ? { v: 2, salt: u8b64(salt), enc: await sealBytes(new TextEncoder().encode(JSON.stringify(payload)), k) }
+      : payload);
+    const url = `${location.origin}${location.pathname}?s=${id}${hash}`;
+    if (code) shortCodes[url] = code;
+    return (shortCache[key] = url);
+  } catch (e) { if (o.secret) throw e; return long; }
+}
+// 보내는 사람에게 비밀코드를 보여줘요
+function showCode(code) {
+  const pretty = code.slice(0, 3) + ' ' + code.slice(3);
+  const bg = el('div', { class: 'sheet-bg', style: 'z-index:3300', onclick: e => { if (e.target === bg) bg.remove(); } });
+  bg.append(el('div', { class: 'sheet', role: 'dialog', 'aria-label': '비밀코드' },
+    el('h2', { text: '비밀코드' }),
+    el('div', { style: 'font-size:40px;font-weight:800;letter-spacing:6px;text-align:center;color:var(--pine);font-variant-numeric:tabular-nums', text: pretty }),
+    el('p', { class: 'sub', style: 'margin:0', text: '받은 사람에게 이 코드를 따로 알려 주세요. 말로 하거나 문자로 보내요. 코드를 모르면 링크를 열어도 볼 수 없어요. 이 코드는 다시 볼 수 없으니 잊지 마세요.' }),
+    el('div', { class: 'row' },
+      el('button', { class: 'btn line small grow', text: '코드 복사', onclick: () => navigator.clipboard.writeText(code).then(() => toast('비밀코드를 복사했어요'), () => {}) }),
+      el('button', { class: 'btn primary small grow', text: '확인', onclick: () => bg.remove() }))));
+  document.body.append(bg);
 }
 // 링크 뒤에 &c=1 같은 것을 붙일 때 # 앞에 붙여요
 const addQuery = (url, q) => { const i = url.indexOf('#'); return i < 0 ? url + q : url.slice(0, i) + q + url.slice(i); };
@@ -926,9 +968,14 @@ function bragView(img, getOpts) {
   };
   const shareLink = async () => {
     const o = getOpts(); if (!o) return;
-    const url = await shortLink(o), text = `[지도일기] ${o.name} 경로 지도\n${url}`;
-    if (navigator.share && !IN_KAKAO) { try { await navigator.share({ text }); return; } catch (e) { if (e && e.name === 'AbortError') return; if (e && e.name === 'NotAllowedError') return toast('준비됐어요. 링크 보내기를 한 번 더 눌러 주세요'); } }
+    let url; try { url = await shortLink(o); } catch { return toast('비밀코드 링크를 만들지 못했어요. 인터넷 연결을 확인해 주세요'); }
+    const code = shortCodes[url], text = `[지도일기] ${o.name} 경로 지도${code ? ' (비밀코드는 따로 알려 드릴게요)' : ''}\n${url}`;
+    if (navigator.share && !IN_KAKAO) {
+      try { await navigator.share({ text }); if (code) showCode(code); return; }
+      catch (e) { if (e && e.name === 'AbortError') return; if (e && e.name === 'NotAllowedError') return toast('준비됐어요. 링크 보내기를 한 번 더 눌러 주세요'); }
+    }
     navigator.clipboard.writeText(text).then(() => toast('링크를 복사했어요. 카톡방에 붙여넣으세요'), () => prompt('이 링크를 복사하세요', url));
+    if (code) showCode(code);
   };
   const hint = el('p', { class: 'sub center', style: 'margin:0', text: IN_KAKAO ? '카카오톡 안에서는 사진을 보낼 수 없어서, 사진 보내기는 휴대폰의 기본 브라우저에서 열어요.' : '사진만 저장하려면 카드 그림을 길게 누르세요.' });
   // 카카오 키가 있으면: 사진 + '지도에서 보기' 버튼이 붙은 카톡 메시지 하나로 한꺼번에 보내요
@@ -940,9 +987,11 @@ function bragView(img, getOpts) {
       Kakao.Share.sendDefault({ objectType: 'feed',
         content: { title: o.name, description: `${o.dateText} · ${o.startPlace} → ${o.endPlace}`, imageUrl: up.infos.original.url, imageWidth: 1080, imageHeight: 1350, link: { mobileWebUrl: url, webUrl: url } },
         buttons: [{ title: '지도에서 보기', link: { mobileWebUrl: url, webUrl: url } }] });
+      if (shortCodes[url]) showCode(shortCodes[url]);
     } catch { toast('카카오톡으로 보내지 못했어요. 잠시 뒤 다시 해 주세요'); }
   };
-  const openOther = async () => { const o = getOpts(); if (o) location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(addQuery(await shortLink(o), '&c=1')); };
+  // 카톡 안 → 기본 브라우저로 사진 저장하러 갈 때는 비밀코드 없이 (보내는 사람 본인이 보는 화면이라)
+  const openOther = async () => { const o = getOpts(); if (o) location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(addQuery(await shortLink(Object.assign({}, o, { secret: false })), '&c=1')); };
   let actions;
   if (kakaoOK()) {
     hint.textContent = '카드 사진과 "지도에서 보기" 버튼이 메시지 하나로 가요. 사진만 저장하려면 카드 그림을 길게 누르세요.';
@@ -972,24 +1021,63 @@ function viewShareLink() {
   let done = false;
   // 사진: 링크의 # 뒤 열쇠로 풀어요. 열쇠가 없으면 사진은 못 봐요.
   const feed = { recs: [], on: [] };
-  const km = /[#&]k=([A-Za-z0-9_-]+)/.exec(location.hash);
-  const keyP = km ? crypto.subtle.importKey('raw', b64u8(km[1].replace(/-/g, '+').replace(/_/g, '/')), 'AES-GCM', false, ['decrypt']).catch(() => null) : Promise.resolve(null);
+  // 열쇠: #k= 가 있으면 바로, 비밀코드 링크(#x=)면 코드를 맞게 넣은 뒤에 생겨요
+  let resolveKey; const keyP = new Promise(r => { resolveKey = r; });
+  const km = /[#&]k=([A-Za-z0-9_-]+)/.exec(location.hash), xm = /[#&]x=([A-Za-z0-9_-]+)/.exec(location.hash);
+  if (km) crypto.subtle.importKey('raw', urlb64(km[1]), 'AES-GCM', false, ['decrypt']).then(resolveKey, () => {});
   client.on('message', async (t, buf) => {
     if (t.startsWith(topic + '/p/')) {
-      const key = await keyP; if (!key) return;
+      const key = await keyP;
       try {
         const v = JSON.parse(buf.toString());
+        const meta = v.m ? JSON.parse(new TextDecoder().decode(await openBytes(v.m, key))) : v;
         const blob = new Blob([await openBytes(v.d, key)], { type: 'image/jpeg' });
-        const rec = { id: t, ts: num(v.ts) || 0, lat: num(v.lat), lng: num(v.lng), blob, thumb: await shrinkImage(blob, 160, 'url', 0.7) };
+        const rec = { id: t, ts: num(meta.ts) || 0, lat: num(meta.lat), lng: num(meta.lng), blob, thumb: await shrinkImage(blob, 160, 'url', 0.7) };
         feed.recs.push(rec); feed.recs.sort((a, b) => a.ts - b.ts); feed.on.forEach(fn => fn(rec));
       } catch {}
       return;
     }
     if (t !== topic || done) return;
     let v = null; try { v = JSON.parse(buf.toString()); } catch {}
+    if (v && v.v === 2 && typeof v.enc === 'string') { done = true; askCode(v); return; }   // 비밀코드 링크
     if (!v || typeof v.name !== 'string') return;
     done = true; viewBragLink(v, feed);
   });
+  // 비밀코드 넣는 화면
+  function askCode(v) {
+    const bar = roleBar('leader', '나들이 경로');
+    if (!xm) {
+      app.replaceChildren(el('div', { class: 'stack' }, bar, el('div', { class: 'banner info', style: 'margin-top:24px' },
+        el('b', { text: '받은 링크를 끝까지 그대로 열어 주세요' }), el('div', { text: '링크 뒤쪽이 잘려서 열 수 없어요. 보낸 사람에게 링크를 다시 받아 보세요.' }))));
+      return;
+    }
+    const iC = el('input', { type: 'text', id: 'cc', inputmode: 'numeric', maxlength: 7, autocomplete: 'off', placeholder: '6자리 숫자', style: 'letter-spacing:8px;font-size:28px;font-weight:800;text-align:center' });
+    const msg = el('div', { class: 'sub center' });
+    let fails = 0;
+    const go = async () => {
+      const code = iC.value.replace(/\D/g, '');
+      if (code.length !== 6) return msg.textContent = '숫자 6자리를 넣어 주세요';
+      btn.disabled = true; msg.textContent = '여는 중이에요…';
+      try {
+        const k = await codeKey(code, xm[1], b64u8(v.salt));
+        const payload = JSON.parse(new TextDecoder().decode(await openBytes(v.enc, k)));
+        resolveKey(k); viewBragLink(payload, feed);
+      } catch {
+        fails++; iC.value = '';
+        await new Promise(r => setTimeout(r, Math.min(fails, 5) * 1000));   // 틀릴수록 조금씩 기다려요
+        btn.disabled = false; msg.textContent = '코드가 맞지 않아요. 보낸 사람에게 다시 물어보세요.'; iC.focus();
+      }
+    };
+    const btn = el('button', { class: 'btn primary full big', text: '열기', onclick: go });
+    iC.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
+    app.replaceChildren(el('div', { class: 'stack' }, bar,
+      el('div', { class: 'card stack', style: 'margin-top:24px;gap:14px;text-align:center' },
+        el('div', { style: 'color:var(--pine);display:flex;justify-content:center' }, ico('lock', 40)),
+        el('h2', { text: '비밀코드가 걸린 지도일기예요' }),
+        el('div', { class: 'sub', text: '보낸 사람에게 받은 비밀코드 6자리를 넣어 주세요.' }),
+        iC, btn, msg)));
+    setTimeout(() => iC.focus(), 100);
+  }
   subTopic = topic + '/#'; if (connected) client.subscribe(subTopic, { qos: 1 });
   setTimeout(() => {
     if (done) return;
@@ -1021,7 +1109,7 @@ function viewBragLink(given, feed) {
   if (feed) o.photoRecs = feed.recs;   // 큰 지도에서도 사진이 보이게
   const gal = el('div', { class: 'gallery' }), phCount = el('div', { class: 'sub' });
   const phWrap = feed && o.ph ? el('div', { class: 'stack', style: 'gap:6px' }, el('b', { class: 'with-ico', style: 'color:var(--pine)' }, ico('camera', 20), '사진'), gal, phCount) : null;
-  const hasKey = /[#&]k=/.test(location.hash);
+  const hasKey = /[#&][kx]=/.test(location.hash);
   const refreshPh = () => {
     if (!phWrap) return;
     gal.replaceChildren(...feed.recs.map(r => el('img', { src: r.thumb, alt: '사진', onclick: () => showPhoto(r) })));
