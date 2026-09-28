@@ -28,6 +28,14 @@
   - **주의: 인솔자 화면 정리(2026-09-27) 이후 변경이 Firebase 버전에는 없다.** 사용자가 "Firebase는 아직"이라고 해서 보류 중. 다왔나 기능(인솔자 링크 검사, 첫 화면, 참여 중인 나들이, 디자인 등)만 맞추면 됨.
   - `firebase/index.html`은 Copilot이 만든 시험용 버전의 복사본(정식 버전 아님). 정리 필요.
 
+## 안드로이드 앱 (`app/` 폴더, 2026-09-29 시작)
+- 목적: 화면이 꺼져도 위치 기록·전송. 지금은 인솔자용 시험(디버그 APK를 직접 설치). Play 스토어는 아직.
+- Capacitor 8. 화면은 `server.url`로 https://gilbertgo.github.io/allhere/ 를 그대로 불러온다(웹을 push하면 앱도 바뀜). appId `io.github.gilbertgo.allhere`, 이름 다왔나.
+- index.html 맨 위 `NATIVE` 블록: 앱에서만 `navigator.geolocation`을 `@capacitor-community/background-geolocation`으로 바꿈(알림 "다왔나가 위치를 기록하고 있어요", `pagehide`에서 끔). `navigator.share`는 Share+Filesystem 플러그인. 알림 권한은 LocalNotifications로 물음. `IS_APP`에 포함돼 바탕화면 아이콘 버튼은 숨김.
+- 앱은 크롬과 저장 공간(localStorage)이 따로다.
+- 빌드: JDK 21 필요(`C:\Program Files\Microsoft\jdk-21*`. Android Studio 내장 Java 25는 Gradle 8.14와 안 맞음), `ANDROID_HOME=%LOCALAPPDATA%\Android\Sdk`, `app\android\gradlew.bat assembleDebug` → `app\android\app\build\outputs\apk\debug\app-debug.apk`(복사본 `app\dawatna.apk`, git 제외). `capacitor.config.json`이나 플러그인을 바꾸면 `npx cap sync android` 후 다시 빌드.
+- 앱 아이콘·알림 아이콘(`drawable-*/ic_stat_dawatna.png`)·시작 화면(`splash.png`)은 PowerShell System.Drawing으로 그렸다.
+
 ## URL 규칙
 - `/allhere/` — 첫 화면: 새 나들이 만들기, 내가 만든 단체 나들이, 참여 중인 나들이
 - `/allhere/?new=1` — 단체 나들이 만들기 (인솔자)

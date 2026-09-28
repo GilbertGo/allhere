@@ -1,0 +1,12 @@
+﻿{
+  "appId": "io.github.gilbertgo.allhere",
+  "appName": "다왔나",
+  "webDir": "www",
+  "server": {
+    "url": "https://gilbertgo.github.io/allhere/",
+    "androidScheme": "https"
+  },
+  "android": {
+    "useLegacyBridge": true
+  }
+}

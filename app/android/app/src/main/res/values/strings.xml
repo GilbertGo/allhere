@@ -1,0 +1,10 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">다왔나</string>
+    <string name="title_activity_main">다왔나</string>
+    <string name="package_name">io.github.gilbertgo.allhere</string>
+    <string name="custom_url_scheme">io.github.gilbertgo.allhere</string>
+    <!-- 화면이 꺼져도 위치를 기록할 때 알림줄에 보이는 알림의 종류 이름 -->
+    <string name="capacitor_background_geolocation_notification_channel_name">나들이 위치 기록</string>
+    <string name="capacitor_background_geolocation_notification_icon">drawable/ic_stat_dawatna</string>
+</resources>
