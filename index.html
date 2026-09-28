@@ -491,24 +491,31 @@ function trackModes(tr, kmh) {
   const m = ['w'];
   for (let i = 1; i < tr.length; i++) {
     const dt = (tr[i][2] - tr[i - 1][2]) / 1000, d = dist(tr[i - 1][0], tr[i - 1][1], tr[i][0], tr[i][1]);
-    m.push(dt > 0 && d / dt > lim || (dt > 20 * 60 && d > 1000) ? 'c' : 'w');   // 20분 넘게 끊겼다 1km 넘게 떨어져 이어지면 탈것으로
+    // 'g': 화면이 꺼지는 등으로 5분 넘게 위치가 안 들어왔다가 150m 넘게 떨어진 곳에서 다시 이어진 구간 (가는 점선)
+    m.push(dt > 5 * 60 && d > 150 ? 'g' : dt > 0 && d / dt > lim ? 'c' : 'w');
   }
-  // 신호 대기처럼 잠깐 느려지거나, GPS가 튀어 잠깐 빨라진 곳은 앞뒤에 맞춰요
+  // 신호 대기처럼 잠깐 느려지거나, GPS가 튀어 잠깐 빨라진 곳은 앞뒤에 맞춰요 (끊긴 구간 'g'는 그대로 둬요)
   for (let pass = 0; pass < 2; pass++)
     for (let i = 1; i < m.length - 1; i++) {
       let j = i; while (j < m.length - 1 && m[j + 1] === m[i]) j++;
-      if (j - i < 2 && m[i - 1] === m[j + 1] && m[i] !== m[i - 1]) for (let k = i; k <= j; k++) m[k] = m[i - 1];
+      if (j - i < 2 && m[i - 1] === m[j + 1] && m[i] !== m[i - 1] && m[i] !== 'g' && m[i - 1] !== 'g') for (let k = i; k <= j; k++) m[k] = m[i - 1];
       i = j;
     }
   return m.join('');
 }
-// 같은 방식끼리 이어진 조각으로 나눠요: [{ car: true/false, pts: [[lat,lng], ...] }]
+// 선 모양: 걸은 길 주황 실선 / 차로 간 길 회색 점선 / 끊긴 구간 회색 가는 점선
+const RUN_STYLE = {
+  w: { color: '#E4572E', weight: 5 },
+  c: { color: '#6B7280', weight: 4, dashArray: '8 8' },
+  g: { color: '#6B7280', weight: 2.5, dashArray: '2 7', opacity: 0.9 }
+};
+// 같은 방식끼리 이어진 조각으로 나눠요: [{ k: 'w'|'c'|'g', car, pts: [[lat,lng], ...] }]
 function modeRuns(R, modes) {
-  if (!modes || modes.length !== R.length) return [{ car: false, pts: R }];
+  if (!modes || modes.length !== R.length) return [{ k: 'w', car: false, pts: R }];
   const runs = [];
   for (let i = 1; i < R.length; i++) {
-    const car = modes[i] === 'c', last = runs[runs.length - 1];
-    if (last && last.car === car) last.pts.push(R[i]); else runs.push({ car, pts: [R[i - 1], R[i]] });
+    const k = modes[i] === 'c' || modes[i] === 'g' ? modes[i] : 'w', last = runs[runs.length - 1];
+    if (last && last.k === k) last.pts.push(R[i]); else runs.push({ k, car: k === 'c', pts: [R[i - 1], R[i]] });
   }
   return runs;
 }
@@ -517,7 +524,7 @@ function thinRoute(R, modes, max) {
   if (R.length <= max) return { R, modes };
   const step = Math.ceil(R.length / max), keep = [];
   for (let i = 0; i < R.length; i++) if (i % step === 0 || i === R.length - 1) keep.push(i);
-  const mm = modes ? keep.map((k, n) => { if (!n) return 'w'; const seg = modes.slice(keep[n - 1] + 1, k + 1); return seg.includes('c') && seg.split('c').length - 1 >= seg.length / 2 ? 'c' : 'w'; }).join('') : null;
+  const mm = modes ? keep.map((k, n) => { if (!n) return 'w'; const seg = modes.slice(keep[n - 1] + 1, k + 1); return seg.includes('g') ? 'g' : seg.includes('c') && seg.split('c').length - 1 >= seg.length / 2 ? 'c' : 'w'; }).join('') : null;
   return { R: keep.map(k => R[k]), modes: mm };
 }
 function fmtDur(ms) { const m = Math.round(ms / 60000), h = Math.floor(m / 60); return h ? `${h}시간 ${m % 60}분` : `${m}분`; }
@@ -672,15 +679,22 @@ async function drawBragCard(o) {
       P = R.map(proj);
     }
     const line = (w, c) => { g.beginPath(); P.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); g.lineWidth = w; g.strokeStyle = c; g.lineCap = 'round'; g.lineJoin = 'round'; g.stroke(); };
-    const hasCar = typeof o.modes === 'string' && o.modes.length === P.length && o.modes.includes('c');
+    const hasCar = typeof o.modes === 'string' && o.modes.length === P.length && /[cg]/.test(o.modes);
     if (!hasCar) { if (onMap) { line(24, '#FFFFFF'); line(12, '#E4572E'); } else { line(26, 'rgba(255,255,255,.14)'); line(12, ACC); } }
     else {
-      // 걸은 길은 굵은 실선, 차로 간 길은 회색 점선
-      line(onMap ? 20 : 22, onMap ? '#FFFFFF' : 'rgba(255,255,255,.14)');
-      const seg = (a, b, car) => { g.beginPath(); g.moveTo(P[a][0], P[a][1]); for (let k = a + 1; k <= b; k++) g.lineTo(P[k][0], P[k][1]);
-        g.setLineDash(car ? [16, 14] : []); g.lineWidth = car ? 8 : 12; g.strokeStyle = car ? (onMap ? '#6B7280' : '#C9CFC7') : (onMap ? '#E4572E' : ACC); g.lineCap = 'round'; g.lineJoin = 'round'; g.stroke(); g.setLineDash([]); };
-      let a = 0;
-      for (let i = 1; i < P.length; i++) if (i === P.length - 1 || o.modes[i + 1] !== o.modes[i]) { seg(a, i, o.modes[i] === 'c'); a = i; }
+      // 걸은 길은 굵은 실선, 차로 간 길은 회색 점선, 기록이 끊긴 구간은 가는 점선 (테두리 없이)
+      const path = (a, b) => { g.beginPath(); g.moveTo(P[a][0], P[a][1]); for (let k = a + 1; k <= b; k++) g.lineTo(P[k][0], P[k][1]); };
+      const runs = []; let a = 0;
+      for (let i = 1; i < P.length; i++) if (i === P.length - 1 || o.modes[i + 1] !== o.modes[i]) { runs.push([a, i, o.modes[i] === 'c' || o.modes[i] === 'g' ? o.modes[i] : 'w']); a = i; }
+      g.lineCap = 'round'; g.lineJoin = 'round';
+      runs.filter(r => r[2] !== 'g').forEach(([s, e]) => { path(s, e); g.lineWidth = onMap ? 20 : 22; g.strokeStyle = onMap ? '#FFFFFF' : 'rgba(255,255,255,.14)'; g.stroke(); });
+      runs.forEach(([s, e, k]) => {
+        path(s, e);
+        if (k === 'g') { g.setLineDash([2, 14]); g.lineWidth = 6; g.strokeStyle = onMap ? '#6B7280' : '#C9CFC7'; }
+        else if (k === 'c') { g.setLineDash([16, 14]); g.lineWidth = 8; g.strokeStyle = onMap ? '#6B7280' : '#C9CFC7'; }
+        else { g.setLineDash([]); g.lineWidth = 12; g.strokeStyle = onMap ? '#E4572E' : ACC; }
+        g.stroke(); g.setLineDash([]);
+      });
     }
     if (onMap) {   // 지도 출처 표시
       font(500, 20); const at = '© OpenStreetMap', aw = g.measureText(at).width + 20;
@@ -944,7 +958,7 @@ const addQuery = (url, q) => { const i = url.indexOf('#'); return i < 0 ? url + 
 function bragLink(o) {
   const th = o.route ? thinRoute(o.route, typeof o.modes === 'string' && o.modes.length === o.route.length ? o.modes : null, 150) : { R: null, modes: null };
   const r = th.R;
-  const small = Object.assign({}, o, { route: r ? r.map(q => [+q[0].toFixed(4), +q[1].toFixed(4)]) : null, modes: th.modes && th.modes.includes('c') ? th.modes : undefined, photos: undefined, photoRecs: undefined });   // 사진은 링크에 넣지 않아요
+  const small = Object.assign({}, o, { route: r ? r.map(q => [+q[0].toFixed(4), +q[1].toFixed(4)]) : null, modes: th.modes && /[cg]/.test(th.modes) ? th.modes : undefined, photos: undefined, photoRecs: undefined });   // 사진은 링크에 넣지 않아요
   return `${location.origin}${location.pathname}?brag=${b64u(JSON.stringify(small))}`;
 }
 // 미리보기 그림 + 저장/공유 버튼 묶음. draw(opts)로 카드를 다시 그려요.
@@ -1106,7 +1120,7 @@ function viewBragLink(given, feed) {
   const s = (v, n) => typeof v === 'string' ? v.slice(0, n) : '';
   o = { name: s(o.name, 40), dateText: s(o.dateText, 40), modeLabel: s(o.modeLabel, 20).replace(/^\S+\s(?=\S)/u, m => /\p{Extended_Pictographic}/u.test(m) ? '' : m), modeK: ICONS[o.modeK] && MODES.some(m => m.k === o.modeK) ? o.modeK : '', startPlace: s(o.startPlace, 30), endPlace: s(o.endPlace, 30), startTime: s(o.startTime, 5), endTime: s(o.endTime, 5),
     stats: Array.isArray(o.stats) ? o.stats.slice(0, 4).map(x => s(x, 30)) : [], route: Array.isArray(o.route) ? o.route.slice(0, 400) : null,
-    modes: typeof o.modes === 'string' && /^[wc]*$/.test(o.modes) ? o.modes : null,
+    modes: typeof o.modes === 'string' && /^[wcg]*$/.test(o.modes) ? o.modes : null,
     // 기록 중에 보낸 링크의 '지금 여기'는 받는 사람에게는 '마지막 위치'
     ...(o.endPlace === '지금 여기' ? { endPlace: '마지막 위치' } : {}),
     ph: Number.isFinite(o.ph) ? Math.max(0, Math.min(o.ph, 12)) : 0,
@@ -1202,9 +1216,10 @@ function viewBragLink(given, feed) {
 function routeMap(mapEl, R, photos, modes, spots) {
   const m = L.map(mapEl);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(m);
-  L.polyline(R, { color: '#FFFFFF', weight: 9, opacity: 0.9 }).addTo(m);
-  // 걸은 길은 주황 실선, 차로 간 길은 회색 점선
-  modeRuns(R, modes).forEach(r => L.polyline(r.pts, r.car ? { color: '#6B7280', weight: 4, dashArray: '8 8' } : { color: '#E4572E', weight: 5 }).addTo(m));
+  // 걸은 길은 주황 실선, 차로 간 길은 회색 점선, 끊긴 구간은 가는 점선 (끊긴 구간은 흰 테두리 없이)
+  const runs = modeRuns(R, modes);
+  runs.filter(r => r.k !== 'g').forEach(r => L.polyline(r.pts, { color: '#FFFFFF', weight: 9, opacity: 0.9 }).addTo(m));
+  runs.forEach(r => L.polyline(r.pts, RUN_STYLE[r.k]).addTo(m));
   setRouteArrows(m, R);
   const A = R[0], B = R[R.length - 1], same = dist(A[0], A[1], B[0], B[1]) < 80;
   const pin = (p, label, fill) => L.circleMarker(p, { radius: 9, color: '#1E3B2F', weight: 3, fillColor: fill, fillOpacity: 1 })
@@ -1499,7 +1514,7 @@ function viewWalk() {
       // 걸은 길은 주황 실선, 차로 간 길은 회색 점선
       if (!line) line = L.layerGroup().addTo(map);
       line.clearLayers();
-      modeRuns(tr.map(q => [q[0], q[1]]), trackModes(tr, m.car)).forEach(r => L.polyline(r.pts, r.car ? { color: '#6B7280', weight: 4, dashArray: '8 8' } : { color: '#E4572E', weight: 5 }).addTo(line));
+      modeRuns(tr.map(q => [q[0], q[1]]), trackModes(tr, m.car)).forEach(r => L.polyline(r.pts, RUN_STYLE[r.k]).addTo(line));
     }
   }
   function startGps() {
