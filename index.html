@@ -823,16 +823,19 @@ async function drawBragCard(o) {
   return cv;
 }
 // info: 나들이 계획, t: 나들이 ID, count: 참여 인원, allDone: 모두 도착했는지
-function openBrag(info, t, count, allDone) {
-  if (info.quick) {   // 계획 없이 출발한 나들이: 카드의 장소는 '장소 이름 적기'로 적은 이름(없으면 출발 지점/도착 지점)
+// kind: 'plan' = 나들이 계획 공유하기(가는 곳·시간·예정 경로), 'done' = 다녀온 나들이 공유하기(실제로 다닌 길·시각)
+function openBrag(info, t, count, allDone, kind = 'done') {
+  const planKind = kind === 'plan';
+  if (planKind) { count = 0; allDone = false; }   // 계획에는 인원 수를 넣지 않아요
+  const tr0 = trackLoad(t);
+  if (!planKind && tr0.length > 1) info = Object.assign({}, info, { startAt: tr0[0][2], meetAt: tr0[tr0.length - 1][2] });   // 시각은 실제로 다닌 처음과 끝
+  if (!planKind && info.quick) {   // 계획 없이 출발한 나들이: 카드의 장소는 '장소 이름 적기'로 적은 이름(없으면 출발 지점/도착 지점)
     const wp = ls.get('walkPlaces:' + t, {});
-    const tr = trackLoad(t);   // 시각도 실제로 걸은 처음과 끝으로
-    info = Object.assign({}, info, { startPlace: wp.start || '출발 지점', meetPlace: wp.end || (info.meetPlace === '정하지 않음' ? '도착 지점' : info.meetPlace) },
-      tr.length > 1 ? { startAt: tr[0][2], meetAt: tr[tr.length - 1][2] } : {});
+    info = Object.assign({}, info, { startPlace: wp.start || '출발 지점', meetPlace: wp.end || (info.meetPlace === '정하지 않음' ? '도착 지점' : info.meetPlace) });
   }
   const plan = hasRoute(info) ? info.route : null;
   const mine = trackLoad(t).length > 1 ? trackLoad(t).map(q => [q[0], q[1]]) : null;
-  let which = mine && isGo(info) ? 'mine' : plan ? 'plan' : mine ? 'mine' : 'none', showCount = true;
+  let which = planKind ? (plan ? 'plan' : 'none') : (mine ? 'mine' : 'none'), showCount = true;
   const img = el('img', { alt: '공유 카드 미리보기', style: 'width:100%;border-radius:16px;display:block;box-shadow:var(--shadow);background:#EFE9DC;aspect-ratio:4/5' });
   const opts = el('div', { class: 'mapbar' });
   const cnt = el('input', { type: 'checkbox', id: 'bg-c', checked: true, onchange: () => { showCount = cnt.checked; draw(); } });
@@ -848,7 +851,7 @@ function openBrag(info, t, count, allDone) {
   const shIn = el('input', { type: 'checkbox', id: 'bg-s', checked: true, onchange: () => { sharePh = shIn.checked; if (cardOpts) cardOpts.sharePhotos = sharePh; } });
   const shBox = el('div', { class: 'check', style: 'display:none' }, shIn, el('label', { for: 'bg-s', text: '지도 링크에도 사진 넣기 (링크를 받은 사람만 볼 수 있게 잠가서 올려요)' }));
   async function draw() {
-    opts.replaceChildren(...[['plan', '예정 경로', plan], ['mine', '내 이동 기록', mine], ['none', '경로 안 보이기', true]].filter(x => x[2])
+    opts.replaceChildren(...[planKind ? ['plan', '예정 경로', plan] : ['mine', '다닌 길', mine], ['none', '경로 안 보이기', true]].filter(x => x[2])
       .map(([k, label]) => el('button', { class: 'btn small ' + (which === k ? 'dark' : 'line'), text: label, onclick: () => { which = k; draw(); } })));
     const route = which === 'plan' ? plan : which === 'mine' ? mine : null;
     const sd = new Date(info.startAt ?? info.meetAt);
@@ -873,7 +876,7 @@ function openBrag(info, t, count, allDone) {
       modes: which === 'mine' ? trackModes(trackLoad(t), M.car) : null,
       spots: spotsOf(t).slice(0, 10).map(s => ({ n: s.n, lat: s.lat, lng: s.lng })),
       modeLabel: ls.get('walkMode:' + t, null) ? M.label : '', modeK: ls.get('walkMode:' + t, null) ? M.k : '' };
-    if (phs === null) { phs = await cardPhotos(t); if (phs.recs.length) { phBox.style.display = ''; shBox.style.display = ''; } }
+    if (phs === null) { phs = planKind ? { recs: [] } : await cardPhotos(t); if (phs.recs.length) { phBox.style.display = ''; shBox.style.display = ''; } }
     if (phs.recs.length) { cardOpts.photoRecs = phs.recs; cardOpts.sharePhotos = sharePh; if (usePh) cardOpts.photos = phs.pick; }
     cardOpts.secret = secretOn;
     await card.draw(cardOpts);
@@ -881,9 +884,11 @@ function openBrag(info, t, count, allDone) {
   let cardOpts = null;
   const card = bragView(img, () => cardOpts);
   const bg = el('div', { class: 'sheet-bg', onclick: e => { if (e.target === bg) bg.remove(); } });
-  bg.append(el('div', { class: 'sheet', role: 'dialog', 'aria-label': '나들이 공유하기' },
-    el('h2', { text: '나들이 공유하기' }),
-    el('p', { class: 'sub', style: 'margin:0', text: '사진 한 장이나 지도 링크로 보내요. 그림을 누르면 지도로 크게 볼 수 있어요.' + (count ? ' 참여자 이름과 위치는 들어가지 않아요.' : '') }),
+  const title = planKind ? '나들이 계획 공유하기' : '다녀온 나들이 공유하기';
+  bg.append(el('div', { class: 'sheet', role: 'dialog', 'aria-label': title },
+    el('h2', { text: title }),
+    el('p', { class: 'sub', style: 'margin:0', text: (planKind ? '어디서 모여 어디로, 몇 시에 가는지를' : '실제로 다닌 길과 시각을') + ' 사진 한 장이나 지도 링크로 보내요. 그림을 누르면 지도로 크게 볼 수 있어요.' + (count ? ' 참여자 이름과 위치는 들어가지 않아요.' : '') }),
+    !planKind && !mine ? el('div', { class: 'banner info', text: '아직 다닌 길 기록이 없어요. 출발한 뒤 인솔자 화면을 켜 두고 걸으면 기록돼요.' }) : null,
     img, opts,
     // 제목 바꾸기: 내 기록·여행은 저장된 이름도 바꾸고, 단체 나들이는 카드 제목만 바꿔요
     el('button', { class: 'link', style: 'align-self:flex-start;padding:2px 0', text: '제목 바꾸기', onclick: () => {
@@ -906,7 +911,7 @@ function openBrag(info, t, count, allDone) {
       document.body.append(nb); setTimeout(() => { iN.focus(); iN.select(); }, 50);
     } }),
     // 계획 없이 다닌 기록은 장소 이름을 여기서 적을 수 있어요
-    !info.quick && ls.get('plans', []).some(p => p.id === t) ? null : el('button', { class: 'link', style: 'align-self:flex-start;padding:2px 0', text: '장소 이름 적기', onclick: () => {
+    planKind || (!info.quick && ls.get('plans', []).some(p => p.id === t)) ? null : el('button', { class: 'link', style: 'align-self:flex-start;padding:2px 0', text: '장소 이름 적기', onclick: () => {
       const wp = ls.get('walkPlaces:' + t, {});
       const iS = el('input', { type: 'text', id: 'bs', maxlength: 30, value: wp.start || '', placeholder: '예: 동네 공원' });
       const iE = el('input', { type: 'text', id: 'be', maxlength: 30, value: wp.end || '', placeholder: '예: 뒷산 정상' });
@@ -1513,7 +1518,7 @@ function viewLanding() {
       el('p', { class: 'sub', style: 'margin:6px 0 0;font-size:16px;color:#4A5249', text: '단체 나들이, 다 왔나 한눈에' })),
     // 다왔나: 단체 나들이 인솔
     bigBtn([ico('group', 24), '새 나들이 만들기'], '계획을 세우고 참여 링크를 카톡방에 보내요. 참여자는 앱 설치 없이 링크로 들어와요.', true, () => { location.href = '?new=1'; }),
-    bigBtn([ico('pin', 24), '계획 없이 바로 출발'], '지금 걷는 길을 기록해요. 걷는 중에 참여 링크를 보내도 되고, 다 걸은 뒤 "나들이 공유하기"로 다닌 길을 보낼 수 있어요.', false, openQuickStart),
+    bigBtn([ico('pin', 24), '계획 없이 바로 출발'], '지금 걷는 길을 기록해요. 걷는 중에 참여 링크를 보내도 되고, 다 걸은 뒤 "다녀온 나들이 공유하기"로 다닌 길을 보낼 수 있어요.', false, openQuickStart),
     mine.length ? el('div', { class: 'stack', style: 'margin-top:16px' },
       el('h2', { text: '내가 만든 단체 나들이' }),
       mine.map(m => el('a', { class: 'member', href: `?t=${m.t}`, style: 'text-decoration:none;color:inherit' },
@@ -2079,7 +2084,10 @@ async function viewLeader(key) {
             el('span', { class: 'chip', style: `background:${s.bg};color:${s.fg}`, text: lab(m.st, info) })); }),
           invite(false)
         ] : invite(true),
-        el('button', { class: 'btn line full', text: '나들이 공유하기', onclick: () => openBrag(info, tripId, L.length, isGo(info) && L.length > 0 && L.every(m => m.st === 'done')) }),
+        // 공유: 가기 전에 보내는 계획 / 다녀와서 보내는 실제로 다닌 길 (계획 없이 출발한 나들이는 다녀온 것만)
+        el('div', { class: 'stack', style: 'gap:8px' },
+          info.quick && !hasRoute(info) ? null : el('button', { class: 'btn line full', text: '나들이 계획 공유하기', onclick: () => openBrag(info, tripId, 0, false, 'plan') }),
+          el('button', { class: 'btn line full', text: '다녀온 나들이 공유하기', onclick: () => openBrag(info, tripId, L.length, isGo(info) && L.length > 0 && L.every(m => m.st === 'done'), 'done') })),
         // 4) 자주 안 쓰는 것은 접어두기
         more('plan', '나들이 계획 · 수정', planCard()),
         more('etc', '그 밖의 기능',
