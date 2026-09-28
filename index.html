@@ -518,6 +518,14 @@ function openBrag(info, t, count, allDone) {
 }
 // 카톡 안의 브라우저는 사진 저장·공유를 막아요. 그때는 카드 내용을 링크에 담아 기본 브라우저로 넘겨요.
 const IN_KAKAO = /KAKAOTALK/i.test(navigator.userAgent);
+// 카카오 JavaScript 키가 들어 있으면 카카오톡 공유를 써요
+function kakaoOK() {
+  try {
+    if (!window.Kakao || KAKAO_JS_KEY === 'YOUR_KAKAO_JS_KEY') return false;
+    if (!Kakao.isInitialized()) Kakao.init(KAKAO_JS_KEY);
+    return true;
+  } catch { return false; }
+}
 const b64u = s => btoa(unescape(encodeURIComponent(s))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 const unb64u = s => decodeURIComponent(escape(atob(s.replace(/-/g, '+').replace(/_/g, '/'))));
 // 짧은 링크: 카드 내용을 서버(allhere/v1/share/{번호})에 저장하고 링크에는 번호만 넣어요.
@@ -551,33 +559,42 @@ function bragView(img, getOpts) {
     const a = el('a', { href: URL.createObjectURL(blob), download: fname() }); document.body.append(a); a.click(); a.remove();
     toast('자랑 카드를 사진으로 저장했어요');
   };
-  // 사진 한 장 + 지도 링크를 같이 보내요. 글을 버리는 앱도 있어서 링크는 복사도 해 둬요.
+  // 카톡은 사진과 글을 같이 받으면 글을 버려요. 그래서 사진과 링크를 버튼 두 개로 따로 보내요.
   const share = async () => {
     if (!blob) return;
-    const o = getOpts(), file = new File([blob], fname(), { type: 'image/png' });
-    const url = await shortLink(o), text = `[다왔나] ${o.name} 경로 지도\n${url}`;
-    try { navigator.clipboard.writeText(text).catch(() => {}); } catch {}
+    const file = new File([blob], fname(), { type: 'image/png' });
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      try { await navigator.share({ files: [file], text }); step2(); }
-      catch (e) { if (e && e.name === 'NotAllowedError') toast('준비됐어요. 보내기를 한 번 더 눌러 주세요'); }
-    } else { save(); toast('사진을 저장하고 링크를 복사했어요. 카톡방에 사진과 링크를 같이 올리세요'); }
+      try { await navigator.share({ files: [file] }); } catch {}
+    } else save();
   };
-  // 카톡은 사진과 글을 같이 받으면 글을 버려요. 그래서 사진을 보낸 뒤 링크를 한 번 더 보내요.
   const shareLink = async () => {
     const o = getOpts(); if (!o) return;
-    const url = await shortLink(o), text = `[다왔나] ${o.name} 경로 지도`;
-    if (navigator.share) { try { await navigator.share({ text: `${text}\n${url}` }); linkBtn.style.display = 'none'; hint.textContent = '다 보냈어요!'; return; } catch (e) { if (e && e.name === 'AbortError') return; } }
-    navigator.clipboard.writeText(`${text}\n${url}`).then(() => toast('링크를 복사했어요. 카톡방에 붙여넣으세요'), () => prompt('이 링크를 복사하세요', url));
+    const url = await shortLink(o), text = `[다왔나] ${o.name} 경로 지도\n${url}`;
+    if (navigator.share && !IN_KAKAO) { try { await navigator.share({ text }); return; } catch (e) { if (e && e.name === 'AbortError') return; } }
+    navigator.clipboard.writeText(text).then(() => toast('링크를 복사했어요. 카톡방에 붙여넣으세요'), () => prompt('이 링크를 복사하세요', url));
   };
-  const linkBtn = el('button', { class: 'btn primary full big', style: 'display:none', text: '링크도 보내기', onclick: shareLink });
-  const hint = el('p', { class: 'sub center', style: 'margin:0', text: IN_KAKAO ? '카카오톡 안에서는 사진을 보낼 수 없어서, 휴대폰의 기본 브라우저에서 열어요.' : '사진만 저장하려면 카드 그림을 길게 누르세요.' });
-  const sendBtn = el('button', { class: 'btn primary full big', text: '보내기', onclick: IN_KAKAO ? () => openOther() : share });
-  const step2 = () => {
-    sendBtn.className = 'btn line full'; sendBtn.textContent = '사진 다시 보내기';
-    linkBtn.style.display = ''; hint.textContent = '사진을 보냈어요. 같은 방에 지도 링크도 보내 주세요. (링크는 복사돼 있어서 붙여넣어도 돼요)';
+  const hint = el('p', { class: 'sub center', style: 'margin:0', text: IN_KAKAO ? '카카오톡 안에서는 사진을 보낼 수 없어서, 사진 보내기는 휴대폰의 기본 브라우저에서 열어요.' : '사진만 저장하려면 카드 그림을 길게 누르세요.' });
+  // 카카오 키가 있으면: 사진 + '지도에서 보기' 버튼이 붙은 카톡 메시지 하나로 한꺼번에 보내요
+  const kakaoShare = async () => {
+    const o = getOpts(); if (!o || !blob) return;
+    try {
+      const url = await shortLink(o);
+      const up = await Kakao.Share.uploadImage({ file: [new File([blob], 'card.png', { type: 'image/png' })] });
+      Kakao.Share.sendDefault({ objectType: 'feed',
+        content: { title: o.name, description: `${o.dateText} · ${o.startPlace} → ${o.endPlace}`, imageUrl: up.infos.original.url, imageWidth: 1080, imageHeight: 1350, link: { mobileWebUrl: url, webUrl: url } },
+        buttons: [{ title: '지도에서 보기', link: { mobileWebUrl: url, webUrl: url } }] });
+    } catch { toast('카카오톡으로 보내지 못했어요. 잠시 뒤 다시 해 주세요'); }
   };
   const openOther = async () => { const o = getOpts(); if (o) location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(await shortLink(o) + '&c=1'); };
-  const actions = [linkBtn, sendBtn, hint];
+  let actions;
+  if (kakaoOK()) {
+    hint.textContent = '카드 사진과 "지도에서 보기" 버튼이 메시지 하나로 가요. 사진만 저장하려면 카드 그림을 길게 누르세요.';
+    actions = [el('button', { class: 'btn primary full big', text: '카카오톡으로 보내기', onclick: kakaoShare }), hint];
+  } else actions = [
+    el('div', { class: 'two' },
+      el('button', { class: 'btn primary', text: '사진 보내기', onclick: IN_KAKAO ? () => openOther() : share }),
+      el('button', { class: 'btn primary', text: '링크 보내기', onclick: shareLink })),
+    hint];
   return {
     actions,
     async draw(o) {
