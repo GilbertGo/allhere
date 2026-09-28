@@ -544,9 +544,12 @@ async function drawBragCard(o) {
     if (Math.hypot(A[0] - B[0], A[1] - B[1]) < 70) mark(A, ACC, '출발·도착');   // 원점으로 돌아오는 코스
     else { mark(A, '#FFFDF8', '출발'); mark(B, ACC, '도착'); }
     // 사진 찍은 곳: 번호 동그라미 (아래 사진과 번호가 같아요)
+    const placed = [];
     PH.forEach((p, i) => {
       if (p.lat == null) return;
-      const [x, yy] = proj([p.lat, p.lng]);
+      let [x, yy] = proj([p.lat, p.lng]);
+      while (placed.some(q => Math.hypot(q[0] - x, q[1] - yy) < 46)) x += 48;   // 같은 곳에서 찍은 사진은 옆으로
+      placed.push([x, yy]);
       if (x < px || x > px + pw || yy < py || yy > py + ph) return;
       g.beginPath(); g.arc(x, yy, 22, 0, Math.PI * 2); g.fillStyle = '#FFFDF8'; g.fill(); g.lineWidth = 5; g.strokeStyle = '#E4572E'; g.stroke();
       font(800, 26); g.fillStyle = '#E4572E'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(String(i + 1), x, yy + 1); g.textAlign = 'left'; g.textBaseline = 'alphabetic';
@@ -560,7 +563,7 @@ async function drawBragCard(o) {
   g.restore();
   // 사진 3장 (가운데를 채워 잘라 넣어요)
   if (PH.length) {
-    const gap = 16, sw = (pw - gap * 2) / 3, sh = 150, sy = 890;
+    const gap = 16, sw = (pw - gap * (PH.length - 1)) / PH.length, sh = 150, sy = 890;
     PH.forEach((p, i) => {
       const x = px + i * (sw + gap), im = p.img, s = Math.max(sw / im.width, sh / im.height);
       g.save(); rr(x, sy, sw, sh, 22); g.clip();
@@ -620,6 +623,26 @@ function openBrag(info, t, count, allDone) {
     el('h2', { text: '나들이 자랑하기' }),
     el('p', { class: 'sub', style: 'margin:0', text: '카톡방이나 SNS에 올릴 그림 한 장을 만들어요. 참여자 이름과 위치는 들어가지 않아요. 그림을 누르면 지도로 크게 볼 수 있어요.' }),
     img, opts,
+    // 계획 없이 걸은 발도장은 장소 이름을 여기서 적을 수 있어요
+    ls.get('plans', []).some(p => p.id === t) ? null : el('button', { class: 'link', style: 'align-self:flex-start;padding:2px 0', text: '장소 이름 적기', onclick: () => {
+      const wp = ls.get('walkPlaces:' + t, {});
+      const iS = el('input', { type: 'text', id: 'bs', maxlength: 30, value: wp.start || '', placeholder: '예: 동네 공원' });
+      const iE = el('input', { type: 'text', id: 'be', maxlength: 30, value: wp.end || '', placeholder: '예: 뒷산 정상' });
+      const pb = el('div', { class: 'sheet-bg', style: 'z-index:3200', onclick: e => { if (e.target === pb) pb.remove(); } });
+      pb.append(el('div', { class: 'sheet', role: 'dialog', 'aria-label': '장소 이름 적기' },
+        el('h2', { text: '장소 이름 적기' }),
+        el('label', { class: 'f', for: 'bs' }, '출발한 곳', iS),
+        el('label', { class: 'f', for: 'be' }, '도착한 곳', iE),
+        el('div', { class: 'row' },
+          el('button', { class: 'btn line small grow', text: '닫기', onclick: () => pb.remove() }),
+          el('button', { class: 'btn primary small grow', text: '저장', onclick: () => {
+            const v = { start: iS.value.trim(), end: iE.value.trim() };
+            ls.set('walkPlaces:' + t, v);
+            info.startPlace = v.start || '출발 지점'; info.meetPlace = v.end || '도착 지점';
+            pb.remove(); draw();
+          } }))));
+      document.body.append(pb);
+    } }),
     count ? el('div', { class: 'check' }, cnt, el('label', { for: 'bg-c', text: '참여 인원 수 보이기' })) : null,
     phBox,
     ...card.actions,
@@ -999,7 +1022,8 @@ function pastTrips() {
   for (let i = 0; i < localStorage.length; i++) {
     const k = localStorage.key(i); if (!k || !k.startsWith('track:')) continue;
     const t = k.slice(6), tr = trackLoad(t); if (byT[t] || tr.length < 2) continue;
-    byT[t] = { t, info: { name: ls.get('trackName:' + t, '나들이'), startPlace: '출발 지점', meetPlace: '도착 지점', startAt: tr[0][2], meetAt: tr[tr.length - 1][2], route: null, phase: 'go' } };
+    const wp = ls.get('walkPlaces:' + t, {});
+    byT[t] = { t, info: { name: ls.get('trackName:' + t, '나들이'), startPlace: wp.start || '출발 지점', meetPlace: wp.end || '도착 지점', startAt: tr[0][2], meetAt: tr[tr.length - 1][2], route: null, phase: 'go' } };
   }
   return Object.values(byT).sort((a, b) => b.info.startAt - a.info.startAt);
 }
@@ -1116,15 +1140,20 @@ function viewWalk() {
       photoList(id).then(ps => Promise.all(ps.map(p => photoDel(p.id)))).finally(() => { location.href = './'; }); return;
     }
     const iN = el('input', { type: 'text', id: 'wn', maxlength: 40, value: nameOf() });
+    const iS = el('input', { type: 'text', id: 'ws', maxlength: 30, placeholder: '예: 동네 공원' }), iE = el('input', { type: 'text', id: 'we', maxlength: 30, placeholder: '예: 뒷산 정상' });
     const bg = el('div', { class: 'sheet-bg' });
     bg.append(el('div', { class: 'sheet', role: 'dialog', 'aria-label': '발도장 저장' },
       el('h2', { text: '발도장 찍을까요?' }),
       el('p', { class: 'sub', style: 'margin:0', text: `${fmtDist(trackStats(tr).d)} · ${fmtDur(trackStats(tr).ms)}. 이름을 정하면 저장하고 기록을 끝내요.` }),
       el('label', { class: 'f', for: 'wn' }, '이름', iN),
+      el('div', { class: 'two' },
+        el('label', { class: 'f', for: 'ws' }, '출발한 곳 (선택)', iS),
+        el('label', { class: 'f', for: 'we' }, '도착한 곳 (선택)', iE)),
       el('div', { class: 'row' },
         el('button', { class: 'btn line small grow', text: '계속 걷기', onclick: () => bg.remove() }),
         el('button', { class: 'btn primary small grow', text: '저장하고 끝내기', onclick: () => {
           ls.set('trackName:' + id, iN.value.trim() || defName);
+          ls.set('walkPlaces:' + id, { start: iS.value.trim(), end: iE.value.trim() });
           stopGps(); wantWake = false; try { wake?.release(); } catch {}
           ls.set('walkNow', null); bg.remove(); done = id; draw();
         } }))));
@@ -1134,7 +1163,8 @@ function viewWalk() {
   function draw() {
     if (done) {
       const tr = trackLoad(done), st = trackStats(tr);
-      const info = { name: ls.get('trackName:' + done, defName), startPlace: '출발 지점', meetPlace: '도착 지점', startAt: tr[0][2], meetAt: tr[tr.length - 1][2], route: null, phase: 'go' };
+      const wp = ls.get('walkPlaces:' + done, {});
+      const info = { name: ls.get('trackName:' + done, defName), startPlace: wp.start || '출발 지점', meetPlace: wp.end || '도착 지점', startAt: tr[0][2], meetAt: tr[tr.length - 1][2], route: null, phase: 'go' };
       root.replaceChildren(roleBar('leader', '내 발도장'),
         el('div', { class: 'banner ok', style: 'margin-top:12px' }, el('b', { text: `"${info.name}" 발도장을 찍었어요!` }), el('div', { text: `${fmtDist(st.d)} · ${fmtDur(st.ms)}. 발도장 자랑하기 목록에도 남아 있어요.` })),
         el('button', { class: 'btn primary full big', text: '자랑 카드 만들기', onclick: () => openBrag(info, done, 0, false) }),
