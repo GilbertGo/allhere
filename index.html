@@ -90,6 +90,7 @@ body[data-role=member]{--ground:#EEF4FB}
 body.noscroll{overflow:hidden}
 .fs-btn{background:#fff;border:none;border-radius:12px;padding:8px 12px;font:700 14px 'Pretendard Variable',Pretendard,-apple-system,sans-serif;color:var(--ink);cursor:pointer;min-height:40px;box-shadow:0 2px 8px rgba(60,45,20,.18)}
 .rt-arrow{background:none;border:none}
+.me-pin{background:none;border:none}
 .modes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .mode{border:none;border-radius:18px;background:var(--card);box-shadow:var(--shadow);padding:14px 6px 12px;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:14px;font-weight:700;color:var(--pine)}
 .mode .ic{height:32px;display:flex;align-items:center;justify-content:center}
@@ -308,6 +309,69 @@ function bearing(lat1, lng1, lat2, lng2) {
   const r = x => x * Math.PI / 180, y = Math.sin(r(lng2 - lng1)) * Math.cos(r(lat2));
   const x = Math.cos(r(lat1)) * Math.sin(r(lat2)) - Math.sin(r(lat1)) * Math.cos(r(lat2)) * Math.cos(r(lng2 - lng1));
   return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+}
+// 내가 가는 방향(북쪽=0도). 휴대폰이 진행 방향을 알려 주면 그걸 쓰고, 아니면 8m 넘게 움직일 때마다 앞 점→새 점 방향으로 계산해요.
+// 멈춰 있으면 마지막 방향을 그대로 둬요. 처음 움직이기 전에는 null.
+function headingTracker() {
+  let anchor = null, head = null;
+  return p => {
+    const c = p.coords, cur = [c.latitude, c.longitude];
+    if (Number.isFinite(c.heading) && c.speed > 0.7) { head = c.heading; anchor = cur; return head; }
+    if (!anchor) { anchor = cur; return head; }
+    if (dist(anchor[0], anchor[1], cur[0], cur[1]) >= 8) { head = bearing(anchor[0], anchor[1], cur[0], cur[1]); anchor = cur; }
+    return head;
+  };
+}
+// 휴대폰이 보는 방향(북쪽=0도, 휴대폰 위쪽 기준). 아이폰은 허락이 필요해서 누를 때(참여하기 등) 물어봐요.
+// 3초 넘게 센서 소식이 없으면 null → 가는 방향 화살표로 대신해요.
+function facingWatcher(onChange) {
+  let face = null, at = 0, on = false, waiting = false, sent = null;
+  const needAsk = () => window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === 'function';
+  const diff = (a, b) => ((a - b) % 360 + 540) % 360 - 180;
+  function onOrient(e) {
+    let h = null;
+    if (typeof e.webkitCompassHeading === 'number' && e.webkitCompassAccuracy !== -1) h = e.webkitCompassHeading;
+    else if (e.absolute && typeof e.alpha === 'number') h = 360 - e.alpha;
+    if (h == null) return;
+    h += screen.orientation ? screen.orientation.angle : (window.orientation || 0);   // 가로로 들었을 때
+    face = face == null ? (h + 360) % 360 : (face + diff(h, face) * 0.35 + 360) % 360;   // 흔들림을 줄여요
+    at = Date.now();
+    if (sent == null || Math.abs(diff(face, sent)) >= 4) { sent = face; onChange(); }
+  }
+  function listen() {
+    if (on) return; on = true;
+    addEventListener('deviceorientationabsolute', onOrient); addEventListener('deviceorientation', onOrient);
+  }
+  function ask() {
+    waiting = false;
+    DeviceOrientationEvent.requestPermission().then(r => { if (r === 'granted') listen(); }).catch(() => {});
+  }
+  return {
+    start() {   // 누르는 중에 부르면 바로 묻고, 아니면 다음에 화면을 누를 때 물어요
+      if (on || waiting) return;
+      if (!needAsk()) return listen();
+      if (navigator.userActivation && navigator.userActivation.isActive) return ask();
+      waiting = true; document.addEventListener('click', ask, { once: true, capture: true });
+    },
+    stop() {
+      on = false; face = null; sent = null;
+      removeEventListener('deviceorientationabsolute', onOrient); removeEventListener('deviceorientation', onOrient);
+    },
+    get: () => (on && face != null && Date.now() - at < 3000 ? face : null)
+  };
+}
+// 지도의 '나' 표시: 휴대폰이 보는 쪽으로 부채꼴 빛(face), 그걸 모르면 가는 방향 화살표(head)
+let meIconN = 0;
+function meIcon(fill, ring, head, face) {
+  let extra = '';
+  if (face != null) {   // 가운데는 진하고 멀수록 옅어지는 빛(구글 지도처럼)
+    const g = 'mebeam' + (++meIconN), s = 31 * Math.sin(Math.PI / 5), c = 32 - 31 * Math.cos(Math.PI / 5);
+    extra = `<defs><radialGradient id="${g}" cx="32" cy="32" r="31" gradientUnits="userSpaceOnUse"><stop offset=".2" stop-color="${fill}" stop-opacity=".75"/><stop offset="1" stop-color="${fill}" stop-opacity="0"/></radialGradient></defs>`
+      + `<path d="M32 32 L${32 - s} ${c} A31 31 0 0 1 ${32 + s} ${c} Z" fill="url(#${g})" transform="rotate(${Math.round(face)} 32 32)"/>`;
+  }
+  else if (head != null) extra = `<path d="M32 15.5 L38.5 25 L32 22.5 L25.5 25 Z" fill="${fill}" stroke="${ring}" stroke-width="1.6" stroke-linejoin="round" transform="rotate(${Math.round(head)} 32 32)"/>`;
+  return L.divIcon({ className: 'me-pin', iconSize: [64, 64], iconAnchor: [32, 32],
+    html: `<svg width="64" height="64" viewBox="0 0 64 64" aria-hidden="true">${extra}<circle cx="32" cy="32" r="8" fill="${fill}" stroke="${ring}" stroke-width="3"/></svg>` });
 }
 async function pinHash(t, pin) {
   const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`allhere:${t}:${pin}`));
@@ -1603,6 +1667,8 @@ function viewHome() {
 async function viewLeader(key) {
   let info = null, members = {}, boarded = {}, tab = 'status', focus = null;
   let map = null, layer = null, meetMarker = null, pickMode = null, myMarker = null, myPos = null, myWatch = null, fitted = false, drawMode = false, drawPts = [], lastLeaderSent = null, lastLeaderAt = 0;
+  const trackHead = headingTracker(); let myHead = null;   // 인솔자가 가는 방향
+  const facing = facingWatcher(() => updateMyMarker());     // 인솔자 휴대폰이 보는 방향
   const seenOff = new Set(), beepedMsg = new Set();
   let lnotice = null;
   const seenMsg = ls.get('seenMsg:' + tripId, {});
@@ -1995,9 +2061,10 @@ async function viewLeader(key) {
   // 인솔자 본인 위치: 지도 탭을 열면 켜지고 계속 따라가요
   function startMyGps() {
     if (myWatch != null || !navigator.geolocation) return;
+    facing.start();
     myWatch = navigator.geolocation.watchPosition(p => {
       const first = !myPos;
-      myPos = [p.coords.latitude, p.coords.longitude];
+      myPos = [p.coords.latitude, p.coords.longitude]; myHead = trackHead(p);
       if (info && isGo(info)) trackAdd(tripId, myPos[0], myPos[1], p.coords.accuracy, info.name);
       updateMyMarker();
       const moved = lastLeaderSent ? dist(lastLeaderSent[0], lastLeaderSent[1], myPos[0], myPos[1]) : Infinity;
@@ -2011,9 +2078,10 @@ async function viewLeader(key) {
   }
   function updateMyMarker() {
     if (!map || !myPos) return;
-    if (myMarker) myMarker.setLatLng(myPos);
-    else myMarker = L.circleMarker(myPos, { radius: 10, color: '#F6C89F', weight: 4, fillColor: '#1C2620', fillOpacity: 1 })
-      .bindTooltip('나 (인솔자)', { permanent: true, direction: 'top', className: 'nm', offset: [0, -10] }).addTo(map);
+    const icon = meIcon('#1C2620', '#F6C89F', myHead, facing.get());   // 보는 쪽 부채꼴(없으면 가는 방향 화살표)이 붙은 '나'
+    if (myMarker) myMarker.setLatLng(myPos).setIcon(icon);
+    else myMarker = L.marker(myPos, { icon, zIndexOffset: 1000, keyboard: false })
+      .bindTooltip('나 (인솔자)', { permanent: true, direction: 'top', className: 'nm', offset: [0, -14] }).addTo(map);
   }
   function fitAll() {
     if (!map) return;
@@ -2039,36 +2107,20 @@ function viewMember() {
   const seenNotice = ls.get('seenNotice', {});
   leaveWarn = () => me && me.status !== 'done' ? '첫 화면으로 가면 위치 공유가 멈춰요. 첫 화면의 "참여 중인 나들이"에서 다시 들어올 수 있어요. 갈까요?' : null;
   const mBox = el('div', { class: 'mapbox' });
-  let mmap = null, mlayer = null, mfit = false, heading = null, compassOn = false, lastBearing = null;
+  // 방향: 휴대폰이 보는 쪽(facing)을 먼저 쓰고, 모르면 내가 가는 방향(heading). 지도의 '나'와 목표 카드 안내가 이 기준
+  let mmap = null, mlayer = null, mfit = false, heading = null, lastBearing = null, meMk = null, arrowRot = null;
+  const trackHead = headingTracker();
+  const facing = facingWatcher(() => { updateArrow(); if (meMk) meMk.setIcon(meIcon('#2563A8', '#fff', heading, facing.get())); });
   const arrowBox = el('div', { style: 'width:56px;height:56px;border-radius:28px;background:rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:transform .2s' });
   arrowBox.innerHTML = '<svg width="34" height="34" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 L19 20 L12 16 L5 20 Z" fill="#F6C89F"/></svg>';
   const dirEl = el('div', { style: 'font-size:14px;color:#B7C6BA' });
   function updateArrow() {
     if (lastBearing == null) return;
-    const rot = heading == null ? lastBearing : lastBearing - heading;
-    arrowBox.style.transform = `rotate(${rot}deg)`;
-    dirEl.textContent = heading == null ? `${DIR8[dir8(lastBearing)]}쪽 (북쪽 기준)` : `${REL8[dir8(rot)]} 방향`;
-  }
-  function onOrient(e) {
-    let h = null;
-    if (typeof e.webkitCompassHeading === 'number') h = e.webkitCompassHeading;
-    else if (e.absolute && typeof e.alpha === 'number') h = (360 - e.alpha) % 360;
-    if (h == null) return;
-    heading = h; updateArrow();
-  }
-  async function enableCompass() {
-    if (compassOn) { compassOn = false; heading = null; window.removeEventListener('deviceorientationabsolute', onOrient); window.removeEventListener('deviceorientation', onOrient); updateArrow(); render(); return; }
-    try {
-      if (window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === 'function') {
-        if (await DeviceOrientationEvent.requestPermission() !== 'granted') return toast('나침반 권한을 허용해야 방향을 알 수 있어요');
-      }
-    } catch { return toast('이 휴대폰에서는 나침반을 쓸 수 없어요'); }
-    compassOn = true;
-    window.addEventListener('deviceorientationabsolute', onOrient);
-    window.addEventListener('deviceorientation', onOrient);
-    toast('휴대폰을 평평하게 들고 화살표 방향으로 가세요');
-    setTimeout(() => { if (compassOn && heading == null) toast('나침반 정보를 받지 못했어요. 지도 기준 방향으로 보여드려요'); }, 3000);
-    render();
+    const face = facing.get(), base = face ?? heading;
+    const rot = base == null ? lastBearing : lastBearing - base;
+    arrowRot = arrowRot == null ? rot : arrowRot + ((rot - arrowRot) % 360 + 540) % 360 - 180;   // 0도↔360도에서 한 바퀴 돌지 않게
+    arrowBox.style.transform = `rotate(${arrowRot}deg)`;
+    dirEl.textContent = face != null ? `휴대폰이 향한 쪽에서 ${REL8[dir8(rot)]}` : heading != null ? `가는 방향에서 ${REL8[dir8(rot)]}` : `${DIR8[dir8(lastBearing)]}쪽 (지도 위쪽이 북쪽)`;
   }
   function drawMemberMap() {
     if (!window.L || !mBox.isConnected) return;
@@ -2100,8 +2152,8 @@ function viewMember() {
     if (myTr.length > 1) L.polyline(myTr.map(q => [q[0], q[1]]), { color: '#2563A8', weight: 4, opacity: 0.75 }).addTo(mlayer);
     if (last) {
       const ll = [last.coords.latitude, last.coords.longitude];
-      L.circleMarker(ll, { radius: 9, color: '#fff', weight: 3, fillColor: '#2563A8', fillOpacity: 1 })
-        .bindTooltip('나', { permanent: true, direction: 'top', className: 'nm', offset: [0, -8] }).addTo(mlayer);
+      meMk = L.marker(ll, { icon: meIcon('#2563A8', '#fff', heading, facing.get()), zIndexOffset: 1000, keyboard: false })   // 보는 쪽 부채꼴(없으면 가는 방향 화살표)이 붙은 '나'
+        .bindTooltip('나', { permanent: true, direction: 'top', className: 'nm', offset: [0, -14] }).addTo(mlayer);
       pts.push(ll);
     }
     if (!mfit && pts.length) { if (pts.length === 1) mmap.setView(pts[0], 16); else mmap.fitBounds(pts, { padding: [30, 30] }); mfit = !!last; }
@@ -2171,7 +2223,7 @@ function viewMember() {
   }
 
   function send(pos) {
-    last = pos;
+    last = pos; heading = trackHead(pos);
     const { latitude: lat, longitude: lng, accuracy: acc } = pos.coords;
     const moved = lastSent ? dist(lastSent.lat, lastSent.lng, lat, lng) : Infinity;
     if (lastSent && Date.now() - lastSent.at < SEND_MIN_MS && moved < SEND_MIN_M) return;
@@ -2182,6 +2234,7 @@ function viewMember() {
   }
   function startGps() {
     if (watchId != null || !navigator.geolocation) { if (!navigator.geolocation) gpsState = 'none'; return; }
+    facing.start();
     watchId = navigator.geolocation.watchPosition(p => { gpsState = 'on'; send(p); if (info && isGo(info) && me && me.status !== 'done') trackAdd(tripId, p.coords.latitude, p.coords.longitude, p.coords.accuracy, info.name); if (info) render(); },
       e => { gpsState = e.code === 1 ? 'denied' : 'weak'; if (info) render(); },
       { enableHighAccuracy: true, maximumAge: 10000, timeout: 30000 });
@@ -2189,7 +2242,7 @@ function viewMember() {
   }
   function stopGps() {
     if (watchId != null) navigator.geolocation.clearWatch(watchId);
-    watchId = null; clearInterval(hb); hb = null; gpsState = 'off';
+    watchId = null; clearInterval(hb); hb = null; gpsState = 'off'; facing.stop();
   }
   document.addEventListener('visibilitychange', async () => {
     if (document.visibilityState !== 'visible') return;
@@ -2256,8 +2309,7 @@ function viewMember() {
           el('div', { class: 'grow' }, el('div', { class: 'lbl', text: going ? '도착지' : '집결지' }), el('div', { class: 'place', text: T.place }),
             el('div', { class: 'lbl', text: `${fmtClock(T.at)} ${going ? '도착 예정' : '출발'}` }))),
         !done && meetDist != null ? el('div', { class: 'dir' }, arrowBox,
-          el('div', { class: 'grow' }, el('b', { style: 'font-size:22px', text: `${fmtDist(meetDist)}` }), dirEl),
-          el('button', { class: 'btn small' + (compassOn ? ' on' : ''), text: compassOn ? '나침반 끄기' : '나침반', onclick: enableCompass }))
+          el('div', { class: 'grow' }, el('b', { style: 'font-size:22px', text: `${fmtDist(meetDist)}` }), dirEl))
           : !done ? el('div', { class: 'lbl', text: T.lat == null ? '인솔자가 지도에 위치를 아직 찍지 않았어요' : '내 위치를 찾는 중이에요' }) : null),
       // 2) 인솔자 알림 (확인하면 사라져요)
       notice && me.ackTs !== notice.ts ? el('div', { class: 'banner info', role: 'alert' }, el('b', { text: `인솔자 알림 (${fmtClock(notice.ts)})` }), el('div', { style: 'font-size:17px', text: notice.text }),
@@ -2302,6 +2354,7 @@ function viewMember() {
       const name = iName.value.trim();
       if (!name) return toast('이름을 적어주세요');
       if (!iAgree.checked) return toast('위치 공유에 동의해야 참여할 수 있어요');
+      facing.start();   // 아이폰은 누르는 이 순간에 방향 센서 허락을 물어야 해요
       btn.disabled = true;
       try {
         me = { name, status: 'hiking', statusTs: serverTimestamp() };
