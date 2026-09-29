@@ -1820,6 +1820,7 @@ async function viewLeader(key) {
     else { wantWake = true; await lockWake(); }
   }
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && wantWake && !wake) lockWake(); });
+  let myTrLine = null;
   let recEl = null;   // 기록 글자: 위치가 바뀔 때마다 이것만 고쳐요(화면 전체를 다시 그리면 적던 글이 지워져서)
   function recText() {
     const tr = trackLoad(tripId), st = trackStats(tr);
@@ -2207,8 +2208,8 @@ async function viewLeader(key) {
     const f = focus; focus = null;
     layer.clearLayers();
     drawPlaces(layer, info, list().filter(m => m.st === 'done').map(m => m.name));
-    const myTr = trackLoad(tripId);
-    if (myTr.length > 1) L.polyline(myTr.map(q => [q[0], q[1]]), { color: '#1C2620', weight: 4, opacity: 0.55 }).addTo(layer);
+    // 인솔자가 걸은 길: 위치가 올 때마다 이 선을 늘려요(startMyGps)
+    myTrLine = L.polyline(trackLoad(tripId).map(q => [q[0], q[1]]), { color: '#D9822B', weight: 5, opacity: 0.9 }).addTo(layer);
     const R = drawMode ? drawPts : (hasRoute(info) ? info.route : []);
     if (R.length > 1) L.polyline(R, drawMode ? { color: '#1C2620', weight: 4, dashArray: '6 6' } : { color: '#2F5D46', weight: 5, opacity: 0.85 }).addTo(layer);
     setRouteArrows(map, R.length > 1 ? R : null);
@@ -2235,6 +2236,7 @@ async function viewLeader(key) {
       myPos = [p.coords.latitude, p.coords.longitude]; myHead = trackHead(p);
       if (info && isGo(info)) trackAdd(tripId, myPos[0], myPos[1], p.coords.accuracy, info.name);
       if (recEl && recEl.isConnected) recEl.textContent = recText();
+      if (myTrLine && map && map.hasLayer(myTrLine)) myTrLine.setLatLngs(trackLoad(tripId).map(q => [q[0], q[1]]));
       updateMyMarker();
       const moved = lastLeaderSent ? dist(lastLeaderSent[0], lastLeaderSent[1], myPos[0], myPos[1]) : Infinity;
       if (info && (!lastLeaderSent || Date.now() - lastLeaderAt > SEND_MIN_MS || moved > SEND_MIN_M)) {
