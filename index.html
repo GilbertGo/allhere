@@ -199,7 +199,7 @@ function verNotice(msg, ms) {
 }
 // 앱·바탕화면 아이콘은 예전 화면을 한동안 다시 쓰기도 해요. 열 때 서버의 파일을 새로 받아 버전이 다르면 한 번 새로고침해요.
 // 배포할 때마다 APP_VER를 바꿔 주세요.
-const APP_VER = '2026-09-29i';
+const APP_VER = '2026-09-29j';
 (async () => {
   try {
     if (sessionStorage.getItem('verDone') === APP_VER) { sessionStorage.removeItem('verDone'); setTimeout(() => verNotice(`새 버전으로 바꿨어요 (${APP_VER})`, 4000), 500); }
@@ -1933,6 +1933,8 @@ async function viewLeader(key) {
   }
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && wantWake && !wake) lockWake(); });
   let myTrLine = null;
+  // 지도에 그리는 걸은 길: 기록된 곳들 + 지금 위치(기록 사이에도 선이 '나'까지 이어지게)
+  const walkedLine = () => { const pts = trackLoad(tripId).map(q => [q[0], q[1]]); if (isGo(info) && myPos && pts.length) pts.push(myPos); return pts; };
   // 나들이 중 사진: 찍으면 이 휴대폰에 저장하고, 찍은 곳(지금 위치)에 지도 동그라미로 보여줘요. 다녀온 나들이 공유하기에 같이 들어가요
   let myPosAt = 0, photoN = null;
   function photoBar() {
@@ -2394,7 +2396,7 @@ async function viewLeader(key) {
     layer.clearLayers();
     drawPlaces(layer, info, list().filter(m => m.st === 'done').map(m => m.name));
     // 인솔자가 걸은 길: 위치가 올 때마다 이 선을 늘려요(startMyGps)
-    myTrLine = L.polyline(trackLoad(tripId).map(q => [q[0], q[1]]), { color: '#D9822B', weight: 5, opacity: 0.9 }).addTo(layer);
+    myTrLine = L.polyline(walkedLine(), { color: '#D9822B', weight: 5, opacity: 0.9 }).addTo(layer);
     photoList(tripId).then(ps => { if (layer) photoMarkers(null, layer, ps); });   // 나들이 중 찍은 사진(누르면 크게)
     const R = drawMode ? drawPts : (hasRoute(info) ? info.route : []);
     if (R.length > 1) L.polyline(R, drawMode ? { color: '#1C2620', weight: 4, dashArray: '6 6' } : { color: '#2F5D46', weight: 5, opacity: 0.85 }).addTo(layer);
@@ -2424,7 +2426,7 @@ async function viewLeader(key) {
       fixN++; lastAcc = p.coords.accuracy; lastFixAt = Date.now();
       if (recEl && recEl.isConnected) recEl.textContent = recText();
       if (diagEl && diagEl.isConnected) diagEl.textContent = diagText();
-      if (myTrLine && map && map.hasLayer(myTrLine)) myTrLine.setLatLngs(trackLoad(tripId).map(q => [q[0], q[1]]));
+      if (myTrLine && map && map.hasLayer(myTrLine)) myTrLine.setLatLngs(walkedLine());
       updateMyMarker();
       const moved = lastLeaderSent ? dist(lastLeaderSent[0], lastLeaderSent[1], myPos[0], myPos[1]) : Infinity;
       if (info && (!lastLeaderSent || Date.now() - lastLeaderAt > SEND_MIN_MS || moved > SEND_MIN_M)) {
