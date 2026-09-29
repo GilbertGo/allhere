@@ -188,6 +188,19 @@ const keyParam = qs.get('k');
 // - 위치: 화면이 꺼져도 받도록 앱의 위치 기록(알림줄에 "다왔나가 위치를 기록하고 있어요")
 // - 공유: 앱의 공유 창 (웹뷰에는 navigator.share가 없어요)
 const NATIVE = !!(window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform());
+
+// ---------- 새 버전 확인 ----------
+// 앱·바탕화면 아이콘은 예전 화면을 한동안 다시 쓰기도 해요. 열 때 서버의 파일을 새로 받아 버전이 다르면 한 번 새로고침해요.
+// 배포할 때마다 APP_VER를 바꿔 주세요.
+const APP_VER = '2026-09-29a';
+(async () => {
+  try {
+    const r = await fetch(location.pathname + '?v=' + Date.now(), { cache: 'reload' });
+    const m = (await r.text()).match(/const APP_VER = '([^']+)'/);
+    const k = 'verReload:' + (m && m[1]);
+    if (m && m[1] !== APP_VER && !sessionStorage.getItem(k)) { sessionStorage.setItem(k, '1'); await fetch(location.href, { cache: 'reload' }).catch(() => {}); location.reload(); }
+  } catch {}
+})();
 if (NATIVE) {
   const plug = n => (Capacitor.Plugins && Capacitor.Plugins[n]) || Capacitor.registerPlugin(n);
   const BG = plug('BackgroundGeolocation'), Share = plug('Share'), FS = plug('Filesystem'), LN = plug('LocalNotifications');

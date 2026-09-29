@@ -17,6 +17,7 @@
 - GitHub 저장소: `GilbertGo/allhere` (이 폴더), GitHub Pages로 배포
 - 주소: https://gilbertgo.github.io/allhere/
 - 배포 = `index.html` 수정 → commit → push. 1~2분 뒤 반영. 확인은 Ctrl+F5.
+- **배포할 때마다 index.html의 `APP_VER`를 바꿀 것.** 앱·바탕화면 아이콘은 예전 화면을 캐시로 다시 쓰는데, 열 때 서버 파일의 APP_VER가 다르면 한 번 새로고침한다(sessionStorage로 반복 방지).
 - push 전에는 사용자에게 한 번 확인받을 것.
 
 ## 파일
