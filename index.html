@@ -199,7 +199,7 @@ function verNotice(msg, ms) {
 }
 // 앱·바탕화면 아이콘은 예전 화면을 한동안 다시 쓰기도 해요. 열 때 서버의 파일을 새로 받아 버전이 다르면 한 번 새로고침해요.
 // 배포할 때마다 APP_VER를 바꿔 주세요.
-const APP_VER = '2026-09-29k';
+const APP_VER = '2026-09-29l';
 if (sessionStorage.getItem('verDone') === APP_VER) { sessionStorage.removeItem('verDone'); setTimeout(() => verNotice(`새 버전으로 바꿨어요 (${APP_VER})`, 5000), 500); }
 // 열 때, 화면으로 돌아올 때, 켜 두는 동안 2분마다 서버에 새 버전이 있는지 봐요. 있으면 가운데 주황 안내를 3초 보여주고 바꿔요
 let verBusy = false;
@@ -467,7 +467,7 @@ async function pinHash(t, pin) {
 }
 function randPin() { const a = new Uint32Array(1); crypto.getRandomValues(a); return String(a[0] % 10000).padStart(4, '0'); }
 // ---------- 나의 이동 기록 (내 휴대폰에만 저장돼요) ----------
-const TRACK_MIN_M = 15, TRACK_MAX_ACC = 60;
+const TRACK_MIN_M = 3, TRACK_MAX_ACC = 60;   // '나' 동그라미가 움직이는 대로 그리려고 3m마다 기록
 const trackLoad = t => String(t).startsWith('album_') ? albumTrack(t) : ls.get('track:' + t, []);
 // ---------- 마음에 드는 곳 (⭐) ----------
 // walkSpots:{기록ID} = [{ n: 이름, lat, lng, ts }]. 여러 날 여행이면 모든 날을 모아요.
@@ -576,7 +576,7 @@ function showPhoto(p) {
 function trackAdd(t, lat, lng, acc, name) {
   // (시험 중) 오차와 상관없이 기록해요. 흔들림 거르기는 잠시 꺼 둠: if (acc > TRACK_MAX_ACC) return;
   const tr = trackLoad(t), lp = tr[tr.length - 1];
-  // 마지막 기록에서 15m(TRACK_MIN_M) 넘게 움직이면 기록. (예전: 오차(acc)보다 작게 움직인 건 흔들림으로 보고 버림 — 시험 중이라 꺼 둠)
+  // 마지막 기록에서 3m(TRACK_MIN_M) 넘게 움직이면 기록(오차와 상관없이)
   if (lp && dist(lp[0], lp[1], lat, lng) < TRACK_MIN_M) return;
   tr.push([+lat.toFixed(6), +lng.toFixed(6), Date.now()]);
   if (tr.length > 5000) tr.splice(0, tr.length - 5000);
