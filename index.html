@@ -199,7 +199,7 @@ function verNotice(msg, ms) {
 }
 // 앱·바탕화면 아이콘은 예전 화면을 한동안 다시 쓰기도 해요. 열 때 서버의 파일을 새로 받아 버전이 다르면 한 번 새로고침해요.
 // 배포할 때마다 APP_VER를 바꿔 주세요.
-const APP_VER = '2026-09-29m';
+const APP_VER = '2026-09-29n';
 if (sessionStorage.getItem('verDone') === APP_VER) { sessionStorage.removeItem('verDone'); setTimeout(() => verNotice(`새 버전으로 바꿨어요 (${APP_VER})`, 5000), 500); }
 // 열 때, 화면으로 돌아올 때, 켜 두는 동안 2분마다 서버에 새 버전이 있는지 봐요. 있으면 가운데 주황 안내를 3초 보여주고 바꿔요
 let verBusy = false;
@@ -1940,6 +1940,9 @@ async function viewLeader(key) {
   }
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && wantWake && !wake) lockWake(); });
   let myTrLine = null;
+  // 인솔자 본인이 걸은 거리(목표 카드). 위치가 올 때마다 이 글자만 고쳐요
+  let legEl = null;
+  const legText = () => { const tr = trackLoad(tripId), st = trackStats(tr); return `${info.departedAt ? fmtClock(info.departedAt) + ' 출발 · ' : ''}내가 걸은 거리 ${tr.length > 1 ? fmtDist(st.d) : '0m'}`; };
   // 지도에 그리는 걸은 길: 기록된 곳들 + 지금 위치(기록 사이에도 선이 '나'까지 이어지게)
   const walkedLine = () => { const pts = trackLoad(tripId).map(q => [q[0], q[1]]); if (isGo(info) && myPos && pts.length) pts.push(myPos); return pts; };
   // 나들이 중 사진: 찍으면 이 휴대폰에 저장하고, 찍은 곳(지금 위치)에 지도 동그라미로 보여줘요. 다녀온 나들이 공유하기에 같이 들어가요
@@ -2200,7 +2203,7 @@ async function viewLeader(key) {
           el('div', { class: 'lbl', text: info.quick ? `${info.startPlace}에서 출발` : `${fmtClock(T.at)} ${going ? '도착 예정' : '출발'}` }))),
       el('div', { class: 'dir', style: 'justify-content:space-between' },
         going
-          ? el('div', {}, el('b', { text: '도착지로 이동 중' }), el('div', { class: 'lbl', text: info.departedAt ? `${fmtClock(info.departedAt)} 출발` : '출발함' }))
+          ? el('div', {}, el('b', { text: '도착지로 이동 중' }), (legEl = el('div', { class: 'lbl', text: legText() })))
           : el('div', {}, el('b', { text: '출발 전' }), el('div', { class: 'lbl', text: `집결 ${n} / ${Lst.length}명` })),
         going && info.quick ? null   // 계획 없이 출발한 나들이에는 '출발 전'이 없어요
         : going
@@ -2433,6 +2436,7 @@ async function viewLeader(key) {
       fixN++; lastAcc = p.coords.accuracy; lastFixAt = Date.now();
       if (recEl && recEl.isConnected) recEl.textContent = recText();
       if (diagEl && diagEl.isConnected) diagEl.textContent = diagText();
+      if (legEl && legEl.isConnected) legEl.textContent = legText();
       if (myTrLine && map && map.hasLayer(myTrLine)) myTrLine.setLatLngs(walkedLine());
       updateMyMarker();
       const moved = lastLeaderSent ? dist(lastLeaderSent[0], lastLeaderSent[1], myPos[0], myPos[1]) : Infinity;
@@ -2684,8 +2688,10 @@ function viewMember() {
           el('div', { class: 'grow' }, el('div', { class: 'lbl', text: going ? '도착지' : '집결지' }), el('div', { class: 'place', text: T.place }),
             el('div', { class: 'lbl', text: info.quick ? (info.meetPlace === '정하지 않음' ? '계획 없이 출발한 나들이예요. 인솔자를 따라가세요' : '인솔자를 따라가세요') : `${fmtClock(T.at)} ${going ? '도착 예정' : '출발'}` }))),
         !done && meetDist != null ? el('div', { class: 'dir' },
-          el('div', { class: 'grow' }, el('b', { style: 'font-size:22px', text: `${fmtDist(meetDist)}` }), dirEl))
-          : !done ? el('div', { class: 'lbl', text: T.lat == null ? (info.quick ? '도착지가 정해지면 방향과 거리가 보여요' : '인솔자가 지도에 위치를 아직 찍지 않았어요') : '내 위치를 찾는 중이에요' }) : null),
+          el('div', { class: 'grow' }, el('b', { style: 'font-size:22px', text: `${T.label}까지 ${fmtDist(meetDist)}` }), dirEl))
+          : !done ? el('div', { class: 'lbl', text: T.lat == null ? (info.quick ? '도착지가 정해지면 방향과 거리가 보여요' : '인솔자가 지도에 위치를 아직 찍지 않았어요') : '내 위치를 찾는 중이에요' }) : null,
+        // 내가 걸은 거리 (출발한 뒤. 위치가 올 때마다 화면을 다시 그려서 늘어나요)
+        going ? el('div', { style: 'margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.12);font-size:16px;font-weight:700;color:#F6C89F', text: (() => { const tr = trackLoad(tripId), st = trackStats(tr); return `내가 걸은 거리 ${tr.length > 1 ? fmtDist(st.d) + ' · ' + fmtDur(st.ms) : '0m'}`; })() }) : null),
       // 2) 인솔자 알림 (확인하면 사라져요)
       notice && me.ackTs !== notice.ts ? el('div', { class: 'banner info', role: 'alert' }, el('b', { text: `인솔자 알림 (${fmtClock(notice.ts)})` }), el('div', { style: 'font-size:17px', text: notice.text }),
         el('button', { class: 'btn primary small', style: 'align-self:flex-start', text: '확인했어요', onclick: () => patchMe({ ackTs: notice.ts }, '인솔자에게 확인을 알렸어요') })) : null,
