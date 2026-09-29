@@ -86,7 +86,7 @@ async function main() {
   for (let k = 1; k <= 20; k++) { geo(start[0] + k * 0.00007, start[1] + k * 0.00007); await sleep(process.argv.includes('--long') ? 21000 : OFF ? 4000 : 1500); }   // --long: 20걸음 × 21초 = 약 7분
   if (OFF) { adb('shell', 'input', 'keyevent', '24'); adb('shell', 'input', 'keyevent', '26'); await sleep(1500); adb('shell', 'wm', 'dismiss-keyguard'); log('화면 켬'); }
   await sleep(2000);
-  const res = await w2.js(`(() => { const t = new URL(location.href).searchParams.get('t'); const tr = JSON.parse(localStorage.getItem('track:' + t) || '[]'); return { t, points: tr.length, dist: (document.querySelector('.goal b') || {}).textContent }; })()`);
+  const res = await w2.js(`(() => { const t = new URL(location.href).searchParams.get('t'); const tr = JSON.parse(localStorage.getItem('track:' + t) || '[]'); return { t, points: tr.length, dist: (document.querySelector('.hero [data-live=dist]') || {}).textContent }; })()`);
   log('결과', JSON.stringify(res));
   await w2.js(click('지도')); await sleep(2500);
   const line = await w2.js(`(() => { const p = [...document.querySelectorAll('.leaflet-overlay-pane path')].find(p => p.getAttribute('stroke') === '#D9822B'); return p ? p.getAttribute('d').split(/[LM]/).filter(Boolean).length : 0; })()`);
@@ -95,7 +95,8 @@ async function main() {
   log('지도 주황 선 점 수', line);
   // 시험 나들이 지우기
   await w2.js(click('인원 현황')); await sleep(800);
-  await w2.js(`window.confirm = () => true; document.querySelectorAll('details').forEach(d => d.open = true); true`);
+  await w2.js(`window.confirm = () => true; true`);
+  await w2.js(click('더 보기')); await sleep(800);   // 아래 버튼 줄의 '더 보기' 안에 있어요
   await w2.js(click('나들이 끝내기')); await sleep(3000);
   const ok = res.points >= 10 && line >= 2;
   console.log(ok ? '\nPASS: 걸은 길이 기록되고 지도에 그려져요' : '\nFAIL: 걸은 길 기록 ' + res.points + '곳, 지도 선 점 ' + line + '개');
