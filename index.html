@@ -1844,14 +1844,19 @@ async function viewLeader(key) {
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && wantWake && !wake) lockWake(); });
   let myTrLine = null;
   let recEl = null;   // 기록 글자: 위치가 바뀔 때마다 이것만 고쳐요(화면 전체를 다시 그리면 적던 글이 지워져서)
+  // 계획 없이 출발했고 도착지도 아직 안 정한 나들이: 목표 카드에 걸은 거리·시간을 크게 보여줘요
+  const isFree = () => info && info.quick && info.meetPlace === '정하지 않음';
+  const wakeText = () => wake ? '화면을 켜두고 있어요. 걷는 길이 계속 기록돼요.' : '화면이 꺼지면 기록이 멈춰요.';
   function recText() {
     const tr = trackLoad(tripId), st = trackStats(tr);
+    if (isFree()) return tr.length > 1 ? `${fmtDist(st.d)} · ${fmtDur(st.ms)}` : '0m';
     return (tr.length > 1 ? `지금까지 ${fmtDist(st.d)} · ${fmtDur(st.ms)} 기록했어요. ` : '걷는 길을 기록하고 있어요. ') + (wake ? '화면을 켜두고 있어요.' : '화면이 꺼지면 기록이 멈춰요.');
   }
   function recordBar() {
-    recEl = el('span', { text: recText() });
+    const span = el('span', { text: isFree() ? wakeText() : recText() });
+    if (!isFree()) recEl = span;   // 계획 없이 출발한 나들이는 목표 카드의 숫자가 recEl
     return el('div', { class: 'wakebar ' + (wake ? 'on' : 'off') },
-      recEl,
+      span,
       el('button', { class: 'btn small ' + (wake ? 'line' : 'dark'), style: 'height:38px;white-space:nowrap', text: wake ? '끄기' : '화면 켜두기', onclick: toggleWake }));
   }
   const seenOff = new Set(), beepedMsg = new Set();
@@ -2055,6 +2060,16 @@ async function viewLeader(key) {
   }
   // 어디로, 언제까지 + 출발하기 (참여자 화면의 목표 카드와 같은 모양)
   function goalCard(Lst) {
+    if (isFree()) {   // 계획 없이 출발: 어디서 몇 시에 출발했고 지금까지 얼마나 걸었는지만
+      recEl = el('b', { style: 'font-size:22px', text: recText() });
+      return el('div', { class: 'goal' },
+        el('div', { class: 'lbl', text: '계획 없이 출발' }),
+        el('div', { class: 'place', text: `${info.startPlace}에서 걷는 중` }),
+        el('div', { class: 'lbl', text: `${fmtClock(info.departedAt ?? info.startAt)} 출발` }),
+        el('div', { class: 'dir', style: 'justify-content:space-between' },
+          el('div', {}, recEl, el('div', { class: 'lbl', text: '걸은 거리 · 시간' })),
+          el('button', { class: 'btn small', text: '도착지 정하기', onclick: openEdit })));
+    }
     const going = isGo(info), T = target(info);
     const n = Lst.filter(m => m.st === 'done').length;
     return el('div', { class: 'goal' },
@@ -2145,6 +2160,7 @@ async function viewLeader(key) {
         goalCard(L),
         isGo(info) ? recordBar() : null,
         // 2) 몇 명이 어떤 상태인지
+        !L.length ? null : // 아직 아무도 참여하지 않았으면 0 / 0 / 0은 빼요
         el('div', { class: 'three' },
           el('div', { class: 'cnt' }, el('b', { text: c.done }), el('span', { text: lab('done', info) })),
           el('div', { class: 'cnt' }, el('b', { text: c.moving }), el('span', { text: lab('moving', info) })),
