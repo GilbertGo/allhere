@@ -199,7 +199,7 @@ function verNotice(msg, ms) {
 }
 // 앱·바탕화면 아이콘은 예전 화면을 한동안 다시 쓰기도 해요. 열 때 서버의 파일을 새로 받아 버전이 다르면 한 번 새로고침해요.
 // 배포할 때마다 APP_VER를 바꿔 주세요.
-const APP_VER = '2026-09-29l';
+const APP_VER = '2026-09-29m';
 if (sessionStorage.getItem('verDone') === APP_VER) { sessionStorage.removeItem('verDone'); setTimeout(() => verNotice(`새 버전으로 바꿨어요 (${APP_VER})`, 5000), 500); }
 // 열 때, 화면으로 돌아올 때, 켜 두는 동안 2분마다 서버에 새 버전이 있는지 봐요. 있으면 가운데 주황 안내를 3초 보여주고 바꿔요
 let verBusy = false;
@@ -245,13 +245,13 @@ if (NATIVE) {
       let done = false, id = null;
       const stop = () => { if (id) BG.removeWatcher({ id }); };
       const timer = setTimeout(() => { if (!done) { done = true; stop(); if (fail) fail({ code: 3, message: 'timeout' }); } }, (opt && opt.timeout) || 15000);
-      BG.addWatcher({ requestPermissions: true, stale: true }, (loc, e) => {
+      Promise.resolve(BG.addWatcher({ requestPermissions: true, stale: true }, (loc, e) => {
         if (done) return;
         if (e) { done = true; clearTimeout(timer); stop(); if (fail) fail({ code: e.code === 'NOT_AUTHORIZED' ? 1 : 2, message: e.message }); return; }
         if (!loc) return;
         done = true; clearTimeout(timer); stop();
         ok({ coords: { latitude: loc.latitude, longitude: loc.longitude, accuracy: loc.accuracy, heading: loc.bearing, speed: loc.speed, altitude: loc.altitude }, timestamp: loc.time });
-      }).then(x => { id = x; if (done) stop(); }).catch(() => { if (!done) { done = true; clearTimeout(timer); if (fail) fail({ code: 2 }); } });
+      })).then(x => { id = x; if (done) stop(); }).catch(() => { if (!done) { done = true; clearTimeout(timer); if (fail) fail({ code: 2 }); } });
     }
   };
   Object.defineProperty(navigator, 'geolocation', { value: geo, configurable: true });
