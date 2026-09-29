@@ -115,7 +115,7 @@ body.noscroll{overflow:hidden}
 .wakebar.off{background:var(--amber-soft);color:#7A4A00}
 .wakebar.on{background:var(--forest-soft);color:var(--forest-ink)}
 .mapbox{height:260px;border-radius:20px;overflow:hidden;z-index:0;box-shadow:var(--shadow)}
-#map{height:58vh;min-height:320px;border-radius:20px;overflow:hidden;z-index:0;box-shadow:var(--shadow)}
+#map{height:calc(100dvh - 330px);min-height:300px;border-radius:20px;overflow:hidden;z-index:0;box-shadow:var(--shadow)}
 .mapbar{display:flex;gap:8px;flex-wrap:wrap}
 .mapbar .btn.line{background:#fff;box-shadow:var(--shadow)}
 .toast{position:fixed;left:16px;right:16px;bottom:calc(84px + env(safe-area-inset-bottom,0px));max-width:488px;margin:0 auto;background:rgba(30,59,47,.96);color:#fff;border-radius:16px;padding:14px 18px;font-size:15px;z-index:2000;box-shadow:0 8px 24px rgba(60,45,20,.2)}
@@ -1880,6 +1880,7 @@ function viewHome() {
 // =====================================================================
 async function viewLeader(key) {
   let info = null, members = {}, boarded = {}, tab = 'status', focus = null;
+  let planOpen = false;
   let map = null, layer = null, meetMarker = null, pickMode = null, myMarker = null, myPos = null, myWatch = null, fitted = false, drawMode = false, drawPts = [], lastLeaderSent = null, lastLeaderAt = 0;
   const trackHead = headingTracker(); let myHead = null;   // 인솔자가 가는 방향
   const facing = facingWatcher(() => updateMyMarker());     // 인솔자 휴대폰이 보는 방향
@@ -2263,17 +2264,20 @@ async function viewLeader(key) {
         more('etc', '그 밖의 기능',
           el('div', { class: 'stack', style: 'gap:0' },
             el('button', { class: 'link', style: 'align-self:flex-start', text: '공동 인솔자 링크 복사 (부대장님께만)', onclick: coLeaderLink }),
+            trackLoad(tripId).length > 1 ? el('button', { class: 'link', style: 'align-self:flex-start', text: '걸은 길 GPX 파일로 저장', onclick: () => downloadTrack(tripId) }) : null,
             el('a', { class: 'link', style: 'align-self:flex-start', href: joinUrl(), target: '_blank', rel: 'noopener', text: '참여자 화면 미리보기' }),
             el('button', { class: 'link', style: 'align-self:flex-start;color:var(--alert-ink)', text: '나들이 끝내기', onclick: endTrip })))
       ];
     } else if (tab === 'map') {
       body = [
-        el('div', { class: 'mapbar' },
+        // 지도 탭은 한 화면에: 위에는 사진 찍기, 집결지·도착지·경로 정하기는 접어 두고, 내 위치·모든 사람 보기는 지도 위 버튼으로
+        isGo(info) ? photoBar() : null,
+        planOpen || pickMode || drawMode ? el('div', { class: 'mapbar' },
           el('button', { class: 'btn small ' + (pickMode === 'start' ? 'dark' : 'line'), text: pickMode === 'start' ? '지도를 눌러 집결지를 고르세요' : '집결지 지정', onclick: () => { pickMode = pickMode === 'start' ? null : 'start'; drawMode = false; render(); } }),
           el('button', { class: 'btn small ' + (pickMode === 'end' ? 'dark' : 'line'), text: pickMode === 'end' ? '지도를 눌러 도착지를 고르세요' : '도착지 지정', onclick: () => { pickMode = pickMode === 'end' ? null : 'end'; drawMode = false; render(); } }),
           el('button', { class: 'btn line small', text: hasRoute(info) ? '경로 바꾸기' : '경로 넣기', onclick: openRoute }),
-          el('button', { class: 'btn line small', text: '모든 사람 위치 보기', onclick: () => { focus = null; fitAll(); } }),
-          el('button', { class: 'btn line small', text: '내 위치 보기', onclick: locateMe })),
+          el('button', { class: 'btn line small', text: '접기', onclick: () => { planOpen = false; pickMode = null; render(); } }))
+          : el('button', { class: 'link', style: 'align-self:flex-start;padding:2px 0', text: '지도에서 집결지·도착지·경로 정하기 ▾', onclick: () => { planOpen = true; render(); } }),
         drawMode ? el('div', { class: 'banner info' },
           el('b', { text: '지도를 눌러 지나갈 곳을 차례대로 찍으세요' }),
           el('div', { style: 'font-size:14px', text: '몇 곳이든 괜찮아요. 굽은 곳마다 하나씩 찍으면 돼요.' }),
@@ -2284,11 +2288,7 @@ async function viewLeader(key) {
               if (drawPts.length < 2) return toast('두 곳 이상 찍어주세요');
               const pts = drawPts.slice(); drawMode = false;
               saveInfo({ route: pts }).then(() => toast('경로를 저장했어요'), () => toast('저장하지 못했어요')); render(); } }))) : null,
-        mapBox,
-        el('div', { class: 'row', style: 'flex-wrap:wrap;gap:12px;font-size:13px;color:var(--muted)' },
-          (info.startLat == null || info.meetLat == null) ? el('span', { style: 'width:100%', text: '집결지와 도착지를 지정하면 도착한 사람이 그곳에 모여 표시돼요.' }) : null,
-          Object.entries(ST).map(([k, s]) => el('span', { class: 'row', style: 'gap:6px' }, el('span', { class: 'dot', style: `width:10px;height:10px;background:${s.color}` }), lab(k, info)))),
-        isGo(info) || trackLoad(tripId).length > 1 ? trackCard(tripId, isGo(info)) : null
+        mapBox
       ];
     } else {
       const n = L.filter(m => boarded[m.id]).length;
@@ -2320,6 +2320,16 @@ async function viewLeader(key) {
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(map);
     layer = L.layerGroup().addTo(map);
     addFullBtn(map, mapBox);
+    // 지도 아래쪽 버튼: 모든 사람 위치 보기 / 내 위치 보기
+    const V = L.Control.extend({ options: { position: 'bottomleft' }, onAdd() {
+      const box = L.DomUtil.create('div', ''); box.style.cssText = 'display:flex;gap:8px';
+      [['모든 사람 위치 보기', () => { focus = null; fitAll(); }], ['내 위치 보기', () => locateMe()]].forEach(([txt, fn]) => {
+        const b = L.DomUtil.create('button', 'fs-btn', box); b.type = 'button'; b.textContent = txt; b.addEventListener('click', fn);
+      });
+      L.DomEvent.disableClickPropagation(box);
+      return box;
+    } });
+    map.addControl(new V());
     map.on('click', e => {
       if (drawMode) {
         if (Date.now() - lastTap < 400) return;   // 두 번 빨리 누르면 한 곳만 찍어요
