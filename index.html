@@ -1523,6 +1523,31 @@ function watchTrip(t, cb) {
   setTimeout(wait, 1000);
   return st;
 }
+// 첫 화면 목록용: 나들이마다 서버에 정보가 남아 있는지(진행 중) 살펴봐요. 연결 뒤 6초 동안 없으면 끝난 나들이
+function peekTrips(ids, onEach) {
+  const left = new Set(ids);
+  if (!left.size) return;
+  const topics = ids.map(t => base(t) + '/info');
+  const sub = () => client.subscribe(topics, { qos: 1 });
+  if (connected) sub();
+  client.on('connect', sub);
+  client.on('message', (topic, buf) => {
+    const t = ids.find(x => topic === base(x) + '/info');
+    if (!t || !left.has(t)) return;
+    let v = null; try { v = buf.length ? JSON.parse(buf.toString()) : null; } catch {}
+    left.delete(t); onEach(t, cleanInfo(v));
+  });
+  let since = 0;
+  const wait = () => {
+    if (!left.size) return;
+    if (!connected) { since = 0; return setTimeout(wait, 1000); }
+    if (!since) since = Date.now();
+    if (Date.now() - since < 6000) return setTimeout(wait, 500);
+    for (const t of left) onEach(t, null);
+    left.clear();
+  };
+  setTimeout(wait, 1000);
+}
 async function endTripAll(t, st) {
   const b = base(t);
   await Promise.all([pub(b + '/info', null), pub(b + '/b', null), pub(b + '/n', null), pub(b + '/leader', null), ...Object.keys(st.members).map(id => pub(b + '/m/' + id, null))]);
@@ -1561,6 +1586,16 @@ route();
 function viewLanding() {
   const mine = ls.get('myTrips', []);
   const joinedList = Object.entries(ls.get('joined', {})).map(([t, v]) => ({ t, name: (v && v.name) || '참여한 나들이', at: v && v.at })).sort((a, b) => (b.at || 0) - (a.at || 0)).slice(0, 10);
+  // 목록 한 줄: 오른쪽 칩에 진행 중 / 끝남을 서버에서 확인해 보여줘요. 끝난 것은 흐리게, 목록 아래로
+  const rows = {};
+  const row = (t, href, name, sub) => {
+    const chip = el('span', { class: 'chip', style: 'background:#EFE9DC;color:var(--muted)', text: '확인 중' });
+    const a = el('a', { class: 'member', href, style: 'text-decoration:none;color:inherit' },
+      el('div', { class: 'grow' }, el('div', { class: 'nm', text: name }), el('div', { class: 'dt', text: sub })), chip);
+    (rows[t] = rows[t] || []).push({ a, chip });
+    return a;
+  };
+  const when = at => new Date(at).toLocaleString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   const bigBtn = (title, desc, cls, onclick) => el('button', { class: 'card', style: 'border:none;text-align:left;display:flex;flex-direction:column;gap:6px;padding:22px 20px;cursor:pointer' + (cls ? ';background:var(--pine);color:#fff' : ''), onclick },
     el('b', { class: 'with-ico', style: 'gap:8px;font-size:21px;letter-spacing:-.02em' + (cls ? ';color:var(--accent)' : ';color:var(--pine)') }, title),
     el('span', { style: 'font-size:15px;' + (cls ? 'color:#D5DED7' : 'color:var(--muted)'), text: desc }));
@@ -1574,18 +1609,26 @@ function viewLanding() {
     bigBtn([ico('pin', 24), '계획 없이 바로 출발'], '지금 걷는 길을 기록해요. 걷는 중에 참여 링크를 보내도 되고, 다 걸은 뒤 "다녀온 나들이 공유하기"로 다닌 길을 보낼 수 있어요.', false, openQuickStart),
     mine.length ? el('div', { class: 'stack', style: 'margin-top:16px' },
       el('h2', { text: '내가 만든 단체 나들이' }),
-      mine.map(m => el('a', { class: 'member', href: `?t=${m.t}`, style: 'text-decoration:none;color:inherit' },
-        el('div', { class: 'grow' }, el('div', { class: 'nm', text: m.name }), el('div', { class: 'dt', text: new Date(m.meetAt).toLocaleString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' 집결' }))))
+      mine.map(m => row(m.t, `?t=${m.t}`, m.name, when(m.meetAt)))
     ) : null,
     // 참여자로 들어간 나들이 (첫 화면으로 나왔다가 다시 들어갈 수 있게)
     joinedList.length ? el('div', { class: 'stack', style: 'margin-top:16px' },
       el('h2', { text: '참여 중인 나들이' }),
-      joinedList.map(j => el('a', { class: 'member', href: `?t=${j.t}&m=1`, style: 'text-decoration:none;color:inherit' },
-        el('div', { class: 'grow' }, el('div', { class: 'nm', text: j.name }), el('div', { class: 'dt', text: j.at ? new Date(j.at).toLocaleString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' 집결' : '눌러서 다시 들어가기' }))))
+      joinedList.map(j => row(j.t, `?t=${j.t}&m=1`, j.name, j.at ? when(j.at) : '눌러서 다시 들어가기'))
     ) : null,
     // 바탕화면 아이콘 (이미 아이콘으로 열었으면 안 보여요)
     IS_APP ? null : el('button', { class: 'link', style: 'align-self:center;margin-top:20px;color:var(--pine)', onclick: openInstall },
       el('span', { class: 'with-ico', style: 'gap:6px' }, ico('pin', 18), '휴대폰 바탕화면에 다왔나 아이콘 두기'))));
+  peekTrips(Object.keys(rows), (t, info) => rows[t].forEach(({ a, chip }) => {
+    if (info) {
+      chip.textContent = isGo(info) ? '진행 중 · 이동 중' : '진행 중 · 출발 전';
+      chip.style.cssText = 'background:#DCEBDF;color:var(--pine);font-weight:700';
+    } else {
+      chip.textContent = '끝남';
+      a.style.opacity = '.55';
+      a.parentElement && a.parentElement.append(a);   // 끝난 것은 아래로
+    }
+  }));
 }
 // ---------- 바탕화면 아이콘 ----------
 // 크롬이 "설치할 수 있어요"라고 알려 주면 그걸로 바로 설치 창을 띄우고, 아니면 방법을 알려 드려요.
@@ -1853,6 +1896,25 @@ async function viewLeader(key) {
   }
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && wantWake && !wake) lockWake(); });
   let myTrLine = null;
+  // 나들이 중 사진: 찍으면 이 휴대폰에 저장하고, 찍은 곳(지금 위치)에 지도 동그라미로 보여줘요. 다녀온 나들이 공유하기에 같이 들어가요
+  let myPosAt = 0, photoN = null;
+  function photoBar() {
+    const cnt = el('span', { class: 'sub', text: photoN ? `사진 ${photoN}장` : '' });
+    if (photoN == null) photoList(tripId).then(ps => { photoN = ps.length; if (photoN) cnt.textContent = `사진 ${photoN}장`; });
+    const add = async files => {
+      if (!files.length) return;
+      const n = await addPhotos(tripId, files, myPos && Date.now() - myPosAt < 3 * 60000 ? { lat: myPos[0], lng: myPos[1], ts: myPosAt } : null);
+      photoN = (photoN || 0) + n;
+      toast(n ? `사진 ${n}장을 지도에 올렸어요` : '사진을 넣지 못했어요');
+      render();
+    };
+    const cam = el('input', { type: 'file', accept: 'image/*', capture: 'environment', style: 'display:none', onchange: () => { add([...cam.files]); cam.value = ''; } });
+    const pick = el('input', { type: 'file', accept: 'image/*', multiple: true, style: 'display:none', onchange: () => { add([...pick.files]); pick.value = ''; } });
+    return el('div', { class: 'row', style: 'gap:8px;align-items:center' },
+      el('button', { class: 'btn primary small grow', onclick: () => cam.click() }, el('span', { class: 'with-ico', style: 'gap:6px' }, ico('camera', 18), '사진 찍기')),
+      el('button', { class: 'btn line small', text: '앨범에서', onclick: () => pick.click() }),
+      cnt, cam, pick);
+  }
   let recEl = null;   // 기록 글자: 위치가 바뀔 때마다 이것만 고쳐요(화면 전체를 다시 그리면 적던 글이 지워져서)
   // 계획 없이 출발했고 도착지도 아직 안 정한 나들이: 목표 카드에 걸은 거리·시간을 크게 보여줘요
   const isFree = () => info && info.quick && info.meetPlace === '정하지 않음';
@@ -2170,6 +2232,7 @@ async function viewLeader(key) {
         // 1) 어디로, 언제까지 + 출발하기
         goalCard(L),
         isGo(info) ? recordBar() : null,
+        isGo(info) ? photoBar() : null,
         // 2) 몇 명이 어떤 상태인지
         !L.length ? null : // 아직 아무도 참여하지 않았으면 0 / 0 / 0은 빼요
         el('div', { class: 'three' },
@@ -2281,6 +2344,7 @@ async function viewLeader(key) {
     drawPlaces(layer, info, list().filter(m => m.st === 'done').map(m => m.name));
     // 인솔자가 걸은 길: 위치가 올 때마다 이 선을 늘려요(startMyGps)
     myTrLine = L.polyline(trackLoad(tripId).map(q => [q[0], q[1]]), { color: '#D9822B', weight: 5, opacity: 0.9 }).addTo(layer);
+    photoList(tripId).then(ps => { if (layer) photoMarkers(null, layer, ps); });   // 나들이 중 찍은 사진(누르면 크게)
     const R = drawMode ? drawPts : (hasRoute(info) ? info.route : []);
     if (R.length > 1) L.polyline(R, drawMode ? { color: '#1C2620', weight: 4, dashArray: '6 6' } : { color: '#2F5D46', weight: 5, opacity: 0.85 }).addTo(layer);
     setRouteArrows(map, R.length > 1 ? R : null);
@@ -2304,7 +2368,7 @@ async function viewLeader(key) {
     facing.start();
     myWatch = navigator.geolocation.watchPosition(p => {
       const first = !myPos;
-      myPos = [p.coords.latitude, p.coords.longitude]; myHead = trackHead(p);
+      myPos = [p.coords.latitude, p.coords.longitude]; myPosAt = Date.now(); myHead = trackHead(p);
       if (info && isGo(info)) trackAdd(tripId, myPos[0], myPos[1], p.coords.accuracy, info.name);
       if (recEl && recEl.isConnected) recEl.textContent = recText();
       if (myTrLine && map && map.hasLayer(myTrLine)) myTrLine.setLatLngs(trackLoad(tripId).map(q => [q[0], q[1]]));
