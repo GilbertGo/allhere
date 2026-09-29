@@ -534,7 +534,8 @@ function showPhoto(p) {
 function trackAdd(t, lat, lng, acc, name) {
   if (acc > TRACK_MAX_ACC) return;
   const tr = trackLoad(t), lp = tr[tr.length - 1];
-  if (lp && dist(lp[0], lp[1], lat, lng) < TRACK_MIN_M) return;
+  // 위치의 오차(acc)보다 작게 움직인 건 흔들림으로 봐요. 컴퓨터나 실내처럼 GPS가 약하면 가만히 있어도 수십 m씩 튀어서요
+  if (lp && dist(lp[0], lp[1], lat, lng) < Math.max(TRACK_MIN_M, (acc || 0) * 1.5)) return;
   tr.push([+lat.toFixed(6), +lng.toFixed(6), Date.now()]);
   if (tr.length > 5000) tr.splice(0, tr.length - 5000);
   ls.set('track:' + t, tr);
@@ -2207,9 +2208,9 @@ async function viewLeader(key) {
         el('div', { class: 'mapbar' },
           el('button', { class: 'btn small ' + (pickMode === 'start' ? 'dark' : 'line'), text: pickMode === 'start' ? '지도를 눌러 집결지를 고르세요' : '집결지 지정', onclick: () => { pickMode = pickMode === 'start' ? null : 'start'; drawMode = false; render(); } }),
           el('button', { class: 'btn small ' + (pickMode === 'end' ? 'dark' : 'line'), text: pickMode === 'end' ? '지도를 눌러 도착지를 고르세요' : '도착지 지정', onclick: () => { pickMode = pickMode === 'end' ? null : 'end'; drawMode = false; render(); } }),
-          el('button', { class: 'btn line small', text: '내 위치 보기', onclick: locateMe }),
+          el('button', { class: 'btn line small', text: hasRoute(info) ? '경로 바꾸기' : '경로 넣기', onclick: openRoute }),
           el('button', { class: 'btn line small', text: '모든 사람 위치 보기', onclick: () => { focus = null; fitAll(); } }),
-          el('button', { class: 'btn line small', text: hasRoute(info) ? '경로 바꾸기' : '경로 넣기', onclick: openRoute })),
+          el('button', { class: 'btn line small', text: '내 위치 보기', onclick: locateMe })),
         drawMode ? el('div', { class: 'banner info' },
           el('b', { text: '지도를 눌러 지나갈 곳을 차례대로 찍으세요' }),
           el('div', { style: 'font-size:14px', text: '몇 곳이든 괜찮아요. 굽은 곳마다 하나씩 찍으면 돼요.' }),
