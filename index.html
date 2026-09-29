@@ -199,18 +199,25 @@ function verNotice(msg, ms) {
 }
 // 앱·바탕화면 아이콘은 예전 화면을 한동안 다시 쓰기도 해요. 열 때 서버의 파일을 새로 받아 버전이 다르면 한 번 새로고침해요.
 // 배포할 때마다 APP_VER를 바꿔 주세요.
-const APP_VER = '2026-09-29j';
-(async () => {
+const APP_VER = '2026-09-29k';
+if (sessionStorage.getItem('verDone') === APP_VER) { sessionStorage.removeItem('verDone'); setTimeout(() => verNotice(`새 버전으로 바꿨어요 (${APP_VER})`, 5000), 500); }
+// 열 때, 화면으로 돌아올 때, 켜 두는 동안 2분마다 서버에 새 버전이 있는지 봐요. 있으면 가운데 주황 안내를 3초 보여주고 바꿔요
+let verBusy = false;
+async function checkVer() {
+  if (verBusy) return; verBusy = true;
   try {
-    if (sessionStorage.getItem('verDone') === APP_VER) { sessionStorage.removeItem('verDone'); setTimeout(() => verNotice(`새 버전으로 바꿨어요 (${APP_VER})`, 4000), 500); }
     const r = await fetch(location.pathname + '?v=' + Date.now(), { cache: 'reload' });
     const m = (await r.text()).match(/const APP_VER = '([^']+)'/);
     const k = 'verReload:' + (m && m[1]);
-    if (m && m[1] !== APP_VER && !sessionStorage.getItem(k)) { sessionStorage.setItem(k, '1'); sessionStorage.setItem('verDone', m[1]); verNotice('새 버전을 받는 중이에요…', 10000); await new Promise(r => setTimeout(r, 3000));
+    if (m && m[1] !== APP_VER && !sessionStorage.getItem(k)) { sessionStorage.setItem(k, '1'); sessionStorage.setItem('verDone', m[1]); verNotice(`새 버전이 있어요 (${m[1]}). 3초 뒤 새 버전으로 바꿔요`, 10000); await new Promise(r => setTimeout(r, 3000));
       // 같은 주소로 새로고침하면 앱이 예전 사본을 다시 줘요. 주소 끝에 버전을 붙여 새로 받게 해요
-      const u = new URL(location.href); u.searchParams.set('_v', m[1]); location.replace(u.href); }
+      const u = new URL(location.href); u.searchParams.set('_v', m[1]); location.replace(u.href); return; }
   } catch {}
-})();
+  verBusy = false;
+}
+checkVer();
+setInterval(checkVer, 2 * 60000);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkVer(); });
 if (NATIVE) {
   const plug = n => (Capacitor.Plugins && Capacitor.Plugins[n]) || Capacitor.registerPlugin(n);
   const BG = plug('BackgroundGeolocation'), Share = plug('Share'), FS = plug('Filesystem'), LN = plug('LocalNotifications');
@@ -1965,7 +1972,7 @@ async function viewLeader(key) {
   }
   // (시험용) 위치가 몇 번 왔는지, 오차, 기록된 곳 수. 기록이 안 될 때 원인을 찾으려고 잠깐 보여줘요
   let fixN = 0, lastAcc = null, lastFixAt = 0, diagEl = null;
-  const diagText = () => `시험용: 위치 ${fixN}번 받음 · 오차 ${lastAcc == null ? '-' : '±' + Math.round(lastAcc) + 'm'} · 기록 ${trackLoad(tripId).length}곳 · 마지막 기록에서 ${(() => { const tr = trackLoad(tripId), q = tr[tr.length - 1]; return q && myPos ? Math.round(dist(q[0], q[1], myPos[0], myPos[1])) + 'm' : '-'; })()} · 마지막 ${lastFixAt ? fmtClock(lastFixAt) + ':' + String(new Date(lastFixAt).getSeconds()).padStart(2, '0') : '-'}${NATIVE ? ' (앱)' : ' (브라우저)'}`;
+  const diagText = () => `시험용: 위치 ${fixN}번 받음 · 오차 ${lastAcc == null ? '-' : '±' + Math.round(lastAcc) + 'm'} · 기록 ${trackLoad(tripId).length}곳 · 마지막 기록에서 ${(() => { const tr = trackLoad(tripId), q = tr[tr.length - 1]; return q && myPos ? Math.round(dist(q[0], q[1], myPos[0], myPos[1])) + 'm' : '-'; })()} · 마지막 ${lastFixAt ? fmtClock(lastFixAt) + ':' + String(new Date(lastFixAt).getSeconds()).padStart(2, '0') : '-'}${NATIVE ? ' (앱)' : ' (브라우저)'} · 버전 ${APP_VER}`;
   function diagLine() { diagEl = el('div', { class: 'sub', style: 'font-size:12px;margin-top:-6px', text: diagText() }); return diagEl; }
   function recordBar() {
     const span = el('span', { text: isFree() ? wakeText() : recText() });
