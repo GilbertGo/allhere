@@ -90,6 +90,7 @@ async function main() {
   log('결과', JSON.stringify(res));
   await w2.js(click('지도')); await sleep(2500);
   const line = await w2.js(`(() => { const p = [...document.querySelectorAll('.leaflet-overlay-pane path')].find(p => p.getAttribute('stroke') === '#D9822B'); return p ? p.getAttribute('d').split(/[LM]/).filter(Boolean).length : 0; })()`);
+  log('지도 위 카드', JSON.stringify(await w2.js(`(document.querySelector('.map-card') || {}).innerText`)));
   shot('2-지도');
   log('지도 주황 선 점 수', line);
   // 시험 나들이 지우기
