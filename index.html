@@ -875,7 +875,7 @@ function openBrag(info, t, count, allDone, kind = 'done') {
   if (!planKind && tr0.length > 1) info = Object.assign({}, info, { startAt: tr0[0][2], meetAt: tr0[tr0.length - 1][2] });   // 시각은 실제로 다닌 처음과 끝
   if (!planKind && info.quick) {   // 계획 없이 출발한 나들이: 카드의 장소는 '장소 이름 적기'로 적은 이름(없으면 출발 지점/도착 지점)
     const wp = ls.get('walkPlaces:' + t, {});
-    info = Object.assign({}, info, { startPlace: wp.start || '출발 지점', meetPlace: wp.end || (info.meetPlace === '정하지 않음' ? '도착 지점' : info.meetPlace) });
+    info = Object.assign({}, info, { startPlace: wp.start || info.startPlace || '출발 지점', meetPlace: wp.end || (info.meetPlace === '정하지 않음' ? '도착 지점' : info.meetPlace) });
   }
   const plan = hasRoute(info) ? info.route : null;
   const mine = trackLoad(t).length > 1 ? trackLoad(t).map(q => [q[0], q[1]]) : null;
@@ -1609,11 +1609,32 @@ function openInstall() {
     el('button', { class: 'btn line small', text: '닫기', onclick: () => bg.remove() })));
   document.body.append(bg);
 }
+// 위치 → 장소 이름 (OpenStreetMap Nominatim). 못 찾으면 null
+async function placeName(lat, lng) {
+  try {
+    const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=17&accept-language=ko`);
+    if (!r.ok) return null;
+    const j = await r.json(), a = j.address || {};
+    return (j.name || [a.suburb || a.quarter || a.neighbourhood || a.village || a.town, a.road].filter(Boolean).join(' ') || '').slice(0, 30) || null;
+  } catch { return null; }
+}
 // 계획 없이 바로 출발: 이름만 정하고 '출발' 상태로 나들이를 만들어요. 인솔자 화면이 열려 있는 동안 걷는 길이 기록돼요.
 function openQuickStart() {
   const d = new Date();
   const iN = el('input', { type: 'text', id: 'qn', maxlength: 40, value: `${d.getMonth() + 1}월 ${d.getDate()}일 나들이` });
   const iL = el('input', { type: 'text', id: 'ql', maxlength: 20, placeholder: '예: 김대장', value: ls.get('leaderName', '') });
+  // 출발 지점: 지금 위치를 찾아 이름을 저절로 채워요(OpenStreetMap 주소 찾기). 직접 고쳐 적어도 돼요
+  const iS = el('input', { type: 'text', id: 'qs', maxlength: 30, placeholder: '예: 석곶체육공원' });
+  const sHint = el('div', { class: 'sub', style: 'font-size:13px', text: '지금 위치를 찾는 중이에요…' });
+  let sLL = null, typed = false;
+  iS.addEventListener('input', () => { typed = true; });
+  if (navigator.geolocation) navigator.geolocation.getCurrentPosition(async p => {
+    sLL = [p.coords.latitude, p.coords.longitude];
+    sHint.textContent = '지금 위치를 출발 지점으로 넣어요. 이름은 고쳐 적어도 돼요.';
+    const nm = await placeName(sLL[0], sLL[1]);
+    if (nm && !typed) iS.value = nm;
+  }, () => { sHint.textContent = '위치를 찾지 못했어요. 이름만 적어도 돼요.'; }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 });
+  else sHint.textContent = '';
   const go = el('button', { class: 'btn primary full big', text: '지금 출발' });
   const bg = el('div', { class: 'sheet-bg', onclick: e => { if (e.target === bg) bg.remove(); } });
   go.onclick = async () => {
@@ -1623,7 +1644,7 @@ function openQuickStart() {
     try {
       const t = rid(10), key = rid(24), pin = randPin(), at = Date.now();
       const pinDigest = await pinHash(t, pin), leaderKeyDigest = await pinHash(t, key);
-      await pub(base(t) + '/info', { name, leaderName, startAt: at, startPlace: '출발 지점', meetAt: at + 3 * 3600e3, meetPlace: '정하지 않음', quick: true,
+      await pub(base(t) + '/info', { name, leaderName, startAt: at, startPlace: iS.value.trim() || '출발 지점', ...(sLL ? { startLat: sLL[0], startLng: sLL[1] } : {}), meetAt: at + 3 * 3600e3, meetPlace: '정하지 않음', quick: true,
         phase: 'go', departedAt: serverTimestamp(), pinHash: pinDigest, leaderKeyHash: leaderKeyDigest });
       const keys = ls.get('leaderKeys', {}); keys[t] = key; ls.set('leaderKeys', keys);
       const pins = ls.get('leaderPins', {}); pins[t] = pin; ls.set('leaderPins', pins);
@@ -1639,6 +1660,7 @@ function openQuickStart() {
     el('h2', { text: '계획 없이 바로 출발' }),
     el('label', { class: 'f', for: 'qn' }, '나들이 이름', iN),
     el('label', { class: 'f', for: 'ql' }, '인솔자 이름', iL),
+    el('label', { class: 'f', for: 'qs' }, '출발 지점', iS), sHint,
     el('p', { class: 'sub', style: 'margin:0', text: '누르면 바로 걷는 길이 기록돼요. 기록은 이 화면이 켜져 있을 때만 되니 "화면 켜두기"를 켜 주세요. 도착지와 시간은 나중에 "나들이 계획 · 수정"에서 바꿀 수 있어요.' }),
     go,
     el('button', { class: 'btn line small', text: '닫기', onclick: () => bg.remove() })));
@@ -1910,6 +1932,18 @@ async function viewLeader(key) {
     const url = joinUrl();
     navigator.clipboard.writeText(`${shareText()}\n${url}`).then(() => toast(msg || '링크를 복사했어요. 카톡방에 붙여넣으세요.'), () => prompt('이 링크를 복사하세요', url));
   }
+  // 인솔자 열쇠: 비밀번호(가려 두고 누르면 보여요)와 공동 인솔자 링크. 다른 휴대폰이나 다왔나 앱에서 인솔자 화면을 열 때 써요
+  function keyCard() {
+    let shown = false;
+    const pinEl = el('b', { style: 'font-size:18px;letter-spacing:4px', text: '••••' });
+    const tog = el('button', { class: 'btn line small', text: '보기', onclick: () => { shown = !shown; pinEl.textContent = shown ? myPin : '••••'; tog.textContent = shown ? '숨기기' : '보기'; } });
+    return el('div', { class: 'card stack', style: 'gap:8px' },
+      el('h2', { text: '인솔자 열쇠' }),
+      el('div', { class: 'sub', text: '다른 휴대폰이나 다왔나 앱에서 인솔자 화면을 열 때 써요. 공동 인솔자 링크는 연 사람이 바로 인솔자가 되니, 믿을 수 있는 사람에게만 보내세요.' }),
+      myPin ? el('div', { class: 'row', style: 'justify-content:space-between;gap:12px' }, el('span', { class: 'sub', text: '인솔자 비밀번호' }), el('div', { class: 'row', style: 'gap:10px;align-items:center' }, pinEl, tog))
+        : el('div', { class: 'sub', text: '이 휴대폰에는 비밀번호가 저장돼 있지 않아요. "나들이 계획 · 수정"에서 새로 정할 수 있어요.' }),
+      el('button', { class: 'btn line small full', text: '공동 인솔자 링크 복사', onclick: coLeaderLink }));
+  }
   function coLeaderLink() {
     const url = `${location.origin}${location.pathname}?t=${tripId}&k=${key}`;
     navigator.clipboard.writeText(url).then(() => toast('공동 인솔자 링크를 복사했어요. 부대장님께만 보내세요.'), () => prompt('공동 인솔자 링크', url));
@@ -2133,6 +2167,7 @@ async function viewLeader(key) {
         el('div', { class: 'stack', style: 'gap:8px' },
           info.quick && !hasRoute(info) ? null : el('button', { class: 'btn line full', text: '나들이 계획 공유하기', onclick: () => openBrag(info, tripId, 0, false, 'plan') }),
           el('button', { class: 'btn line full', text: '다녀온 나들이 공유하기', onclick: () => openBrag(info, tripId, L.length, isGo(info) && L.length > 0 && L.every(m => m.st === 'done'), 'done') })),
+        keyCard(),
         // 4) 자주 안 쓰는 것은 접어두기
         more('plan', '나들이 계획 · 수정', planCard()),
         more('etc', '그 밖의 기능',
