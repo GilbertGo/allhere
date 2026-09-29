@@ -199,7 +199,7 @@ function verNotice(msg, ms) {
 }
 // 앱·바탕화면 아이콘은 예전 화면을 한동안 다시 쓰기도 해요. 열 때 서버의 파일을 새로 받아 버전이 다르면 한 번 새로고침해요.
 // 배포할 때마다 APP_VER를 바꿔 주세요.
-const APP_VER = '2026-09-29h';
+const APP_VER = '2026-09-29i';
 (async () => {
   try {
     if (sessionStorage.getItem('verDone') === APP_VER) { sessionStorage.removeItem('verDone'); setTimeout(() => verNotice(`새 버전으로 바꿨어요 (${APP_VER})`, 4000), 500); }
@@ -567,10 +567,10 @@ function showPhoto(p) {
   document.body.append(bg);
 }
 function trackAdd(t, lat, lng, acc, name) {
-  if (acc > TRACK_MAX_ACC) return;
+  // (시험 중) 오차와 상관없이 기록해요. 흔들림 거르기는 잠시 꺼 둠: if (acc > TRACK_MAX_ACC) return;
   const tr = trackLoad(t), lp = tr[tr.length - 1];
   // 위치의 오차(acc)보다 작게 움직인 건 흔들림으로 봐요. 컴퓨터나 실내처럼 GPS가 약하면 가만히 있어도 수십 m씩 튀어서요
-  if (lp && dist(lp[0], lp[1], lat, lng) < Math.max(TRACK_MIN_M, acc || 0)) return;
+  if (lp && dist(lp[0], lp[1], lat, lng) < TRACK_MIN_M) return;
   tr.push([+lat.toFixed(6), +lng.toFixed(6), Date.now()]);
   if (tr.length > 5000) tr.splice(0, tr.length - 5000);
   ls.set('track:' + t, tr);
