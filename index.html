@@ -192,13 +192,14 @@ const NATIVE = !!(window.Capacitor && Capacitor.isNativePlatform && Capacitor.is
 // ---------- 새 버전 확인 ----------
 // 앱·바탕화면 아이콘은 예전 화면을 한동안 다시 쓰기도 해요. 열 때 서버의 파일을 새로 받아 버전이 다르면 한 번 새로고침해요.
 // 배포할 때마다 APP_VER를 바꿔 주세요.
-const APP_VER = '2026-09-29b';
+const APP_VER = '2026-09-29c';
 (async () => {
   try {
+    if (sessionStorage.getItem('verDone') === APP_VER) { sessionStorage.removeItem('verDone'); setTimeout(() => toast(`새 버전으로 바꿨어요 (${APP_VER})`), 800); }
     const r = await fetch(location.pathname + '?v=' + Date.now(), { cache: 'reload' });
     const m = (await r.text()).match(/const APP_VER = '([^']+)'/);
     const k = 'verReload:' + (m && m[1]);
-    if (m && m[1] !== APP_VER && !sessionStorage.getItem(k)) { sessionStorage.setItem(k, '1'); await fetch(location.href, { cache: 'reload' }).catch(() => {}); location.reload(); }
+    if (m && m[1] !== APP_VER && !sessionStorage.getItem(k)) { sessionStorage.setItem(k, '1'); sessionStorage.setItem('verDone', m[1]); toast('새 버전을 받는 중이에요…'); await fetch(location.href, { cache: 'reload' }).catch(() => {}); await new Promise(r => setTimeout(r, 1000)); location.reload(); }
   } catch {}
 })();
 if (NATIVE) {
@@ -1631,7 +1632,8 @@ function viewLanding() {
     ) : null,
     // 바탕화면 아이콘 (이미 아이콘으로 열었으면 안 보여요)
     IS_APP ? null : el('button', { class: 'link', style: 'align-self:center;margin-top:20px;color:var(--pine)', onclick: openInstall },
-      el('span', { class: 'with-ico', style: 'gap:6px' }, ico('pin', 18), '휴대폰 바탕화면에 다왔나 아이콘 두기'))));
+      el('span', { class: 'with-ico', style: 'gap:6px' }, ico('pin', 18), '휴대폰 바탕화면에 다왔나 아이콘 두기')),
+    el('div', { class: 'sub center', style: 'font-size:12px;margin-top:16px', text: `버전 ${APP_VER}${NATIVE ? ' · 앱' : ''}` })));
   peekTrips(Object.keys(rows), (t, info) => rows[t].forEach(({ a, chip }) => {
     if (info) {
       chip.textContent = isGo(info) ? '진행 중 · 이동 중' : '진행 중 · 출발 전';
