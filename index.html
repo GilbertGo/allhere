@@ -199,14 +199,16 @@ function verNotice(msg, ms) {
 }
 // 앱·바탕화면 아이콘은 예전 화면을 한동안 다시 쓰기도 해요. 열 때 서버의 파일을 새로 받아 버전이 다르면 한 번 새로고침해요.
 // 배포할 때마다 APP_VER를 바꿔 주세요.
-const APP_VER = '2026-09-29f';
+const APP_VER = '2026-09-29g';
 (async () => {
   try {
     if (sessionStorage.getItem('verDone') === APP_VER) { sessionStorage.removeItem('verDone'); setTimeout(() => verNotice(`새 버전으로 바꿨어요 (${APP_VER})`, 4000), 500); }
     const r = await fetch(location.pathname + '?v=' + Date.now(), { cache: 'reload' });
     const m = (await r.text()).match(/const APP_VER = '([^']+)'/);
     const k = 'verReload:' + (m && m[1]);
-    if (m && m[1] !== APP_VER && !sessionStorage.getItem(k)) { sessionStorage.setItem(k, '1'); sessionStorage.setItem('verDone', m[1]); verNotice('새 버전을 받는 중이에요…', 10000); await fetch(location.href, { cache: 'reload' }).catch(() => {}); await new Promise(r => setTimeout(r, 3000)); location.reload(); }
+    if (m && m[1] !== APP_VER && !sessionStorage.getItem(k)) { sessionStorage.setItem(k, '1'); sessionStorage.setItem('verDone', m[1]); verNotice('새 버전을 받는 중이에요…', 10000); await new Promise(r => setTimeout(r, 3000));
+      // 같은 주소로 새로고침하면 앱이 예전 사본을 다시 줘요. 주소 끝에 버전을 붙여 새로 받게 해요
+      const u = new URL(location.href); u.searchParams.set('_v', m[1]); location.replace(u.href); }
   } catch {}
 })();
 if (NATIVE) {
