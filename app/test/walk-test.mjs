@@ -58,7 +58,7 @@ async function cdp(url) {
   };
   return { js, close: () => ws.close() };
 }
-const click = text => `(() => { const b = [...document.querySelectorAll('button')].find(b => b.textContent.trim().includes(${JSON.stringify(text)})); if (!b) return false; b.click(); return true; })()`;
+const click = text => `(() => { const bs = [...document.querySelectorAll('button')], t = ${JSON.stringify(text)}; const b = bs.find(b => b.textContent.trim() === t) || bs.find(b => b.textContent.trim().includes(t)); if (!b) return false; b.click(); return true; })()`;
 
 async function main() {
   if (!existsSync(APK)) throw new Error('앱 파일이 없어요: ' + APK);
