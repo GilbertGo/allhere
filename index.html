@@ -192,7 +192,7 @@ const NATIVE = !!(window.Capacitor && Capacitor.isNativePlatform && Capacitor.is
 // ---------- 새 버전 확인 ----------
 // 앱·바탕화면 아이콘은 예전 화면을 한동안 다시 쓰기도 해요. 열 때 서버의 파일을 새로 받아 버전이 다르면 한 번 새로고침해요.
 // 배포할 때마다 APP_VER를 바꿔 주세요.
-const APP_VER = '2026-09-29a';
+const APP_VER = '2026-09-29b';
 (async () => {
   try {
     const r = await fetch(location.pathname + '?v=' + Date.now(), { cache: 'reload' });
@@ -1938,6 +1938,10 @@ async function viewLeader(key) {
     if (isFree()) return tr.length > 1 ? `${fmtDist(st.d)} · ${fmtDur(st.ms)}` : '0m';
     return (tr.length > 1 ? `지금까지 ${fmtDist(st.d)} · ${fmtDur(st.ms)} 기록했어요. ` : '걷는 길을 기록하고 있어요. ') + (wake ? '화면을 켜두고 있어요.' : '화면이 꺼지면 기록이 멈춰요.');
   }
+  // (시험용) 위치가 몇 번 왔는지, 오차, 기록된 곳 수. 기록이 안 될 때 원인을 찾으려고 잠깐 보여줘요
+  let fixN = 0, lastAcc = null, lastFixAt = 0, diagEl = null;
+  const diagText = () => `시험용: 위치 ${fixN}번 받음 · 오차 ${lastAcc == null ? '-' : '±' + Math.round(lastAcc) + 'm'} · 기록 ${trackLoad(tripId).length}곳 · 마지막 ${lastFixAt ? fmtClock(lastFixAt) + ':' + String(new Date(lastFixAt).getSeconds()).padStart(2, '0') : '-'}${NATIVE ? ' (앱)' : ' (브라우저)'}`;
+  function diagLine() { diagEl = el('div', { class: 'sub', style: 'font-size:12px;margin-top:-6px', text: diagText() }); return diagEl; }
   function recordBar() {
     const span = el('span', { text: isFree() ? wakeText() : recText() });
     if (!isFree()) recEl = span;   // 계획 없이 출발한 나들이는 목표 카드의 숫자가 recEl
@@ -2246,6 +2250,7 @@ async function viewLeader(key) {
         // 1) 어디로, 언제까지 + 출발하기
         goalCard(L),
         isGo(info) ? recordBar() : null,
+        isGo(info) ? diagLine() : null,
         isGo(info) ? photoBar() : null,
         // 2) 몇 명이 어떤 상태인지
         !L.length ? null : // 아직 아무도 참여하지 않았으면 0 / 0 / 0은 빼요
@@ -2393,7 +2398,9 @@ async function viewLeader(key) {
       const first = !myPos;
       myPos = [p.coords.latitude, p.coords.longitude]; myPosAt = Date.now(); myHead = trackHead(p);
       if (info && isGo(info)) trackAdd(tripId, myPos[0], myPos[1], p.coords.accuracy, info.name);
+      fixN++; lastAcc = p.coords.accuracy; lastFixAt = Date.now();
       if (recEl && recEl.isConnected) recEl.textContent = recText();
+      if (diagEl && diagEl.isConnected) diagEl.textContent = diagText();
       if (myTrLine && map && map.hasLayer(myTrLine)) myTrLine.setLatLngs(trackLoad(tripId).map(q => [q[0], q[1]]));
       updateMyMarker();
       const moved = lastLeaderSent ? dist(lastLeaderSent[0], lastLeaderSent[1], myPos[0], myPos[1]) : Infinity;
