@@ -103,6 +103,7 @@ body.noscroll{overflow:hidden}
 .spot-pin{background:#fff;color:#E0892F;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,.35);display:flex!important;align-items:center;justify-content:center;font-size:17px;line-height:1}
 .gallery{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch}
 .gallery img{width:96px;height:96px;object-fit:cover;border-radius:14px;flex-shrink:0;cursor:zoom-in;box-shadow:var(--shadow)}
+.walk-pill{position:absolute;bottom:62px;left:10px;z-index:1000;background:rgba(28,38,32,.92);color:#F6C89F;font-weight:800;font-size:14px;border-radius:12px;padding:8px 12px;white-space:nowrap;pointer-events:none;box-shadow:0 2px 8px rgba(0,0,0,.2)}
 .ph-pin{background:none;border:none}.ph-pin img{width:44px!important;height:44px!important;object-fit:cover;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35);display:block}
 .goal{background:var(--ink);color:#fff;border-radius:24px;padding:20px;display:flex;flex-direction:column;gap:14px}
 .goal .lbl{font-size:13px;color:#B3AC9C}
@@ -199,7 +200,7 @@ function verNotice(msg, ms) {
 }
 // 앱·바탕화면 아이콘은 예전 화면을 한동안 다시 쓰기도 해요. 열 때 서버의 파일을 새로 받아 버전이 다르면 한 번 새로고침해요.
 // 배포할 때마다 APP_VER를 바꿔 주세요.
-const APP_VER = '2026-09-29n';
+const APP_VER = '2026-09-29o';
 if (sessionStorage.getItem('verDone') === APP_VER) { sessionStorage.removeItem('verDone'); setTimeout(() => verNotice(`새 버전으로 바꿨어요 (${APP_VER})`, 5000), 500); }
 // 열 때, 화면으로 돌아올 때, 켜 두는 동안 2분마다 서버에 새 버전이 있는지 봐요. 있으면 가운데 주황 안내를 3초 보여주고 바꿔요
 let verBusy = false;
@@ -558,6 +559,17 @@ async function cardPhotos(t) {
   const pick = [];
   for (const i of idx) { try { pick.push({ lat: recs[i].lat, lng: recs[i].lng, img: await createImageBitmap(recs[i].blob) }); } catch {} }
   return { recs, pick };
+}
+// 지도 위 가운데 위쪽: 내가 걸은 거리 · 시간. 돌려받은 함수를 부르면 숫자를 새로 써요(show가 false면 숨김)
+function walkPill(map, bottom) {
+  const d = L.DomUtil.create('div', 'walk-pill', map.getContainer());
+  if (bottom != null) d.style.bottom = bottom + 'px';
+  return (t, show) => {
+    if (!show) { d.style.display = 'none'; return; }
+    const tr = trackLoad(t), st = trackStats(tr);
+    d.style.display = '';
+    d.textContent = `내가 걸은 거리 ${tr.length > 1 ? fmtDist(st.d) : '0m'} · ${tr.length > 1 ? fmtDur(st.ms) : '0분'}`;
+  };
 }
 // 지도에 사진 동그라미를 놓아요. 누르면 크게 보여줘요.
 function photoMarkers(map, layer, photos) {
@@ -1940,6 +1952,7 @@ async function viewLeader(key) {
   }
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && wantWake && !wake) lockWake(); });
   let myTrLine = null;
+  let pillUpd = null, userMoved = false;   // 지도 위 '내가 걸은 거리 · 시간'
   // 인솔자 본인이 걸은 거리(목표 카드). 위치가 올 때마다 이 글자만 고쳐요
   let legEl = null;
   const legText = () => { const tr = trackLoad(tripId), st = trackStats(tr); return `${info.departedAt ? fmtClock(info.departedAt) + ' 출발 · ' : ''}내가 걸은 거리 ${tr.length > 1 ? fmtDist(st.d) : '0m'}`; };
@@ -2376,13 +2389,15 @@ async function viewLeader(key) {
     // 지도 아래쪽 버튼: 모든 사람 위치 보기 / 내 위치 보기
     const V = L.Control.extend({ options: { position: 'bottomleft' }, onAdd() {
       const box = L.DomUtil.create('div', ''); box.style.cssText = 'display:flex;gap:8px';
-      [['모든 사람 위치 보기', () => { focus = null; fitAll(); }], ['내 위치 보기', () => locateMe()]].forEach(([txt, fn]) => {
+      [['모든 사람 위치 보기', () => { focus = null; userMoved = false; fitAll(); }], ['내 위치 보기', () => locateMe()]].forEach(([txt, fn]) => {
         const b = L.DomUtil.create('button', 'fs-btn', box); b.type = 'button'; b.textContent = txt; b.addEventListener('click', fn);
       });
       L.DomEvent.disableClickPropagation(box);
       return box;
     } });
     map.addControl(new V());
+    pillUpd = walkPill(map);
+    map.on('dragstart', () => { userMoved = true; });
     map.on('click', e => {
       if (drawMode) {
         if (Date.now() - lastTap < 400) return;   // 두 번 빨리 누르면 한 곳만 찍어요
@@ -2407,6 +2422,7 @@ async function viewLeader(key) {
     drawPlaces(layer, info, list().filter(m => m.st === 'done').map(m => m.name));
     // 인솔자가 걸은 길: 위치가 올 때마다 이 선을 늘려요(startMyGps)
     myTrLine = L.polyline(walkedLine(), { color: '#D9822B', weight: 5, opacity: 0.9 }).addTo(layer);
+    if (pillUpd) pillUpd(tripId, isGo(info));
     photoList(tripId).then(ps => { if (layer) photoMarkers(null, layer, ps); });   // 나들이 중 찍은 사진(누르면 크게)
     const R = drawMode ? drawPts : (hasRoute(info) ? info.route : []);
     if (R.length > 1) L.polyline(R, drawMode ? { color: '#1C2620', weight: 4, dashArray: '6 6' } : { color: '#2F5D46', weight: 5, opacity: 0.85 }).addTo(layer);
@@ -2438,6 +2454,8 @@ async function viewLeader(key) {
       if (diagEl && diagEl.isConnected) diagEl.textContent = diagText();
       if (legEl && legEl.isConnected) legEl.textContent = legText();
       if (myTrLine && map && map.hasLayer(myTrLine)) myTrLine.setLatLngs(walkedLine());
+      if (pillUpd) pillUpd(tripId, isGo(info));
+      if (map && tab === 'map' && !focus && !userMoved && !map.getBounds().pad(-0.05).contains(myPos)) fitAll();   // 걷다가 화면 밖으로 나가면 다시 다 보이게
       updateMyMarker();
       const moved = lastLeaderSent ? dist(lastLeaderSent[0], lastLeaderSent[1], myPos[0], myPos[1]) : Infinity;
       if (info && (!lastLeaderSent || Date.now() - lastLeaderAt > SEND_MIN_MS || moved > SEND_MIN_M)) {
@@ -2462,7 +2480,8 @@ async function viewLeader(key) {
     if (info.startLat != null) pts.push([info.startLat, info.startLng]);
     if (myPos) pts.push(myPos);
     if (hasRoute(info)) pts.push(...info.route);
-    if (pts.length === 1) map.setView(pts[0], 16); else if (pts.length) map.fitBounds(pts, { padding: [40, 40] });
+    pts.push(...trackLoad(tripId).map(q => [q[0], q[1]]));   // 내가 걸은 길도 다 보이게
+    if (pts.length === 1) map.setView(pts[0], 16); else if (pts.length) map.fitBounds(pts, { paddingTopLeft: [40, 70], paddingBottomRight: [40, 120] });   // 위 버튼·아래 버튼과 거리 글씨에 가리지 않게
   }
   function locateMe() {
     if (!navigator.geolocation) return toast('이 휴대폰에서는 위치를 쓸 수 없어요');
@@ -2480,6 +2499,7 @@ function viewMember() {
   leaveWarn = () => me && me.status !== 'done' ? '첫 화면으로 가면 위치 공유가 멈춰요. 첫 화면의 "참여 중인 나들이"에서 다시 들어올 수 있어요. 갈까요?' : null;
   const mBox = el('div', { class: 'mapbox' });
   // 방향: 휴대폰이 보는 쪽(facing)을 먼저 쓰고, 모르면 내가 가는 방향(heading). 지도의 '나'와 목표 카드 안내가 이 기준
+  let mPill = null, mUserMoved = false;
   let mmap = null, mlayer = null, mfit = false, heading = null, lastBearing = null, meMk = null;
   const trackHead = headingTracker();
   const facing = facingWatcher(() => { updateArrow(); if (meMk) meMk.setIcon(meIcon('#2563A8', '#fff', heading, facing.get())); });
@@ -2497,6 +2517,8 @@ function viewMember() {
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(mmap);
       mlayer = L.layerGroup().addTo(mmap);
       addFullBtn(mmap, mBox);
+      mPill = walkPill(mmap, 10);
+      mmap.on('dragstart', () => { mUserMoved = true; });
     }
     setTimeout(() => mmap.invalidateSize(), 0);
     mlayer.clearLayers();
@@ -2517,14 +2539,20 @@ function viewMember() {
     const T = target(info);
     if (last && T.lat != null && me && me.status !== 'done') L.polyline([[last.coords.latitude, last.coords.longitude], [T.lat, T.lng]], { color: '#2563A8', weight: 3, dashArray: '4 8' }).addTo(mlayer);
     const myTr = trackLoad(tripId);
-    if (myTr.length > 1) L.polyline(myTr.map(q => [q[0], q[1]]), { color: '#2563A8', weight: 4, opacity: 0.75 }).addTo(mlayer);
+    // 내가 걸은 길(지금 위치까지 이어서)과 지도 위 거리·시간. 지도는 걸은 길까지 다 보이게
+    const myLine = myTr.map(q => [q[0], q[1]]);
+    if (last && myLine.length && isGo(info)) myLine.push([last.coords.latitude, last.coords.longitude]);
+    if (myLine.length > 1) L.polyline(myLine, { color: '#2563A8', weight: 4, opacity: 0.8 }).addTo(mlayer);
+    pts.push(...myLine);
+    if (mPill) mPill(tripId, isGo(info) && !!me);
     if (last) {
       const ll = [last.coords.latitude, last.coords.longitude];
       meMk = L.marker(ll, { icon: meIcon('#2563A8', '#fff', heading, facing.get()), zIndexOffset: 1000, keyboard: false })   // 보는 쪽 부채꼴(없으면 가는 방향 화살표)이 붙은 '나'
         .bindTooltip('나', { permanent: true, direction: 'top', className: 'nm', offset: [0, -14] }).addTo(mlayer);
       pts.push(ll);
     }
-    if (!mfit && pts.length) { if (pts.length === 1) mmap.setView(pts[0], 16); else mmap.fitBounds(pts, { padding: [30, 30] }); mfit = !!last; }
+    const vb = mmap.getBounds().pad(-0.08), outside = !mUserMoved && pts.some(p => !vb.contains(p));   // 누가 화면 밖으로 나가면 다시 다 보이게(직접 지도를 움직였으면 그대로)
+    if ((!mfit || outside) && pts.length) { if (pts.length === 1) mmap.setView(pts[0], 16); else mmap.fitBounds(pts, { paddingTopLeft: [30, 60], paddingBottomRight: [30, 60] }); mfit = !!last; }
   }
 
   watchTrip(tripId, st => {
