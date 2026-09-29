@@ -83,7 +83,7 @@ async function main() {
   // 북동쪽으로 약 10m씩 20번 = 약 200m. --screen-off 이면 걷는 동안 화면을 꺼요(앱이 화면 꺼짐에도 기록하는지)
   const OFF = process.argv.includes('--screen-off');
   if (OFF) { adb('shell', 'input', 'keyevent', '26'); log('화면 끔'); await sleep(3000); }
-  for (let k = 1; k <= 20; k++) { geo(start[0] + k * 0.00007, start[1] + k * 0.00007); await sleep(OFF ? 4000 : 1500); }
+  for (let k = 1; k <= 20; k++) { geo(start[0] + k * 0.00007, start[1] + k * 0.00007); await sleep(process.argv.includes('--long') ? 21000 : OFF ? 4000 : 1500); }   // --long: 20걸음 × 21초 = 약 7분
   if (OFF) { adb('shell', 'input', 'keyevent', '24'); adb('shell', 'input', 'keyevent', '26'); await sleep(1500); adb('shell', 'wm', 'dismiss-keyguard'); log('화면 켬'); }
   await sleep(2000);
   const res = await w2.js(`(() => { const t = new URL(location.href).searchParams.get('t'); const tr = JSON.parse(localStorage.getItem('track:' + t) || '[]'); return { t, points: tr.length, dist: (document.querySelector('.goal b') || {}).textContent, diag: ([...document.querySelectorAll('.sub')].find(e => e.textContent.startsWith('시험용')) || {}).textContent }; })()`);

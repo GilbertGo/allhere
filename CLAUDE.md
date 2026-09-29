@@ -37,7 +37,7 @@
 - 빌드: JDK 21 필요(`C:\Program Files\Microsoft\jdk-21*`. Android Studio 내장 Java 25는 Gradle 8.14와 안 맞음), `ANDROID_HOME=%LOCALAPPDATA%\Android\Sdk`, `app\android\gradlew.bat assembleDebug` → `app\android\app\build\outputs\apk\debug\app-debug.apk`(복사본 `app\dawatna.apk`, git 제외). `capacitor.config.json`이나 플러그인을 바꾸면 `npx cap sync android` 후 다시 빌드.
 - 앱 아이콘·알림 아이콘(`drawable-*/ic_stat_dawatna.png`)·시작 화면(`splash.png`)은 PowerShell System.Drawing으로 그렸다.
 - **자동 시험(에뮬레이터)**: AVD `dawatna_test`(Pixel 7, Android 36, WHPX). `node app/test/walk-test.mjs` = 앱 설치 → 계획 없이 바로 출발 → 200m 걷기(adb emu geo fix) → 기록 곳 수·지도 주황 선 확인 → 나들이 끝내기, PASS/FAIL과 캡처(`app/test/out/`). `--screen-off`면 걷는 동안 화면을 끈다. `node app/test/app-eval.mjs "자바스크립트"`로 앱 웹뷰에서 바로 실행(오류 찾기). 앱 웹뷰는 디버그 빌드라 원격 디버깅 가능. 에뮬레이터 끄기: `adb emu kill`.
-- 2026-09-29 에뮬레이터로 확인: 앱에서 걸은 길 기록·지도 선, 화면 꺼짐(약 80초) 중 기록 PASS. 5분 넘게 화면 꺼짐은 아직 확인 못 함. 앱에서 `BG.addWatcher`는 Promise가 아닐 수 있어 `Promise.resolve(...)`로 감쌀 것.
+- 2026-09-29 에뮬레이터로 확인: 앱에서 걸은 길 기록·지도 선, 화면 꺼짐 약 80초·약 7분(`--screen-off --long`) 모두 기록 PASS. 화면 꺼진 동안 서버로 위치 보내기(참여자에게 인솔자 위치)는 아직 확인 못 함. 앱에서 `BG.addWatcher`는 Promise가 아닐 수 있어 `Promise.resolve(...)`로 감쌀 것.
 
 ## URL 규칙
 - `/allhere/` — 첫 화면: 새 나들이 만들기, 내가 만든 단체 나들이, 참여 중인 나들이
