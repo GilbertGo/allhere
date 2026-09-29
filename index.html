@@ -194,12 +194,12 @@ const NATIVE = !!(window.Capacitor && Capacitor.isNativePlatform && Capacitor.is
 function verNotice(msg, ms) {
   const n = document.createElement('div');
   n.setAttribute('role', 'status'); n.textContent = msg;
-  n.style.cssText = 'position:fixed;left:16px;right:16px;top:calc(12px + env(safe-area-inset-top,0px));max-width:488px;margin:0 auto;background:#F4A259;color:#1C2620;font-weight:800;font-size:17px;text-align:center;border-radius:16px;padding:16px 18px;z-index:5000;box-shadow:0 8px 24px rgba(0,0,0,.25)';
+  n.style.cssText = 'position:fixed;left:16px;right:16px;top:50%;transform:translateY(-50%);max-width:488px;margin:0 auto;background:#F4A259;color:#1C2620;font-weight:800;font-size:17px;text-align:center;border-radius:16px;padding:16px 18px;z-index:5000;box-shadow:0 8px 24px rgba(0,0,0,.25)';
   document.body.append(n); setTimeout(() => n.remove(), ms);
 }
 // 앱·바탕화면 아이콘은 예전 화면을 한동안 다시 쓰기도 해요. 열 때 서버의 파일을 새로 받아 버전이 다르면 한 번 새로고침해요.
 // 배포할 때마다 APP_VER를 바꿔 주세요.
-const APP_VER = '2026-09-29e';
+const APP_VER = '2026-09-29f';
 (async () => {
   try {
     if (sessionStorage.getItem('verDone') === APP_VER) { sessionStorage.removeItem('verDone'); setTimeout(() => verNotice(`새 버전으로 바꿨어요 (${APP_VER})`, 4000), 500); }
