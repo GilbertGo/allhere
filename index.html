@@ -569,7 +569,7 @@ function showPhoto(p) {
 function trackAdd(t, lat, lng, acc, name) {
   // (시험 중) 오차와 상관없이 기록해요. 흔들림 거르기는 잠시 꺼 둠: if (acc > TRACK_MAX_ACC) return;
   const tr = trackLoad(t), lp = tr[tr.length - 1];
-  // 위치의 오차(acc)보다 작게 움직인 건 흔들림으로 봐요. 컴퓨터나 실내처럼 GPS가 약하면 가만히 있어도 수십 m씩 튀어서요
+  // 마지막 기록에서 15m(TRACK_MIN_M) 넘게 움직이면 기록. (예전: 오차(acc)보다 작게 움직인 건 흔들림으로 보고 버림 — 시험 중이라 꺼 둠)
   if (lp && dist(lp[0], lp[1], lat, lng) < TRACK_MIN_M) return;
   tr.push([+lat.toFixed(6), +lng.toFixed(6), Date.now()]);
   if (tr.length > 5000) tr.splice(0, tr.length - 5000);
