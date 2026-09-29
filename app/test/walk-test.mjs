@@ -80,8 +80,11 @@ async function main() {
   const w2 = await connectWebView();   // 인솔자 화면으로 넘어가며 새 페이지
   for (let i = 0; i < 30 && !(await w2.js(`document.body.innerText.includes('걸은 거리')`)); i++) await sleep(1000);
   shot('1-출발');
-  // 북동쪽으로 약 10m씩 20번 = 약 200m
-  for (let k = 1; k <= 20; k++) { geo(start[0] + k * 0.00007, start[1] + k * 0.00007); await sleep(1500); }
+  // 북동쪽으로 약 10m씩 20번 = 약 200m. --screen-off 이면 걷는 동안 화면을 꺼요(앱이 화면 꺼짐에도 기록하는지)
+  const OFF = process.argv.includes('--screen-off');
+  if (OFF) { adb('shell', 'input', 'keyevent', '26'); log('화면 끔'); await sleep(3000); }
+  for (let k = 1; k <= 20; k++) { geo(start[0] + k * 0.00007, start[1] + k * 0.00007); await sleep(OFF ? 4000 : 1500); }
+  if (OFF) { adb('shell', 'input', 'keyevent', '24'); adb('shell', 'input', 'keyevent', '26'); await sleep(1500); adb('shell', 'wm', 'dismiss-keyguard'); log('화면 켬'); }
   await sleep(2000);
   const res = await w2.js(`(() => { const t = new URL(location.href).searchParams.get('t'); const tr = JSON.parse(localStorage.getItem('track:' + t) || '[]'); return { t, points: tr.length, dist: (document.querySelector('.goal b') || {}).textContent, diag: ([...document.querySelectorAll('.sub')].find(e => e.textContent.startsWith('시험용')) || {}).textContent }; })()`);
   log('결과', JSON.stringify(res));
