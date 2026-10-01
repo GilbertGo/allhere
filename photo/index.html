@@ -82,6 +82,18 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
 .mic{flex-shrink:0;width:42px;height:44px;border-radius:12px;background:var(--card);color:var(--brown);box-shadow:var(--shadow);display:flex;align-items:center;justify-content:center}
 .mic.on{background:#C0392B;color:#fff;animation:pulse 1s infinite}
 @keyframes pulse{50%{opacity:.6}}
+.big.glove{background:#2A2118;color:#FFD9B5}
+.glove-cam .view{flex:1}
+.g-panel{background:#14100C;padding:14px 16px calc(16px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:8px;color:#fff}
+.g-state{font-size:20px;font-weight:800;text-align:center;color:#FFD9B5}
+.g-state.big{font-size:26px}
+.g-heard{min-height:30px;font-size:20px;text-align:center;color:#fff;opacity:.9}
+.g-help{font-size:13px;text-align:center;color:rgba(255,255,255,.6)}
+.g-btns{display:flex;gap:10px}
+.g-b{flex:1;height:76px;border-radius:20px;background:#FFD9B5;color:#2A2118;font-size:22px;font-weight:800}
+.g-b.x{background:rgba(255,255,255,.14);color:#fff}
+.g-cnt{position:absolute;right:12px;top:calc(12px + env(safe-area-inset-top,0px));background:rgba(0,0,0,.55);color:#fff;border-radius:999px;font-size:15px;font-weight:800;padding:6px 12px}
+.g-cnt:empty{display:none}
 .add{height:42px;border-radius:12px;background:none;border:1.5px dashed var(--line);font-weight:700;color:var(--brown)}
 .tip{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);background:rgba(0,0,0,.55);color:#fff;font-size:12.5px;font-weight:600;border-radius:999px;padding:5px 11px;white-space:nowrap;pointer-events:none}
 .stage canvas.drag{cursor:grab;touch-action:none}
@@ -109,7 +121,7 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = '2026-10-01o';
+const PHOTO_VER = '2026-10-01q';
 async function checkVer() {
   try {
     const t = await (await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' })).text();
@@ -544,6 +556,7 @@ document.body.append(camIn, pickIn);
 
 function home() {
   appendNext = false;
+  knockCb = () => gloveMode();   // 첫 화면에서 똑똑똑 → 장갑 모드
   const cv = el('canvas', { width: 900, height: 560 });
   app.replaceChildren(
     el('div', { class: 'home' },
@@ -551,6 +564,10 @@ function home() {
       el('div', { class: 'sample' }, cv),
       el('button', { class: 'big pri', onclick: () => camera() }, '사진 찍기'),
       el('button', { class: 'big sec', onclick: () => pickIn.click() }, '앨범에서 고르기 (여러 장 가능)'),
+      el('button', { class: 'big glove', onclick: async () => { await allowMotion(); gloveMode(); } }, '🧤 장갑 모드 · 말로만 찍고 적기'),
+      el('div', { class: 'hint', style: 'margin-top:-6px', text: '장갑을 낀 채 휴대폰을 똑똑똑 세 번 두드려도 켜지고, 다시 똑똑똑 하면 꺼져요.' }),
+      el('div', { class: 'seg', style: 'justify-content:center' }, el('span', { class: 'hint', text: '두드림 감도' }),
+        ...[['low', '둔하게'], ['mid', '보통'], ['high', '예민하게']].map(([k, n]) => el('button', { class: ls.get('knockSens', 'mid') === k ? 'on' : '', onclick: e => { ls.set('knockSens', k); e.currentTarget.parentNode.querySelectorAll('button').forEach(b => b.classList.remove('on')); e.currentTarget.classList.add('on'); } }, n))),
       el('div', { class: 'hint', text: '찍을 때 글상자 자리가 흐릿하게 보여요. 사진은 휴대폰 안에서만 만들어져요.' })));
   const g = cv.getContext('2d'), bgc = document.createElement('canvas'); bgc.width = 900; bgc.height = 560;
   const b = bgc.getContext('2d'), gr = b.createLinearGradient(0, 0, 900, 560);
@@ -677,6 +694,7 @@ function micBtn(input, f) {
   return b;
 }
 function editor() {
+  knockCb = null;
   useLook(photos[cur]);
   cv = el('canvas', { class: 'drag' });
   const many = photos.length > 1;
@@ -777,6 +795,149 @@ function shapeIco(k) {
 }
 
 // 글상자를 넣은 사진 파일들
+// ---------- 장갑 모드: 처음 한 번만 누르고, 그다음은 말로만 ----------
+// "찍어" → 찰칵 → 앱이 "제목을 말씀하세요" 하고 차례로 묻고 듣기 → 읽어 주고 "저장할까요?" → "저장"이면 저장 → 다시 "찍어"를 기다려요
+// 끝낼 때는 "그만"이라고 말하거나 화면 아래 큰 버튼. 일자·위치는 저절로, 담당은 기억한 이름
+const norm = t => (t || '').replace(/[\s.,!?~'"]/g, '');
+const SAY = {
+  shoot: /찍어|찍기|촬영|사진|찰칵|치즈/, save: /저장|좋아|네|예|응|오케이|그래/, redo: /다시|아니|틀려|수정/,
+  drop: /버려|취소|지워/, quit: /그만|종료|끝내|나가/, same: /^(같음|같아|그대로|패스|넘어가|다음|없음)$/
+};
+function speak(t) {
+  return new Promise(res => {
+    try { if (!window.speechSynthesis) return res(); speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(t); u.lang = 'ko-KR'; u.rate = 1.05; u.onend = u.onerror = () => res(); speechSynthesis.speak(u); setTimeout(res, 300 + t.length * 260); } catch { res(); }
+  });
+}
+function beepClick() { try { const a = new (window.AudioContext || window.webkitAudioContext)(), o = a.createOscillator(), g = a.createGain(); o.frequency.value = 1400; g.gain.setValueAtTime(.3, a.currentTime); g.gain.exponentialRampToValueAtTime(.001, a.currentTime + .12); o.connect(g).connect(a.destination); o.start(); o.stop(a.currentTime + .13); } catch {} if (navigator.vibrate) navigator.vibrate(120); }
+// ---------- 똑똑똑: 휴대폰을 세 번 두드리면 장갑 모드 켜기·끄기 ----------
+// 장갑 낀 손은 화면이 눌리지 않아서, 화면 터치 대신 흔들림 센서로 '똑똑똑'(짧고 센 떨림 3번)을 알아채요
+let knockCb = null;   // 지금 똑똑똑을 받으면 할 일(첫 화면: 장갑 모드 켜기 / 장갑 모드: 끄기)
+const KNOCK_K = { low: 6, mid: 4, high: 2.6 };   // 떨림 세기 기준(예민할수록 작게)
+(() => {
+  let peaks = [], lastPeak = 0, prev = null, timer = 0;
+  addEventListener('devicemotion', e => {
+    const a = e.acceleration && e.acceleration.x != null ? e.acceleration : null, g = e.accelerationIncludingGravity;
+    let m;
+    if (a) m = Math.hypot(a.x, a.y, a.z);
+    else if (g && g.x != null) { const cur = [g.x, g.y, g.z]; m = prev ? Math.hypot(cur[0] - prev[0], cur[1] - prev[1], cur[2] - prev[2]) : 0; prev = cur; }
+    else return;
+    const now = performance.now(), K = KNOCK_K[ls.get('knockSens', 'mid')] || 4;
+    if (m <= K || now - lastPeak < 110) return;
+    lastPeak = now;
+    peaks = peaks.filter(t => now - t < 3000); peaks.push(now);
+    clearTimeout(timer);
+    // 마지막 떨림 뒤 0.4초 조용하면 판단: 바로 앞 0.8초 동안 조용했고, 정확히 3번이 0.65초 안쪽 간격으로 왔으면 똑똑똑
+    timer = setTimeout(() => {
+      const n = peaks.length, last3 = peaks.slice(-3);
+      const ok = n >= 3 && last3[1] - last3[0] < 650 && last3[2] - last3[1] < 650 && (n === 3 || last3[0] - peaks[n - 4] > 800);
+      peaks = [];
+      if (ok && knockCb) { if (navigator.vibrate) navigator.vibrate([60, 60, 60]); knockCb(); }
+    }, 400);
+  });
+})();
+// 아이폰은 흔들림 센서를 쓰려면 한 번 눌러서 허락받아야 해요
+async function allowMotion() { try { if (typeof DeviceMotionEvent !== 'undefined' && DeviceMotionEvent.requestPermission) return (await DeviceMotionEvent.requestPermission()) === 'granted'; } catch { return false; } return true; }
+let gloveOn = false;
+async function gloveMode() {
+  if (gloveOn) return; gloveOn = true;
+  if (!SR) { gloveOn = false; return alert('이 브라우저는 음성 인식이 안 돼요. 삼성 인터넷이나 크롬으로 열어 주세요.'); }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { gloveOn = false; return alert('이 브라우저는 카메라를 열 수 없어요.'); }
+  let stream; try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1440 } }, audio: false }); }
+  catch { gloveOn = false; return alert('카메라를 쓸 수 있게 허락해 주세요.'); }
+  let wake = null; try { wake = await navigator.wakeLock.request('screen'); } catch {}
+  const video = el('video', { autoplay: true, playsinline: true, muted: true }), ov = el('canvas');
+  video.srcObject = stream;
+  const here = hereNow(); let placeNow = '';
+  here.then(h => h && placeName(h.lat, h.lng).then(n => { if (n) placeNow = n; }));
+  const stEl = el('div', { class: 'g-state' }), heard = el('div', { class: 'g-heard' }), cnt = el('div', { class: 'g-cnt' });
+  let active = true, rec = null, state = 'wait', cur = null, saved = 0, loop = 0;
+  // 물어볼 칸: 켜 둔 칸 중 일자·위치(저절로)는 빼고, 담당은 기억한 이름이 없을 때만
+  let qi = 0, asking = [];
+  const askFields = () => asking;   // 찍을 때 정해 둬요(대답하는 동안 바뀌지 않게)
+  const pickFields = () => cfg.fields.filter(f => f.on && !['date', 'place'].includes(f.id) && !(f.id === 'who' && vals.who && vals.who !== EX.who));
+  const setState = (t, big) => { stEl.textContent = t; stEl.classList.toggle('big', !!big); };
+  const tick = () => {
+    const W = video.videoWidth, H = video.videoHeight;
+    if (W && H && !cur) { if (ov.width !== W) { ov.width = W; ov.height = H; } drawNote(ov.getContext('2d'), null, W, H, noteFor({ date: fmtDate(new Date()), place: placeNow || EX.place }), true); }
+    loop = requestAnimationFrame(tick);
+  };
+  const stopRec = () => { if (rec) { rec.onend = null; try { rec.abort(); } catch {} rec = null; } };
+  // 계속 듣기: 한 번 듣고 꺼지면 다시 켜요(말하는 동안은 안 들어요: 제 목소리를 알아듣지 않게)
+  const listen = () => {
+    if (!active) return;
+    stopRec();
+    const r = new SR(); r.lang = 'ko-KR'; r.interimResults = true; r.continuous = false;
+    let final = '';
+    r.onresult = ev => { const t = [...ev.results].map(x => x[0].transcript).join(''); heard.textContent = t; if (ev.results[ev.results.length - 1].isFinal) final = t; };
+    r.onerror = ev => { if (ev.error === 'not-allowed') { setState('마이크 사용을 허락해 주세요'); active = false; } };
+    r.onend = () => { rec = null; if (!active) return; if (final.trim()) handle(final.trim()); else setTimeout(listen, 150); };
+    try { r.start(); rec = r; } catch { setTimeout(listen, 500); }
+  };
+  const ask = async (text, big) => { stopRec(); setState(text, big); heard.textContent = ''; await speak(text); listen(); };
+  const askNext = () => {
+    const fs = askFields();
+    if (qi >= fs.length) return confirmIt();
+    const f = fs[qi], c = (f.label || '').charCodeAt(f.label.length - 1), jong = c >= 0xAC00 && c <= 0xD7A3 && (c - 0xAC00) % 28;
+    ask(`${f.label}${jong ? '을' : '를'} 말씀하세요`, true);
+  };
+  const summary = () => cfg.fields.filter(f => f.on && !['date', 'place'].includes(f.id)).map(f => `${f.label} ${vals[f.id] || '없음'}`).join(', ');
+  const confirmIt = () => { state = 'confirm'; ask(`${summary()}. 저장할까요?`); };
+  async function shoot() {
+    const W = video.videoWidth, H = video.videoHeight; if (!W) return listen();
+    const c = document.createElement('canvas'); c.width = W; c.height = H; c.getContext('2d').drawImage(video, 0, 0);
+    beepClick(); wrap.animate([{ opacity: .3 }, { opacity: 1 }], 200);
+    const h = await Promise.race([here, new Promise(r => setTimeout(() => r(null), 50))]);
+    cur = photoOf(await createImageBitmap(c), new Date(), h?.lat, h?.lng); cur.place = placeNow || '';
+    const g = ov.getContext('2d'); ov.width = cur.W; ov.height = cur.H; drawNote(g, cur.bmp, cur.W, cur.H, noteFor(cur));
+    state = 'ask'; qi = 0; asking = pickFields(); askNext();
+  }
+  async function saveCur() {
+    const c = document.createElement('canvas'); c.width = cur.W; c.height = cur.H; drawNote(c.getContext('2d'), cur.bmp, cur.W, cur.H, noteFor(cur));
+    const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.9)); const now = new Date();
+    if (blob) { const url = URL.createObjectURL(blob), a = el('a', { href: url, download: `photo_${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}.jpg` }); document.body.append(a); a.click(); setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 30000); }
+    saved++; cnt.textContent = `${saved}장 저장함`; cur = null; saveCfg();
+  }
+  async function handle(t) {
+    const n = norm(t);
+    if (SAY.quit.test(n) && state !== 'ask') return finish();
+    if (state === 'wait') { if (SAY.shoot.test(n)) return shoot(); return listen(); }
+    if (state === 'ask') {
+      const f = askFields()[qi];
+      if (SAY.drop.test(n) && n.length <= 4) { cur = null; state = 'wait'; await speak('사진을 버렸어요'); setState('"찍어"라고 말하면 찍어요', true); return listen(); }
+      if (!SAY.same.test(n)) { vals[f.id] = t.slice(0, f.id === 'memo' ? 60 : 30); if (f.id === 'who') saveCfg(); }
+      const g = ov.getContext('2d'); drawNote(g, cur.bmp, cur.W, cur.H, noteFor(cur));
+      qi++; return askNext();
+    }
+    if (state === 'confirm') {
+      if (SAY.drop.test(n)) { cur = null; state = 'wait'; await speak('사진을 버렸어요'); }
+      else if (SAY.redo.test(n)) { state = 'ask'; qi = 0; return askNext(); }
+      else if (SAY.save.test(n)) { await saveCur(); state = 'wait'; await speak('저장했어요'); }
+      else return ask('저장, 다시, 버려 중에 말씀하세요');
+      setState('"찍어"라고 말하면 찍어요', true); heard.textContent = ''; return listen();
+    }
+  }
+  function finish() {
+    if (!active) return;
+    active = false; gloveOn = false; stopRec(); try { speechSynthesis.cancel(); } catch {}
+    cancelAnimationFrame(loop); stream.getTracks().forEach(t => t.stop()); try { wake && wake.release(); } catch {}
+    wrap.remove(); home(); speak(saved ? `장갑 모드를 끝내요. ${saved}장 저장했어요` : '장갑 모드를 끝내요'); if (saved) toast(`${saved}장을 저장했어요 (사진첩 > 다운로드)`);
+  }
+  const wrap = el('div', { class: 'cam glove-cam' },
+    el('div', { class: 'view' }, video, ov, cnt),
+    el('div', { class: 'g-panel' }, stEl, heard,
+      el('div', { class: 'g-help', text: '말: "찍어" · 묻는 칸 대답("같음"=그대로) · "저장" / "다시" / "버려" · 끝낼 때 "그만" 또는 휴대폰을 똑똑똑' }),
+      el('div', { class: 'g-btns' },
+        el('button', { class: 'g-b', onclick: () => { if (state === 'wait') shoot(); } }, '찍기'),
+        el('button', { class: 'g-b x', onclick: finish }, '끝내기'))));
+  document.body.append(wrap);
+  knockCb = () => finish();
+  tick();
+  state = 'wait';
+  if (navigator.vibrate) navigator.vibrate(300);
+  await speak('장갑 모드를 시작해요. 찍어 라고 말하면 찍어요');
+  setState('"찍어"라고 말하면 찍어요', true);
+  listen();
+}
 async function render() {
   const out = [];
   for (const [i, p] of photos.entries()) {
