@@ -92,6 +92,7 @@
 3. 정식 버전(Firebase) 맞추고 배포
 4. 위치정보법상 위치기반서비스사업 신고 필요 여부 확인
 5. 앱 포장(Capacitor)으로 백그라운드 위치/푸시 알림
+6. (2026-10-01 사용자 결정, 나중에) 사진 글상자(`photo/`)·소방 사진대지(`fire/`)를 다왔나 저장소에서 떼어 각자 저장소로(이름 후보 `GilbertGo/photonote`, `GilbertGo/firesheet`). Claude는 저장소를 만들 권한이 없어(403) 사용자가 빈 저장소를 만들고 Claude GitHub 앱 접근 허용 + Pages 켜기가 필요. 옮긴 뒤 옛 주소(`/allhere/photo/`, `/allhere/fire/`)는 새 주소로 넘겨 주는 페이지로. 같은 gilbertgo.github.io라 저장된 설정(localStorage)은 그대로 이어짐.
 
 ## 고성식 님이 정한 원칙 (앞으로도 계속 지킬 것)
 새 기능을 만들거나 고칠 때 아래를 먼저 확인한다. 어기면 사용자가 다시 지적해야 하니, 시키기 전에 알아서 챙긴다.
