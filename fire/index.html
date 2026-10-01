@@ -119,6 +119,7 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
 .cam .chips{display:flex;gap:6px;justify-content:center;padding:calc(10px + env(safe-area-inset-top,0px)) 10px 8px;flex-wrap:wrap}
 .cam .chips button{height:34px;border-radius:999px;background:rgba(255,255,255,.14);color:#fff;font-weight:700;font-size:13.5px;padding:0 12px}
 .cam .chips button.on{background:#fff;color:#2A2118}
+.cam .edit{position:absolute;right:12px;bottom:12px;height:40px;border-radius:999px;background:rgba(255,255,255,.92);color:#2A2118;font-weight:800;font-size:14.5px;padding:0 16px;box-shadow:0 2px 10px rgba(0,0,0,.3)}
 .cam .shots{position:absolute;left:12px;bottom:12px;background:rgba(0,0,0,.55);color:#fff;border-radius:999px;font-size:13px;font-weight:700;padding:5px 11px}
 .ps{position:fixed;inset:0;z-index:60;background:#E9E6DF;overflow:auto;-webkit-overflow-scrolling:touch}
 .ps-bar{position:sticky;top:0;display:flex;gap:8px;padding:10px 12px;background:#2B2118;z-index:1}
@@ -147,7 +148,7 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = 'fire-2026-10-01a';
+const PHOTO_VER = 'fire-2026-10-01b';
 async function checkVer() {
   try {
     const t = await (await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' })).text();
@@ -665,18 +666,18 @@ async function load(files, fresh) {
 }
 
 // 글상자를 손가락으로 끌어 옮겨요(편집 화면·카메라 화면 같이 씀). getBox: 지금 그린 자리, size: 그림 크기
-function dragBox(canvas, getBox, size, onMove) {
+function dragBox(canvas, getBox, size, onMove, onTap) {
   let drag = null;
   const toImg = e => { const r = canvas.getBoundingClientRect(), [W, H] = size(), s = Math.min(r.width / W, r.height / H), ox = (r.width - W * s) / 2, oy = (r.height - H * s) / 2;
     return [(e.clientX - r.left - ox) / s, (e.clientY - r.top - oy) / s]; };
   canvas.addEventListener('pointerdown', e => {
     const b = getBox(); if (!b) return; const [x, y] = toImg(e), pad = 30;
     if (x < b.x - pad || x > b.x + b.w + pad || y < b.y - pad || y > b.y + b.h + pad) return;
-    drag = { dx: x - b.x, dy: y - b.y }; canvas.setPointerCapture(e.pointerId); e.preventDefault();
+    drag = { dx: x - b.x, dy: y - b.y, sx: e.clientX, sy: e.clientY, moved: false }; canvas.setPointerCapture(e.pointerId); e.preventDefault();
   });
-  canvas.addEventListener('pointermove', e => { if (!drag) return; const [x, y] = toImg(e), [W, H] = size(); cfg.at[cfg.layout] = { x: (x - drag.dx) / W, y: (y - drag.dy) / H }; onMove(); });
+  canvas.addEventListener('pointermove', e => { if (!drag) return; if (!drag.moved && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) < 8) return; drag.moved = true; const [x, y] = toImg(e), [W, H] = size(); cfg.at[cfg.layout] = { x: (x - drag.dx) / W, y: (y - drag.dy) / H }; onMove(); });
   const end = () => { if (drag) { drag = null; saveCfg(); } };
-  canvas.addEventListener('pointerup', end); canvas.addEventListener('pointercancel', end);
+  canvas.addEventListener('pointerup', () => { const tap = drag && !drag.moved; end(); if (tap && onTap) onTap(); }); canvas.addEventListener('pointercancel', end);
 }
 
 // ---------- 카메라: 글상자 자리를 흐릿하게 보며 찍어요 ----------
@@ -686,6 +687,8 @@ async function camera() {
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return camIn.click();   // 안 되는 브라우저는 휴대폰 카메라 앱으로
   const video = el('video', { autoplay: true, playsinline: true, muted: true }), ov = el('canvas', { class: 'drag' });
   const shots = [], here = hereNow(); let placeNow = '', box = null;
+  const camVals = {};   // 카메라에서 고친 사진마다 칸(일자·위치 등). 이어서 찍는 사진에 같이 들어가요
+  const ghostP = () => Object.assign({ date: fmtDate(new Date()), place: placeNow || EX.place }, typeof perDefaults === 'function' ? perDefaults() : {}, camVals);
   here.then(h => h && placeName(h.lat, h.lng).then(n => { if (n) placeNow = n; }));
   const shotsEl = el('div', { class: 'shots', style: 'display:none' });
   const chips = el('div', { class: 'chips' });
@@ -701,22 +704,34 @@ async function camera() {
   let loop = 0;
   const tick = () => {
     const W = video.videoWidth, H = video.videoHeight;
-    if (W && H) { if (ov.width !== W || ov.height !== H) { ov.width = W; ov.height = H; } box = drawNote(ov.getContext('2d'), null, W, H, noteFor({ date: fmtDate(new Date()), place: placeNow || EX.place }), true); }
+    if (W && H) { if (ov.width !== W || ov.height !== H) { ov.width = W; ov.height = H; } box = drawNote(ov.getContext('2d'), null, W, H, noteFor(ghostP()), true); }
     loop = requestAnimationFrame(tick);
   };
-  dragBox(ov, () => box, () => [video.videoWidth || 1, video.videoHeight || 1], () => {});
+    // 글상자를 누르거나 '✏️ 글 고치기' → 찍기 전에 글을 고쳐요(고치는 대로 화면 글상자도 바로 바뀜)
+  const editText = () => {
+    const on = cfg.fields.filter(f => f.on); if (!on.length) return toast('켠 항목이 없어요');
+    const g = ghostP(), bg = el('div', { class: 'sheet-bg', onclick: e => { if (e.target === bg) bg.remove(); } });
+    const row = f => { const i = el('input', { type: 'text', id: 'c-' + f.id, maxlength: f.id === 'memo' ? 60 : 30, placeholder: PH[f.id] || '', value: (f.per ? g[f.id] : vals[f.id]) || '',
+        onfocus: () => { if (i.value && i.value === EX[f.id]) setTimeout(() => i.select(), 0); },
+        oninput: () => { if (f.per) camVals[f.id] = i.value; else { vals[f.id] = i.value; if (f.id !== 'title' && f.id !== 'memo') saveCfg(); } } });
+      return el('label', { class: 'f', for: 'c-' + f.id }, f.label, el('div', { class: 'inrow' }, i, micBtn(i, f))); };
+    bg.append(el('div', { class: 'sheet' }, el('h2', { text: '글상자 고치기' }), el('div', { class: 'hint', style: 'text-align:left', text: '고친 글은 이제부터 찍는 사진에 들어가요.' }),
+      ...on.map(row), el('button', { class: 'big pri', onclick: () => bg.remove() }, '다 고쳤어요')));
+    document.body.append(bg);
+  };
+  dragBox(ov, () => box, () => [video.videoWidth || 1, video.videoHeight || 1], () => {}, editText);
   const shoot = async () => {
     const W = video.videoWidth, H = video.videoHeight; if (!W) return;
     const c = document.createElement('canvas'); c.width = W; c.height = H; c.getContext('2d').drawImage(video, 0, 0);
     const h = await Promise.race([here, new Promise(r => setTimeout(() => r(null), 50))]);
-    const p = photoOf(await createImageBitmap(c), new Date(), h?.lat, h?.lng); if (placeNow) p.place = placeNow;
+    const p = photoOf(await createImageBitmap(c), new Date(), h?.lat, h?.lng); if (placeNow) p.place = placeNow; Object.assign(p, camVals);
     shots.push(p); shotsEl.style.display = ''; shotsEl.textContent = `${shots.length}장 찍음`;
     wrap.animate([{ opacity: 0.3 }, { opacity: 1 }], 180);
   };
   const done = () => { stop(); if (!shots.length) return photos.length ? editor() : home(); photos = photos.concat(shots); cur = photos.length - shots.length; editor(); fillPlaces(shots, here); };
   const wrap = el('div', { class: 'cam' },
     chips,
-    el('div', { class: 'view' }, video, ov, shotsEl),
+    el('div', { class: 'view' }, video, ov, shotsEl, el('button', { class: 'edit', onclick: editText }, '✏️ 글 고치기')),
     el('div', { class: 'bar' },
       el('button', { class: 'side', onclick: done }, '다 찍음'),
       el('button', { class: 'shut', 'aria-label': '찍기', onclick: shoot }),
