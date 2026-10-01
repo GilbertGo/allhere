@@ -102,7 +102,7 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = '2026-10-01i';
+const PHOTO_VER = '2026-10-01j';
 async function checkVer() {
   try {
     const t = await (await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' })).text();
@@ -489,10 +489,11 @@ const DEF_FIELDS = [
   { id: 'who', label: '담당', on: true, icon: 'pen' }
 ];
 const PH = { title: '예: 점심 삼대째손두부', date: '예: 2026.10.01', place: '예: 서구 공촌동', memo: '예: 콩물, 두부김치 무료', who: '예: 장남덕' };
-const cfg = Object.assign({ layout: 'table', theme: 'light', size: 1, tRound: true, tBg: 'white', tLine: 'dark', tStyle: 'basic', tEdge: 'none', tIn: 'light', tInW: 'hair', color: COLORS[0][1], at: {}, fields: DEF_FIELDS }, ls.get('cfg', {}));
+const cfg = Object.assign({ layout: 'table', theme: 'light', size: 0.65, tRound: true, tBg: 'white', tLine: 'dark', tStyle: 'basic', tEdge: 'none', tIn: 'light', tInW: 'hair', color: COLORS[0][1], at: {}, fields: DEF_FIELDS }, ls.get('cfg', {}));
 if (ls.get('color')) { cfg.color = ls.get('color'); }
 // 2026-10-01 사용자가 고른 표 모양(A: 바깥 테두리 없이 그림자, 연회색 아주 얇은 칸 선)을 한 번 기본으로 맞춰요
 if ((cfg.tVer || 0) < 3) Object.assign(cfg, { tVer: 3, layout: 'table', tStyle: 'basic', tEdge: 'none', tIn: 'light', tInW: 'hair', tRound: true, tBg: 'white' });   // 2026-10-01 표(A)를 기본 모양으로
+if ((cfg.tVer || 0) < 4) Object.assign(cfg, { tVer: 4, size: 0.65 });   // 2026-10-01 글상자를 더 작게(작게)를 기본으로
 // 예시 글: 처음부터 글상자에 들어가 있고, 칸을 누르면 통째로 골라져서 바로 고쳐 쓸 수 있어요
 const EX = { title: '점심 삼대째손두부', place: '서구 공촌동', memo: '콩물, 두부김치 무료', who: '장남덕' };
 const vals = Object.assign({ title: '', memo: '', who: ls.get('who', '') }, ls.get('vals', {}), { title: EX.title, memo: EX.memo });   // 담당·직접 만든 항목은 기억, 제목·내용은 예시로 새로
@@ -683,7 +684,7 @@ function editor() {
         el('div', { class: 'optrow' }, el('span', { text: '칸 선 굵기' }), seg([['hair', '아주 얇게'], ['thin', '얇게'], ['normal', '기본 굵기']], cfg.tInW, v => { cfg.tInW = v; })),
         el('div', { class: 'optrow' }, el('span', { text: '모서리' }), seg([[true, '둥글게'], [false, '각지게']], cfg.tRound, v => { cfg.tRound = v; })),
         el('div', { class: 'optrow' }, el('span', { text: '선' }), seg([['dark', '진하게'], ['soft', '연하게']], cfg.tLine, v => { cfg.tLine = v; }))] : []),
-      el('div', { class: 'optrow' }, el('span', { text: '글자 크기' }), seg([[0.8, '작게'], [1, '보통'], [1.25, '크게']], cfg.size, v => { cfg.size = v; })),
+      el('div', { class: 'optrow' }, el('span', { text: '크기' }), seg([[0.5, '아주 작게'], [0.65, '작게'], [0.8, '보통'], [1, '크게']], cfg.size, v => { cfg.size = v; })),
       el('div', { class: 'optrow' }, el('span', { text: '제목 색' }), el('div', { class: 'dots' }, COLORS.map(([n, c, d]) => el('button', { class: 'dot' + (cfg.color === c ? ' on' : ''), style: `background:${cfg.theme === 'dark' || cfg.layout === 'plain' ? d : c}`, 'aria-label': `제목 ${n}`,
         onclick: () => { cfg.color = c; saveCfg(); redraw(); drawPanel(); } })))),
       el('div', { class: 'optrow' }, el('span', { text: '자리' }), el('div', { class: 'seg' },
