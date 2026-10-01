@@ -103,7 +103,7 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = '2026-10-01l';
+const PHOTO_VER = '2026-10-01m';
 async function checkVer() {
   try {
     const t = await (await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' })).text();
@@ -402,7 +402,7 @@ function measureNote(g, note, W, H) {
   }
 
   // 카드: 제목 → [일자 칸 | 나머지 칸] → 담당(오른쪽 끝)
-  const bw = (W - 2 * m) * Math.min(1, (note.size || 1) / 0.8), p = 3.6 * u, inW = bw - 2 * p,   // 카드 너비: 보통 이상은 가득, 작게는 좁게
+  const bw = (W - 2 * m) * Math.min(1, (note.size || 1) / 0.88), p = 3.6 * u, inW = bw - 2 * p,   // 카드 너비: 보통 이상은 가득, 작게는 좁게
   gap = 2.2 * u, cp = 2.6 * u, rad = 2.6 * u;
   const dateR = rows.find(r => r.id === 'date'), whoR = rows.find(r => r.id === 'who'), rest = rows.filter(r => r !== dateR && r !== whoR);
   const serif = () => { g.font = `900 ${7 * u}px 'Noto Serif KR','Nanum Myeongjo',serif`; };   // 카드 제목은 명조(삼성 갤러리 카드처럼)
@@ -460,12 +460,13 @@ function drawNote(g, img, W, H, note, ghost) {
   g.save();
   if (ghost) g.globalAlpha = 0.55;
   if (L.box) {
-    g.save(); g.beginPath(); g.roundRect(x, y, L.w, L.h, 4 * L.u); g.clip();
+    const R0 = (['strip', 'column'].includes(note.layout) || note.theme === 'dark' ? 4 : 4.8) * L.u;   // 기본 카드는 모서리 조금 더 둥글게
+    g.save(); g.beginPath(); g.roundRect(x, y, L.w, L.h, R0); g.clip();
     if (img && 'filter' in g) { g.filter = `blur(${Math.round(2.4 * L.u)}px)`; g.drawImage(img, 0, 0, W, H); g.filter = 'none'; }
     const isCard = !['strip', 'column'].includes(note.layout) && note.theme !== 'dark';   // 기본 카드: 더 투명하게, 테두리 없이
     g.fillStyle = isCard ? 'rgba(255,252,246,.38)' : T.box; g.fillRect(x, y, L.w, L.h);
     g.restore();
-    if (!isCard) { g.beginPath(); g.roundRect(x, y, L.w, L.h, 4 * L.u); g.strokeStyle = T.edge; g.lineWidth = Math.max(1, 0.35 * L.u); g.stroke(); }
+    g.beginPath(); g.roundRect(x, y, L.w, L.h, R0); g.strokeStyle = isCard ? 'rgba(255,255,255,.75)' : T.edge; g.lineWidth = Math.max(1, (isCard ? 0.18 : 0.35) * L.u); g.stroke();   // 기본 카드는 얇은 흰 선
   }
   if (L.blurR && img && 'filter' in g) {   // 반투명 표: 뒤 사진을 흐리게
     g.save(); g.beginPath(); g.roundRect(x, y, L.w, L.h, L.blurR); g.clip(); g.filter = `blur(${Math.round(2.4 * L.u)}px)`; g.drawImage(img, 0, 0, W, H); g.filter = 'none'; g.restore();
@@ -479,7 +480,7 @@ function drawNote(g, img, W, H, note, ghost) {
 // 항목: 켜기/끄기, 이름 바꾸기, 순서 바꾸기, 새 항목 추가. 일자·위치는 사진마다, 나머지는 모든 사진에 같이
 // 표 빠른 선택 조합(사용자에게 보여준 시안). A = 기본
 const TABLE_PRESETS = [
-  { name: '기본 카드', v: { layout: 'card', theme: 'light', size: 0.8 } },
+  { name: '기본 카드', v: { layout: 'card', theme: 'light', size: 0.88 } },
   { name: 'A 표', v: { layout: 'table', tStyle: 'basic', tBg: 'white', tRound: true, tEdge: 'none', tIn: 'light', tInW: 'hair', tLine: 'dark' } },
   { name: '1 흰색·검은 선', v: { layout: 'table', tStyle: 'basic', tBg: 'white', tRound: true, tEdge: 'bold', tIn: 'black', tInW: 'normal', tLine: 'dark' } },
   { name: '2 반투명', v: { layout: 'table', tStyle: 'basic', tBg: 'glass', tRound: true, tEdge: 'thin', tIn: 'gray', tInW: 'thin', tLine: 'soft' } },
@@ -496,12 +497,13 @@ const DEF_FIELDS = [
   { id: 'who', label: '담당', on: true, icon: 'pen' }
 ];
 const PH = { title: '예: 점심 삼대째손두부', date: '예: 2026.10.01', place: '예: 서구 공촌동', memo: '예: 콩물, 두부김치 무료', who: '예: 장남덕' };
-const cfg = Object.assign({ layout: 'card', theme: 'light', size: 0.8, tRound: true, tBg: 'white', tLine: 'dark', tStyle: 'basic', tEdge: 'none', tIn: 'light', tInW: 'hair', color: COLORS[0][1], at: {}, fields: DEF_FIELDS }, ls.get('cfg', {}));
+const cfg = Object.assign({ layout: 'card', theme: 'light', size: 0.88, tRound: true, tBg: 'white', tLine: 'dark', tStyle: 'basic', tEdge: 'none', tIn: 'light', tInW: 'hair', color: COLORS[0][1], at: {}, fields: DEF_FIELDS }, ls.get('cfg', {}));
 if (ls.get('color')) { cfg.color = ls.get('color'); }
 // 2026-10-01 사용자가 고른 표 모양(A: 바깥 테두리 없이 그림자, 연회색 아주 얇은 칸 선)을 한 번 기본으로 맞춰요
 if ((cfg.tVer || 0) < 3) Object.assign(cfg, { tVer: 3, layout: 'table', tStyle: 'basic', tEdge: 'none', tIn: 'light', tInW: 'hair', tRound: true, tBg: 'white' });   // 2026-10-01 표(A)를 기본 모양으로
 if ((cfg.tVer || 0) < 4) Object.assign(cfg, { tVer: 4, size: 0.65 });   // 2026-10-01 글상자를 더 작게(작게)를 기본으로
-if ((cfg.tVer || 0) < 5) Object.assign(cfg, { tVer: 5, layout: 'card', theme: 'light', size: 0.8 });   // 2026-10-01 사용자가 고른 기본: 삼성 갤러리 모양 카드
+if ((cfg.tVer || 0) < 5) Object.assign(cfg, { tVer: 5, layout: 'card', theme: 'light', size: 0.8 });
+if ((cfg.tVer || 0) < 6) Object.assign(cfg, { tVer: 6, size: cfg.layout === 'card' ? 0.88 : cfg.size });   // 기본 카드 조금 크게   // 2026-10-01 사용자가 고른 기본: 삼성 갤러리 모양 카드
 // 예시 글: 처음부터 글상자에 들어가 있고, 칸을 누르면 통째로 골라져서 바로 고쳐 쓸 수 있어요
 const EX = { title: '점심 삼대째손두부', place: '서구 공촌동', memo: '콩물, 두부김치 무료', who: '장남덕' };
 const vals = Object.assign({ title: '', memo: '', who: ls.get('who', '') }, ls.get('vals', {}), { title: EX.title, memo: EX.memo });   // 담당·직접 만든 항목은 기억, 제목·내용은 예시로 새로
@@ -692,7 +694,7 @@ function editor() {
         el('div', { class: 'optrow' }, el('span', { text: '칸 선 굵기' }), seg([['hair', '아주 얇게'], ['thin', '얇게'], ['normal', '기본 굵기']], cfg.tInW, v => { cfg.tInW = v; })),
         el('div', { class: 'optrow' }, el('span', { text: '모서리' }), seg([[true, '둥글게'], [false, '각지게']], cfg.tRound, v => { cfg.tRound = v; })),
         el('div', { class: 'optrow' }, el('span', { text: '선' }), seg([['dark', '진하게'], ['soft', '연하게']], cfg.tLine, v => { cfg.tLine = v; }))] : []),
-      el('div', { class: 'optrow' }, el('span', { text: '크기' }), seg([[0.5, '아주 작게'], [0.65, '작게'], [0.8, '보통'], [1, '크게']], cfg.size, v => { cfg.size = v; })),
+      el('div', { class: 'optrow' }, el('span', { text: '크기' }), seg([[0.5, '아주 작게'], [0.65, '작게'], [0.88, '보통'], [1, '크게']], cfg.size, v => { cfg.size = v; })),
       el('div', { class: 'optrow' }, el('span', { text: '제목 색' }), el('div', { class: 'dots' }, COLORS.map(([n, c, d]) => el('button', { class: 'dot' + (cfg.color === c ? ' on' : ''), style: `background:${cfg.theme === 'dark' || cfg.layout === 'plain' ? d : c}`, 'aria-label': `제목 ${n}`,
         onclick: () => { cfg.color = c; saveCfg(); redraw(); drawPanel(); } })))),
       el('div', { class: 'optrow' }, el('span', { text: '자리' }), el('div', { class: 'seg' },
