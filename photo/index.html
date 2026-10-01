@@ -10,6 +10,7 @@
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@600&display=swap">
 <style>
 :root{--bg:#F5F0E8;--card:#FFFDF9;--ink:#2A2118;--muted:#7A6E62;--line:#E6DCCD;--soft:#EFE7DA;--brown:#6B3F1F;--accent:#C8793A;--shadow:0 1px 2px rgba(60,40,20,.06),0 6px 18px rgba(60,40,20,.08)}
 *{box-sizing:border-box}
@@ -102,7 +103,7 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = '2026-10-01j';
+const PHOTO_VER = '2026-10-01k';
 async function checkVer() {
   try {
     const t = await (await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' })).text();
@@ -116,6 +117,8 @@ async function checkVer() {
   } catch {}
 }
 checkVer();
+// 명조 글꼴은 캔버스가 쓸 때 저절로 받지 않아서 미리 받아 두고 다시 그려요
+try { document.fonts.load("600 20px 'Noto Serif KR'", '점심 삼대째손두부').then(() => { if (typeof redraw === 'function') redraw(); }); } catch {}
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && !photos.length) checkVer(); });
 const ls = {
   get(k, d) { try { const v = localStorage.getItem('photoNote:' + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
@@ -399,9 +402,11 @@ function measureNote(g, note, W, H) {
   }
 
   // 카드: 제목 → [일자 칸 | 나머지 칸] → 담당(오른쪽 끝)
-  const bw = W - 2 * m, p = 3.6 * u, inW = bw - 2 * p, gap = 2.2 * u, cp = 2.6 * u, rad = 2.6 * u;
+  const bw = (W - 2 * m) * Math.min(1, (note.size || 1) / 0.8), p = 3.6 * u, inW = bw - 2 * p,   // 카드 너비: 보통 이상은 가득, 작게는 좁게
+  gap = 2.2 * u, cp = 2.6 * u, rad = 2.6 * u;
   const dateR = rows.find(r => r.id === 'date'), whoR = rows.find(r => r.id === 'who'), rest = rows.filter(r => r !== dateR && r !== whoR);
-  font(800, 7 * u); const tL = note.title ? lines(g, note.title, inW, 2) : [];
+  const serif = () => { g.font = `600 ${7 * u}px 'Noto Serif KR','Nanum Myeongjo',serif`; };   // 카드 제목은 명조(삼성 갤러리 카드처럼)
+  serif(); const tL = note.title ? lines(g, note.title, inW, 2) : [];
   const tH = tL.length ? tL.length * 7 * u * 1.25 : 0;
   const rightOn = rest.length > 0, leftOn = !!dateR;
   font(600, fs * 1.25); const dateW = leftOn ? g.measureText(dateR.value).width + 2 * cp + u : 0;
@@ -418,7 +423,7 @@ function measureNote(g, note, W, H) {
   const h = 2 * p + parts.reduce((a, b) => a + b, 0) + gap * (parts.length - 1);
   return { w: bw, h, u, def: [m, m], box: true, paint(bx, by) {
     let y = by + p;
-    if (tL.length) { font(800, 7 * u); tL.forEach((t, i) => text(t, bx + p, y + i * 7 * u * 1.25, T.title)); y += tH + gap; }
+    if (tL.length) { serif(); tL.forEach((t, i) => text(t, bx + p, y + i * 7 * u * 1.25, T.title)); y += tH + gap; }
     if (rowH) {
       const chip = (x, w) => { g.fillStyle = T.chip; rr(x, y, w, rowH, rad); g.fill(); };
       if (leftOn) {
@@ -473,7 +478,8 @@ function drawNote(g, img, W, H, note, ghost) {
 // 항목: 켜기/끄기, 이름 바꾸기, 순서 바꾸기, 새 항목 추가. 일자·위치는 사진마다, 나머지는 모든 사진에 같이
 // 표 빠른 선택 조합(사용자에게 보여준 시안). A = 기본
 const TABLE_PRESETS = [
-  { name: 'A 기본', v: { layout: 'table', tStyle: 'basic', tBg: 'white', tRound: true, tEdge: 'none', tIn: 'light', tInW: 'hair', tLine: 'dark' } },
+  { name: '기본 카드', v: { layout: 'card', theme: 'light', size: 0.8 } },
+  { name: 'A 표', v: { layout: 'table', tStyle: 'basic', tBg: 'white', tRound: true, tEdge: 'none', tIn: 'light', tInW: 'hair', tLine: 'dark' } },
   { name: '1 흰색·검은 선', v: { layout: 'table', tStyle: 'basic', tBg: 'white', tRound: true, tEdge: 'bold', tIn: 'black', tInW: 'normal', tLine: 'dark' } },
   { name: '2 반투명', v: { layout: 'table', tStyle: 'basic', tBg: 'glass', tRound: true, tEdge: 'thin', tIn: 'gray', tInW: 'thin', tLine: 'soft' } },
   { name: '3 투명', v: { layout: 'table', tStyle: 'basic', tBg: 'clear', tRound: true, tEdge: 'bold', tIn: 'black', tInW: 'normal', tLine: 'dark' } },
@@ -489,11 +495,12 @@ const DEF_FIELDS = [
   { id: 'who', label: '담당', on: true, icon: 'pen' }
 ];
 const PH = { title: '예: 점심 삼대째손두부', date: '예: 2026.10.01', place: '예: 서구 공촌동', memo: '예: 콩물, 두부김치 무료', who: '예: 장남덕' };
-const cfg = Object.assign({ layout: 'table', theme: 'light', size: 0.65, tRound: true, tBg: 'white', tLine: 'dark', tStyle: 'basic', tEdge: 'none', tIn: 'light', tInW: 'hair', color: COLORS[0][1], at: {}, fields: DEF_FIELDS }, ls.get('cfg', {}));
+const cfg = Object.assign({ layout: 'card', theme: 'light', size: 0.8, tRound: true, tBg: 'white', tLine: 'dark', tStyle: 'basic', tEdge: 'none', tIn: 'light', tInW: 'hair', color: COLORS[0][1], at: {}, fields: DEF_FIELDS }, ls.get('cfg', {}));
 if (ls.get('color')) { cfg.color = ls.get('color'); }
 // 2026-10-01 사용자가 고른 표 모양(A: 바깥 테두리 없이 그림자, 연회색 아주 얇은 칸 선)을 한 번 기본으로 맞춰요
 if ((cfg.tVer || 0) < 3) Object.assign(cfg, { tVer: 3, layout: 'table', tStyle: 'basic', tEdge: 'none', tIn: 'light', tInW: 'hair', tRound: true, tBg: 'white' });   // 2026-10-01 표(A)를 기본 모양으로
 if ((cfg.tVer || 0) < 4) Object.assign(cfg, { tVer: 4, size: 0.65 });   // 2026-10-01 글상자를 더 작게(작게)를 기본으로
+if ((cfg.tVer || 0) < 5) Object.assign(cfg, { tVer: 5, layout: 'card', theme: 'light', size: 0.8 });   // 2026-10-01 사용자가 고른 기본: 삼성 갤러리 모양 카드
 // 예시 글: 처음부터 글상자에 들어가 있고, 칸을 누르면 통째로 골라져서 바로 고쳐 쓸 수 있어요
 const EX = { title: '점심 삼대째손두부', place: '서구 공촌동', memo: '콩물, 두부김치 무료', who: '장남덕' };
 const vals = Object.assign({ title: '', memo: '', who: ls.get('who', '') }, ls.get('vals', {}), { title: EX.title, memo: EX.memo });   // 담당·직접 만든 항목은 기억, 제목·내용은 예시로 새로
