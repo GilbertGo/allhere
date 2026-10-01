@@ -336,7 +336,10 @@ function measureNote(g, note, W, H) {
       else if (bg === 'glass') { g.fillStyle = 'rgba(255,255,255,.62)'; g.fillRect(x, y, w, h); }
       else { g.fillStyle = 'rgba(0,0,0,.18)'; g.fillRect(x, y, w, h); }   // 투명: 아주 옅은 그늘만(흰 글씨가 읽히게)
       if (clear) { g.shadowColor = 'rgba(0,0,0,.65)'; g.shadowBlur = 1.2 * u; }
-      g.strokeStyle = lineC; g.lineWidth = thin;
+      // 안쪽 칸 선: 색(검정·진회색·연회색·제목 색) · 굵기(아주 가늘게·가늘게·보통)
+      const inC = clear ? 'rgba(255,255,255,.75)' : { gray: '#8F8B84', light: '#D6D2CA', color: mix(c[1], 0.45) }[note.tIn] || lineC;
+      const inW = Math.max(1, ({ hair: 0.1, thin: 0.17, normal: 0.28 }[note.tInW] || (thin / u)) * u);
+      g.strokeStyle = inC; g.lineWidth = inW;
       const hl = (yy, lw) => { g.save(); if (lw) g.lineWidth = lw; g.beginPath(); g.moveTo(x, yy); g.lineTo(x + w, yy); g.stroke(); g.restore(); };
       const vl = (xx, y0, y1) => { if (!vLines) return; g.beginPath(); g.moveTo(xx, y0); g.lineTo(xx, y1); g.stroke(); };
       let cy = y;
@@ -455,7 +458,7 @@ const DEF_FIELDS = [
   { id: 'who', label: '담당', on: true, icon: 'pen' }
 ];
 const PH = { title: '예: 점심 삼대째손두부', date: '예: 2026.10.01', place: '예: 서구 공촌동', memo: '예: 콩물, 두부김치 무료', who: '예: 장남덕' };
-const cfg = Object.assign({ layout: 'card', theme: 'light', size: 1, tRound: true, tBg: 'white', tLine: 'dark', tStyle: 'basic', tEdge: 'bold', color: COLORS[0][1], at: {}, fields: DEF_FIELDS }, ls.get('cfg', {}));
+const cfg = Object.assign({ layout: 'card', theme: 'light', size: 1, tRound: true, tBg: 'white', tLine: 'dark', tStyle: 'basic', tEdge: 'bold', tIn: 'black', tInW: 'normal', color: COLORS[0][1], at: {}, fields: DEF_FIELDS }, ls.get('cfg', {}));
 if (ls.get('color')) { cfg.color = ls.get('color'); }
 const vals = Object.assign({ title: '', memo: '', who: ls.get('who', '') }, ls.get('vals', {}), { title: '', memo: '' });   // 담당·직접 만든 항목은 기억, 제목·내용은 새로
 const saveCfg = () => { ls.set('cfg', cfg); const keep = {}; cfg.fields.forEach(f => { if (f.id !== 'title' && f.id !== 'memo' && !f.per) keep[f.id] = vals[f.id] || ''; }); ls.set('vals', keep); };
@@ -463,7 +466,7 @@ function noteFor(p) {
   const v = id => (cfg.fields.find(f => f.id === id)?.per ? p?.[id] : vals[id]) || '';
   const on = cfg.fields.filter(f => f.on);
   return { titleOn: on.some(f => f.id === 'title'), title: on.some(f => f.id === 'title') ? v('title').trim() : '', rows: on.filter(f => f.id !== 'title').map(f => ({ id: f.id, icon: f.icon || 'tag', label: f.label || '항목', value: v(f.id).trim() })),   // 빈 칸도 넘겨요(표는 빈 칸도 그리고, 나머지 모양은 뺌)
-    layout: cfg.layout, theme: cfg.theme, size: cfg.size, color: cfg.color, tRound: cfg.tRound, tBg: cfg.tBg, tLine: cfg.tLine, tStyle: cfg.tStyle, tEdge: cfg.tEdge, at: cfg.at[cfg.layout] || null };
+    layout: cfg.layout, theme: cfg.theme, size: cfg.size, color: cfg.color, tRound: cfg.tRound, tBg: cfg.tBg, tLine: cfg.tLine, tStyle: cfg.tStyle, tEdge: cfg.tEdge, tIn: cfg.tIn, tInW: cfg.tInW, at: cfg.at[cfg.layout] || null };
 }
 
 // ---------- 화면 ----------
@@ -622,6 +625,8 @@ function editor() {
         el('div', { class: 'optrow' }, el('span', { text: '스타일' }), seg([['basic', '기본'], ['mini', '미니멀'], ['tint', '색 포인트'], ['doc', '문서형']], cfg.tStyle, v => { cfg.tStyle = v; })),
         el('div', { class: 'optrow' }, el('span', { text: '바탕' }), seg([['white', '흰색'], ['glass', '반투명'], ['clear', '투명']], cfg.tBg, v => { cfg.tBg = v; })),
         el('div', { class: 'optrow' }, el('span', { text: '테두리' }), seg([['bold', '굵게'], ['thin', '가늘게'], ['none', '없이'], ['inset', '흰 여백']], cfg.tEdge, v => { cfg.tEdge = v; })),
+        el('div', { class: 'optrow' }, el('span', { text: '칸 선 색' }), seg([['black', '검정'], ['gray', '진회색'], ['light', '연회색'], ['color', '제목 색']], cfg.tIn, v => { cfg.tIn = v; })),
+        el('div', { class: 'optrow' }, el('span', { text: '칸 선 굵기' }), seg([['hair', '아주 얇게'], ['thin', '얇게'], ['normal', '기본 굵기']], cfg.tInW, v => { cfg.tInW = v; })),
         el('div', { class: 'optrow' }, el('span', { text: '모서리' }), seg([[true, '둥글게'], [false, '각지게']], cfg.tRound, v => { cfg.tRound = v; })),
         el('div', { class: 'optrow' }, el('span', { text: '선' }), seg([['dark', '진하게'], ['soft', '연하게']], cfg.tLine, v => { cfg.tLine = v; }))] : []),
       el('div', { class: 'optrow' }, el('span', { text: '글자 크기' }), seg([[0.8, '작게'], [1, '보통'], [1.25, '크게']], cfg.size, v => { cfg.size = v; })),
