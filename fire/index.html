@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#3B2A1E">
-<title>사진 글상자</title>
+<title>소방 사진대지</title>
 <meta name="description" content="사진 위에 제목·위치·일자·내용·담당을 반투명 글상자로 넣어 저장해요">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -102,6 +102,9 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
 .vbtn.ai{background:#3B5BDB;color:#fff}
 .vbar{position:fixed;left:0;right:0;bottom:0;z-index:60;background:#14100C;color:#fff;padding:14px 16px calc(16px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:8px;border-radius:22px 22px 0 0;box-shadow:0 -10px 30px rgba(0,0,0,.35)}
 .vbar .g-b{height:64px;font-size:19px}
+.chips{display:flex;gap:6px;overflow-x:auto;padding:2px 0 4px;-webkit-overflow-scrolling:touch}
+.chips button{flex-shrink:0;height:34px;border-radius:999px;background:var(--card);box-shadow:var(--shadow);font-size:13.5px;font-weight:700;padding:0 12px;color:var(--ink)}
+.chips button.on{background:var(--brown);color:#fff}
 .add{height:42px;border-radius:12px;background:none;border:1.5px dashed var(--line);font-weight:700;color:var(--brown)}
 .tip{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);background:rgba(0,0,0,.55);color:#fff;font-size:12.5px;font-weight:600;border-radius:999px;padding:5px 11px;white-space:nowrap;pointer-events:none}
 .stage canvas.drag{cursor:grab;touch-action:none}
@@ -117,25 +120,40 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
 .cam .chips button{height:34px;border-radius:999px;background:rgba(255,255,255,.14);color:#fff;font-weight:700;font-size:13.5px;padding:0 12px}
 .cam .chips button.on{background:#fff;color:#2A2118}
 .cam .shots{position:absolute;left:12px;bottom:12px;background:rgba(0,0,0,.55);color:#fff;border-radius:999px;font-size:13px;font-weight:700;padding:5px 11px}
+.ps{position:fixed;inset:0;z-index:60;background:#E9E6DF;overflow:auto;-webkit-overflow-scrolling:touch}
+.ps-bar{position:sticky;top:0;display:flex;gap:8px;padding:10px 12px;background:#2B2118;z-index:1}
+.ps-bar button{flex:1;height:44px;border-radius:12px;font-weight:800;font-size:15px}
+.ps-bar .go{background:#E8742A;color:#fff}.ps-bar .no{background:#fff;color:#2B2118;flex:.5}
+.ps-page{background:#fff;color:#000;width:min(100% - 16px,794px);margin:10px auto;padding:22px 20px;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.ps-page h2{text-align:center;font-size:22px;letter-spacing:.3em;margin:0 0 10px;font-weight:800}
+.ps-meta{display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px;gap:8px}
+.ps-meta [contenteditable]{border-bottom:1px solid #999;min-width:90px;display:inline-block;padding:0 4px}
+.ps-item{border:1.5px solid #000;margin-bottom:12px;break-inside:avoid;page-break-inside:avoid}
+.ps-item img{display:block;width:100%;aspect-ratio:4/3;object-fit:contain;background:#f3f3f3;border-bottom:1.5px solid #000}
+.ps-item table{width:100%;border-collapse:collapse;font-size:13px}
+.ps-item th,.ps-item td{border:1px solid #000;padding:5px 7px;text-align:left;vertical-align:middle}
+.ps-item tr:first-child th,.ps-item tr:first-child td{border-top:0}.ps-item th:first-child{border-left:0}.ps-item td:last-child{border-right:0}.ps-item tr:last-child th,.ps-item tr:last-child td{border-bottom:0}
+.ps-item th{width:17%;background:#F1F1F1;font-weight:700;white-space:nowrap}
+@media print{@page{size:A4;margin:10mm}html,body{background:#fff;overflow:visible!important;height:auto!important}body>*:not(.ps){display:none!important}.ps{position:static;overflow:visible;background:#fff}.ps-bar{display:none}.ps-page{box-shadow:none;margin:0;width:auto;padding:0}.ps-page+.ps-page{break-before:page;page-break-before:always}.ps-item img{height:88mm;aspect-ratio:auto}.ps-item table{font-size:11.5px}.ps-item th,.ps-item td{padding:3px 6px}.ps-item{margin-bottom:6mm}.ps-page h2{font-size:20px}}
 @media (max-height:700px){.panel{max-height:28vh}.home h1{font-size:26px}.big{height:56px}input[type=text]{height:40px}.acts .big{height:48px}label.f{font-size:12px}}
 </style>
 </head>
 <body>
 <div id="app"></div>
 <script>
-// ===== 사진 글상자 =====
+// ===== 소방 사진대지 (사진 글상자에서 갈라져 나온 소방점검 전용 앱) =====
 // 사진 위에 반투명 글상자(제목 · 일자 · 위치 · 내용 · 담당)를 넣어 한 장의 사진으로 저장해요.
 // 앨범 사진은 사진에 들어 있는 찍은 날짜·위치(EXIF)를 읽어 저절로 채우고, 방금 찍은 사진은 지금 위치를 써요.
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = '2026-10-01u';
+const PHOTO_VER = 'fire-2026-10-01a';
 async function checkVer() {
   try {
     const t = await (await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' })).text();
     const m = t.match(/const PHOTO_VER = '([^']+)'/);
-    if (m && m[1] !== PHOTO_VER && sessionStorage.getItem('photoVerTried') !== m[1]) {
-      sessionStorage.setItem('photoVerTried', m[1]);
+    if (m && m[1] !== PHOTO_VER && sessionStorage.getItem('fireVerTried') !== m[1]) {
+      sessionStorage.setItem('fireVerTried', m[1]);
       const n = el('div', { style: 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:200;pointer-events:none' },
         el('div', { style: 'background:#C8793A;color:#fff;font-weight:800;font-size:18px;border-radius:18px;padding:18px 22px;box-shadow:0 10px 30px rgba(0,0,0,.3)', text: '새 버전으로 바꿀게요' }));
       document.body.append(n); setTimeout(() => location.reload(), 1800);
@@ -147,8 +165,8 @@ checkVer();
 try { document.fonts.load("700 20px 'Noto Serif KR'", '점심 삼대째손두부').then(() => { if (typeof redraw === 'function') redraw(); }); } catch {}
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && !photos.length) checkVer(); });
 const ls = {
-  get(k, d) { try { const v = localStorage.getItem('photoNote:' + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
-  set(k, v) { try { localStorage.setItem('photoNote:' + k, JSON.stringify(v)); } catch {} }
+  get(k, d) { try { const v = localStorage.getItem('fireSheet:' + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem('fireSheet:' + k, JSON.stringify(v)); } catch {} }
 };
 function el(tag, props = {}, ...kids) {
   const e = document.createElement(tag);
@@ -530,10 +548,35 @@ const DEF_FIELDS = [
   { id: 'memo', label: '내용', on: true, icon: 'memo' },
   { id: 'who', label: '담당', on: true, icon: 'sign' }
 ];
-const PH = { title: '예: 점심 삼대째손두부', date: '예: 2026.10.01', place: '예: 서구 공촌동', memo: '예: 콩물, 두부김치 무료', who: '예: 장남덕' };
-const cfg = Object.assign({ layout: 'card', theme: 'light', size: 1, tRound: true, tBg: 'white', tLine: 'dark', tStyle: 'basic', tEdge: 'none', tIn: 'light', tInW: 'hair', color: COLORS[0][1], at: {}, fields: DEF_FIELDS }, ls.get('cfg', {}));
+// 소방점검 사진대지 양식: 사진마다 설비명·위치·불량내용·조치사항·점검일이 다르고, 점검자만 같이 써요
+const FIRE_FIELDS = [
+  { id: 'title', label: '설비명', on: true, icon: 'tag', per: true },
+  { id: 'place', label: '위치', on: true, icon: 'pin', per: true },
+  { id: 'memo', label: '불량내용', on: true, icon: 'memo', per: true },
+  { id: 'fix', label: '조치사항', on: true, icon: 'pen', per: true },
+  { id: 'date', label: '점검일', on: true, icon: 'cal', per: true },
+  { id: 'who', label: '점검자', on: true, icon: 'sign' }
+];
+// 자주 쓰는 소방 용어(설비 → 흔한 불량내용). 칸 아래 단추로 눌러 넣어요. AI에게도 같은 목록을 줘요
+const FIRE = {
+  '소화기': ['압력 불량(지시압력계 적색)', '내용연수 경과', '미설치', '위치 표지 미부착', '장애물 적치'],
+  '옥내소화전': ['호스 노후', '앵글밸브 누수', '표시등 점등 불량', '함 내부 물건 적치', '노즐 미비치'],
+  '스프링클러헤드': ['헤드 도장', '헤드 파손', '헤드 주변 장애물(살수 방해)', '헤드 미설치'],
+  '감지기': ['감지기 탈락', '감지기 미설치', '감지기 작동 불량', '감지기 도장'],
+  '발신기': ['표시등 점등 불량', '응답 불량', '함 파손'],
+  '경종': ['경종 작동 불량', '경종 음량 미달'],
+  '수신기': ['예비전원 불량', '화재표시 불량', '스위치 정위치 아님'],
+  '유도등': ['점등 불량', '예비전원 불량', '미설치', '표시면 파손'],
+  '비상조명등': ['점등 불량', '예비전원 불량'],
+  '방화문': ['닫힘 불량(도어클로저 불량)', '개방 고정(말발굽 설치)', '방화문 훼손'],
+  '완강기': ['구성품 미비', '사용법 표지 미부착'],
+  '피난통로': ['물건 적치', '잠금 장치 설치']
+};
+const FIRE_FIX = ['교체 요망', '재충전 요망', '수리 요망', '설치 요망', '이설 요망', '장애물 제거', '즉시 시정', '청소 요망'];
+const EX_FIRE = { title: '소화기', place: '지하1층 기계실 앞', memo: '압력 불량(지시압력계 적색)', fix: '교체 요망', who: '홍길동' };
+const PH = { fix: '예: 교체 요망', title: '예: 소화기', date: '예: 2026.10.01', place: '예: 지하1층 기계실 앞', memo: '예: 압력 불량', who: '예: 홍길동' };
+const cfg = Object.assign({ tVer: 7, mode: 'fire', layout: 'table', theme: 'light', size: 1, tRound: true, tBg: 'white', tLine: 'dark', tStyle: 'basic', tEdge: 'none', tIn: 'light', tInW: 'hair', color: COLORS[0][1], at: {}, fields: FIRE_FIELDS.map(f => ({ ...f })) }, ls.get('cfg', {}), { mode: 'fire' });   // 이 앱은 늘 소방점검 양식
 if (ls.get('color')) { cfg.color = ls.get('color'); }
-if (cfg.mode) { delete cfg.mode; cfg.fields = DEF_FIELDS.map(f => ({ ...f })); }   // 소방점검 양식은 따로 앱(fire/)으로 옮겼어요. 잠깐 켰던 사람은 기본 항목으로
 // 2026-10-01 사용자가 고른 표 모양(A: 바깥 테두리 없이 그림자, 연회색 아주 얇은 칸 선)을 한 번 기본으로 맞춰요
 if ((cfg.tVer || 0) < 3) Object.assign(cfg, { tVer: 3, layout: 'table', tStyle: 'basic', tEdge: 'none', tIn: 'light', tInW: 'hair', tRound: true, tBg: 'white' });   // 2026-10-01 표(A)를 기본 모양으로
 if ((cfg.tVer || 0) < 4) Object.assign(cfg, { tVer: 4, size: 0.65 });   // 2026-10-01 글상자를 더 작게(작게)를 기본으로
@@ -541,7 +584,8 @@ if ((cfg.tVer || 0) < 5) Object.assign(cfg, { tVer: 5, layout: 'card', theme: 'l
 if ((cfg.tVer || 0) < 6) Object.assign(cfg, { tVer: 6, size: cfg.layout === 'card' ? 0.88 : cfg.size });   // 기본 카드 조금 크게
 if ((cfg.tVer || 0) < 7) { Object.assign(cfg, { tVer: 7, layout: 'card', theme: 'light', size: 1 }); const w = (cfg.fields || []).find(f => f.id === 'who'); if (w && w.icon === 'pen') w.icon = 'sign'; }   // 삼성 갤러리 카드 그대로를 기본으로   // 2026-10-01 사용자가 고른 기본: 삼성 갤러리 모양 카드
 // 예시 글: 처음부터 글상자에 들어가 있고, 칸을 누르면 통째로 골라져서 바로 고쳐 쓸 수 있어요
-const EX = { title: '점심 삼대째손두부', place: '서구 공촌동', memo: '콩물, 두부김치 무료', who: '장남덕' };
+const EX_BASIC = { title: '점심 삼대째손두부', place: '서구 공촌동', memo: '콩물, 두부김치 무료', who: '장남덕' };
+const EX = Object.assign({}, EX_BASIC, cfg.mode === 'fire' ? EX_FIRE : {});   // 양식에 맞는 예시 글
 const vals = Object.assign({ title: '', memo: '', who: ls.get('who', '') }, ls.get('vals', {}), { title: EX.title, memo: EX.memo });   // 담당·직접 만든 항목은 기억, 제목·내용은 예시로 새로
 if (!vals.who) vals.who = EX.who;
 const saveCfg = () => { ls.set('cfg', cfg); const keep = {}; cfg.fields.forEach(f => { if (f.id !== 'title' && f.id !== 'memo' && !f.per) keep[f.id] = vals[f.id] || ''; }); ls.set('vals', keep); };
@@ -569,7 +613,7 @@ function home() {
   const cv = el('canvas', { width: 900, height: 560 });
   app.replaceChildren(
     el('div', { class: 'home' },
-      el('div', {}, el('h1', { text: '사진 글상자' }), el('p', { text: '사진 위에 제목·위치·일자·내용 같은 글을 넣어 저장해요.' })),
+      el('div', {}, el('h1', { text: '🧯 소방 사진대지' }), el('p', { text: '점검 사진에 설비명·위치·불량내용·조치사항을 넣고, 사진대지(A4)로 한 번에 뽑아요.' })),
       el('div', { class: 'sample' }, cv),
       el('button', { class: 'big pri', onclick: () => camera() }, '사진 찍기'),
       el('button', { class: 'big sec', onclick: () => pickIn.click() }, '앨범에서 고르기 (여러 장 가능)'),
@@ -583,20 +627,26 @@ function home() {
   const b = bgc.getContext('2d'), gr = b.createLinearGradient(0, 0, 900, 560);
   gr.addColorStop(0, '#C9A27A'); gr.addColorStop(.55, '#8C5A35'); gr.addColorStop(1, '#3B2A1E'); b.fillStyle = gr; b.fillRect(0, 0, 900, 560);
   b.fillStyle = 'rgba(255,255,255,.18)'; [[180, 420, 120], [520, 470, 160], [760, 380, 90]].forEach(([x, y, r]) => { b.beginPath(); b.arc(x, y, r, 0, 7); b.fill(); });
-  const sample = { date: fmtDate(new Date()), place: '서구 공촌동' }, keep = { ...vals };
-  Object.assign(vals, { title: '점심 삼대째손두부', memo: '콩물, 두부김치 무료', who: vals.who || '고성식' });
+  const sample = { date: fmtDate(new Date()), place: EX.place, memo: EX.memo, fix: EX.fix, title: EX.title }, keep = { ...vals };
+  Object.assign(vals, { who: vals.who || EX.who });
   const draw = () => { const n = noteFor(sample); drawNote(g, bgc, 900, 560, { ...n, at: null }); };
   draw(); Object.assign(vals, keep);
-  document.fonts && document.fonts.ready.then(() => { Object.assign(vals, { title: '점심 삼대째손두부', memo: '콩물, 두부김치 무료', who: vals.who || '고성식' }); draw(); Object.assign(vals, keep); });
+  document.fonts && document.fonts.ready.then(() => { Object.assign(vals, { who: vals.who || EX.who }); draw(); Object.assign(vals, keep); });
 }
 
+// 사진마다 따로 적는 칸(소방점검 양식의 설비명·불량내용 등)은 예시 글로 시작해요
+const perDefaults = () => Object.fromEntries(cfg.fields.filter(f => f.per && !['date', 'place'].includes(f.id)).map(f => [f.id, EX[f.id] || '']));
+// 칸 값 읽기·쓰기(사진마다 칸이면 그 사진에, 아니면 모든 사진에 같이)
+const getVal = (p, id) => { const f = cfg.fields.find(x => x.id === id); return ((f && f.per) ? p?.[id] : vals[id]) || ''; };
+const setVal = (p, id, v) => { const f = cfg.fields.find(x => x.id === id); if (f && f.per) p[id] = v; else vals[id] = v; };
 // 사진 한 장 정보: 그림 · 크기 · 일자 · 위치(사진마다)
 function photoOf(bmp, d, lat, lng) {
   const s = Math.min(1, 2000 / Math.max(bmp.width, bmp.height));
-  return { bmp, W: Math.round(bmp.width * s), H: Math.round(bmp.height * s), date: fmtDate(d), lat: lat ?? null, lng: lng ?? null, place: EX.place, look: lookOf() };   // 위치는 찾으면 바꿔요
+  return { bmp, W: Math.round(bmp.width * s), H: Math.round(bmp.height * s), date: fmtDate(d), lat: lat ?? null, lng: lng ?? null, place: EX.place, look: lookOf(), ...perDefaults() };   // 위치는 찾으면 바꿔요
 }
 async function fillPlaces(list, here) {
   if (here) { const h = await here; if (h) list.forEach(p => { if (p.lat == null) { p.lat = h.lat; p.lng = h.lng; } }); }
+  if (cfg.mode === 'fire') return;   // 소방점검의 위치는 건물 안 위치(층·실)라 동네 이름으로 채우지 않아요
   for (const p of list) if (p.lat != null && (!p.place || p.place === EX.place)) { const n = await placeName(p.lat, p.lng); if (n && (!p.place || p.place === EX.place)) { p.place = n; if (photos[cur] === p && onPhotoChange) onPhotoChange(); redraw(); } }
 }
 async function load(files, fresh) {
@@ -726,7 +776,13 @@ function editor() {
         onfocus: () => { if (i.value && i.value === EX[f.id]) setTimeout(() => i.select(), 0); },   // 예시 글이면 통째로 골라서 바로 덮어쓰게
         oninput: () => { if (f.per) photos[cur][f.id] = i.value; else vals[f.id] = i.value; if (f.id !== 'title' && f.id !== 'memo' && !f.per) saveCfg(); redraw(); } });
       inputs[f.id] = i;
-      return el('label', { class: 'f', for: 'f-' + f.id, style: f.id === 'memo' ? 'grid-column:1/-1' : null }, f.label + (f.per && many ? ' (사진마다)' : ''), el('div', { class: 'inrow' }, i, micBtn(i, f)));
+      // 소방점검: 자주 쓰는 말 단추(설비명 → 그 설비의 흔한 불량내용 → 조치사항)
+      let chips = null;
+      if (cfg.mode === 'fire' && ['title', 'memo', 'fix'].includes(f.id)) {
+        const words = f.id === 'title' ? Object.keys(FIRE) : f.id === 'memo' ? (FIRE[getVal(photos[cur], 'title')] || [].concat(...Object.values(FIRE)).slice(0, 8)) : FIRE_FIX;
+        chips = el('div', { class: 'chips' }, words.map(w => el('button', { type: 'button', class: i.value === w ? 'on' : '', onclick: e => { e.preventDefault(); i.value = w; i.dispatchEvent(new Event('input')); if (f.id === 'title') drawPanel(); else e.currentTarget.parentNode.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === e.currentTarget)); } }, w)));
+      }
+      return el('label', { class: 'f', for: 'f-' + f.id, style: f.id === 'memo' || chips ? 'grid-column:1/-1' : null }, f.label + (f.per && many ? ' (사진마다)' : ''), el('div', { class: 'inrow' }, i, micBtn(i, f)), chips);
     };
     const title = on.find(f => f.id === 'title'), others = on.filter(f => f !== title);
     return [aiReady() ? el('button', { class: 'vbtn ai', onclick: () => aiFillEditor() }, '🤖 AI로 채우기 (사진 보고 저절로)') : null, SR ? el('button', { class: 'vbtn', onclick: () => voiceFill() }, '🎤 말로 모두 채우기 (똑똑똑으로도)') : null, title ? box(title) : null, el('div', { class: 'grid2' }, others.map(box))];
@@ -775,14 +831,14 @@ function editor() {
         el('button', { class: 'mini', 'aria-label': '위로', onclick: mv(-1) }, '↑'), el('button', { class: 'mini', 'aria-label': '아래로', onclick: mv(1) }, '↓'),
         f.id.startsWith('c') ? el('button', { class: 'mini x', 'aria-label': '항목 지우기', onclick: () => { cfg.fields.splice(i, 1); delete vals[f.id]; saveCfg(); redraw(); drawPanel(); } }, '×') : null);
     });
-    return [el('div', { class: 'hint', style: 'text-align:left', text: '체크한 항목만 사진에 들어가요. 이름을 눌러 바꿀 수 있어요. (카드 모양에서 "일자"는 왼쪽 칸, "담당"은 오른쪽 아래)' }), ...rows,
+    return [el('div', { class: 'hint', style: 'text-align:left', text: '체크한 항목만 사진에 들어가요. 이름을 눌러 바꿀 수 있어요. ("설비명"이 표 맨 위 큰 글씨)' }), ...rows,
       el('button', { class: 'add', onclick: () => { const id = 'c' + Date.now().toString(36); cfg.fields.push({ id, label: '항목', on: true, icon: ['clock', 'people', 'tag'][cfg.fields.length % 3] }); saveCfg(); redraw(); drawPanel(); } }, '+ 항목 추가 (예: 시간, 인원, 날씨)'),
-      el('button', { class: 'add', style: 'border-style:solid;color:var(--muted)', onclick: () => { if (confirm('항목을 처음 상태(제목·일자·위치·내용·담당)로 되돌릴까요?')) { cfg.fields = DEF_FIELDS.map(f => ({ ...f })); saveCfg(); redraw(); drawPanel(); } } }, '처음 항목으로 되돌리기')];
+      el('button', { class: 'add', style: 'border-style:solid;color:var(--muted)', onclick: () => { if (confirm('항목을 처음 상태(설비명·위치·불량내용·조치사항·점검일·점검자)로 되돌릴까요?')) { cfg.fields = FIRE_FIELDS.map(f => ({ ...f })); saveCfg(); redraw(); drawPanel(); } } }, '처음 항목으로 되돌리기')];
   }
   const drawPanel = () => panel.replaceChildren(...(tab === 'look' ? lookPanel() : tab === 'fields' ? fieldsPanel() : textPanel()).filter(Boolean));
   refreshInputs = () => { Object.entries(inputs).forEach(([k, i]) => { const f = cfg.fields.find(x => x.id === k); if (f) i.value = (f.per ? photos[cur][k] : vals[k]) || ''; }); };
   onPhotoChange = () => { const p = photos[cur]; ['date', 'place'].forEach(k => { if (inputs[k] && document.activeElement !== inputs[k]) inputs[k].value = p[k] || ''; }); if (countEl) countEl.textContent = `${cur + 1} / ${photos.length}`; };
-  const go = d => { photos[cur].look = lookOf(); cur = (cur + d + photos.length) % photos.length; useLook(photos[cur]); onPhotoChange(); drawPanel(); redraw(); };
+  const go = d => { photos[cur].look = lookOf(); cur = (cur + d + photos.length) % photos.length; useLook(photos[cur]); onPhotoChange(); drawPanel(); redraw(); };   // drawPanel이 칸을 그 사진 값으로 다시 그려요
   app.replaceChildren(
     el('div', { class: 'top' },
       el('button', { class: 'lnk', onclick: () => { if (confirm('처음으로 갈까요? 저장하지 않은 사진은 사라져요.')) { photos = []; home(); } } }, '← 처음으로'),
@@ -792,6 +848,7 @@ function editor() {
       many ? el('button', { class: 'nav r', 'aria-label': '다음 사진', onclick: () => go(1) }, '›') : null, countEl),
     tabs, panel,
     el('div', { class: 'acts' },
+      cfg.mode === 'fire' ? el('button', { class: 'big sec', onclick: photoSheet }, '📄 사진대지') : null,
       el('button', { class: 'big sec', onclick: share }, '보내기'),
       el('button', { class: 'big pri', onclick: save }, many ? `${photos.length}장 저장` : '사진첩에 저장')));
   drawTabs(); drawPanel(); onPhotoChange(); redraw();
@@ -834,7 +891,7 @@ async function aiImage(p) {
 async function aiCall(p, answers) {
   const a = aiCfg();
   const r = await fetch(a.url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-App-Key': a.key },
-    body: JSON.stringify({ image: await aiImage(p), date: p.date, place: p.place, facts: aiFacts, answers }) });
+    body: JSON.stringify({ image: await aiImage(p), date: p.date, place: p.place, facts: aiFacts, answers, mode: cfg.mode || 'basic' }) });
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(j.error || `AI 서버 오류 ${r.status}`);
   return j;
@@ -891,8 +948,8 @@ async function aiFillEditor() {
   toast('🤖 AI가 사진을 보고 있어요…');
   try {
     const out = await aiDescribe(p, askSheet);
-    if (out.title) vals.title = out.title; if (out.memo) vals.memo = out.memo;
-    refreshInputs && refreshInputs(); redraw(); toast('AI가 제목·내용을 썼어요. 고칠 곳은 고쳐 주세요');
+    if (out.title) setVal(p, 'title', out.title); if (out.memo) setVal(p, 'memo', out.memo); if (out.fix && cfg.fields.some(f => f.id === 'fix')) setVal(p, 'fix', out.fix); if (out.place && cfg.mode === 'fire') setVal(p, 'place', out.place);
+    refreshInputs && refreshInputs(); redraw(); toast('AI가 썼어요. 고칠 곳은 고쳐 주세요');
   } catch (e) { toast('AI로 채우지 못했어요: ' + e.message); }
 }
 
@@ -941,7 +998,7 @@ async function gloveMode() {
   // 물어볼 칸: 켜 둔 칸 중 일자·위치(저절로)는 빼고, 담당은 기억한 이름이 없을 때만
   let qi = 0, asking = [];
   const askFields = () => asking;   // 찍을 때 정해 둬요(대답하는 동안 바뀌지 않게)
-  const pickFields = () => cfg.fields.filter(f => f.on && !['date', 'place'].includes(f.id) && !(f.id === 'who' && vals.who && vals.who !== EX.who));
+  const pickFields = () => cfg.fields.filter(f => f.on && f.id !== 'date' && (f.id !== 'place' || cfg.mode === 'fire') && !(f.id === 'who' && vals.who && vals.who !== EX.who));
   const setState = (t, big) => { stEl.textContent = t; stEl.classList.toggle('big', !!big); };
   const tick = () => {
     const W = video.videoWidth, H = video.videoHeight;
@@ -967,7 +1024,7 @@ async function gloveMode() {
     const f = fs[qi], c = (f.label || '').charCodeAt(f.label.length - 1), jong = c >= 0xAC00 && c <= 0xD7A3 && (c - 0xAC00) % 28;
     ask(`${f.label}${jong ? '을' : '를'} 말씀하세요`, true);
   };
-  const summary = () => cfg.fields.filter(f => f.on && !['date', 'place'].includes(f.id)).map(f => `${f.label} ${vals[f.id] || '없음'}`).join(', ');
+  const summary = () => cfg.fields.filter(f => f.on && f.id !== 'date').map(f => `${f.label} ${getVal(cur, f.id) || '없음'}`).join(', ');
   const confirmIt = () => { state = 'confirm'; ask(`${summary()}. 저장할까요?`); };
   async function shoot() {
     const W = video.videoWidth, H = video.videoHeight; if (!W) return listen();
@@ -986,7 +1043,7 @@ async function gloveMode() {
     try {
       const out = await aiDescribe(cur, (q, ch) => new Promise(res => { aiAnswer = res; state = 'aiq'; ask(q.replace(/[?？.]+$/, '') + '? ' + (ch.length ? ch.join(', ') + ' 중에 말씀하세요' : ''), true); }));
       state = 'ai'; stopRec();
-      if (out.title) vals.title = out.title; if (out.memo) vals.memo = out.memo;
+      if (out.title) setVal(cur, 'title', out.title); if (out.memo) setVal(cur, 'memo', out.memo); if (out.fix && cfg.fields.some(f => f.id === 'fix')) setVal(cur, 'fix', out.fix); if (out.place && cfg.mode === 'fire') setVal(cur, 'place', out.place);
       const g = ov.getContext('2d'); drawNote(g, cur.bmp, cur.W, cur.H, noteFor(cur));
       state = 'aiconfirm'; await ask(`${summary()}. 저장할게요`);
       setTimeout(async () => { if (state === 'aiconfirm' && cur) { stopRec(); await saveCur(); state = 'wait'; await speak('저장했어요'); setState('"찍어"라고 말하면 찍어요', true); heard.textContent = ''; listen(); } }, 3500);
@@ -1012,7 +1069,7 @@ async function gloveMode() {
     if (state === 'ask') {
       const f = askFields()[qi];
       if (SAY.drop.test(n) && n.length <= 4) { cur = null; state = 'wait'; await speak('사진을 버렸어요'); setState('"찍어"라고 말하면 찍어요', true); return listen(); }
-      if (!SAY.same.test(n)) { vals[f.id] = t.slice(0, f.id === 'memo' ? 60 : 30); if (f.id === 'who') saveCfg(); }
+      if (!SAY.same.test(n)) { setVal(cur, f.id, t.slice(0, f.id === 'memo' ? 60 : 30)); if (f.id === 'who') saveCfg(); }
       const g = ov.getContext('2d'); drawNote(g, cur.bmp, cur.W, cur.H, noteFor(cur));
       qi++; return askNext();
     }
@@ -1094,6 +1151,27 @@ async function voiceFill() {
   }
   if (navigator.vibrate) navigator.vibrate(200);
   askNext();
+}
+// 소방점검 사진대지: 사진마다 설비명·위치·불량내용·조치사항 표를 붙여 A4 두 장씩. 인쇄 창에서 'PDF로 저장'도 돼요
+async function photoSheet() {
+  if (photos[cur]) photos[cur].look = lookOf();
+  toast('사진대지를 만드는 중이에요…');
+  const img = p => { const s = Math.min(1, 1400 / Math.max(p.W, p.H)), c = document.createElement('canvas'); c.width = Math.round(p.W * s); c.height = Math.round(p.H * s); c.getContext('2d').drawImage(p.bmp, 0, 0, c.width, c.height); return c.toDataURL('image/jpeg', 0.85); };
+  const rows = cfg.fields.filter(f => f.on && f.id !== 'who');
+  const lab = id => (cfg.fields.find(f => f.id === id) || {}).label || '';
+  const who = getVal(photos[0], 'who');
+  const items = photos.map((p, i) => el('div', { class: 'ps-item' }, el('img', { src: img(p), alt: `사진 ${i + 1}` }),
+    el('table', {}, el('tbody', {}, el('tr', {}, el('th', { text: '번호' }), el('td', { text: String(i + 1) })), ...rows.map(f => el('tr', {}, el('th', { text: f.label }), el('td', { text: getVal(p, f.id) })))))));
+  const pages = [];
+  for (let i = 0; i < items.length; i += 2) pages.push(el('div', { class: 'ps-page' },
+    i === 0 ? el('h2', { text: '사 진 대 지' }) : null,
+    i === 0 ? el('div', { class: 'ps-meta' }, el('span', {}, '건물명 ', el('span', { contenteditable: 'true', text: ls.get('bldg', '') , oninput: e => ls.set('bldg', e.target.textContent) })),
+      el('span', { text: `${lab('who') || '점검자'} ${who || ''}` })) : null,
+    ...items.slice(i, i + 2)));
+  const box = el('div', { class: 'ps' }, el('div', { class: 'ps-bar' },
+    el('button', { class: 'no', onclick: () => box.remove() }, '닫기'),
+    el('button', { class: 'go', onclick: () => window.print() }, '인쇄 · PDF로 저장')), ...pages);
+  document.querySelectorAll('.toast').forEach(t => t.remove()); document.body.append(box);
 }
 async function render() {
   const out = [];
