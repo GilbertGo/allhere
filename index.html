@@ -311,7 +311,7 @@ function verNotice(msg, ms) {
 }
 // 앱·바탕화면 아이콘은 예전 화면을 한동안 다시 쓰기도 해요. 열 때 서버의 파일을 새로 받아 버전이 다르면 한 번 새로고침해요.
 // 배포할 때마다 APP_VER를 바꿔 주세요.
-const APP_VER = '2026-10-01b';
+const APP_VER = '2026-10-01c';
 if (sessionStorage.getItem('verDone') === APP_VER) { sessionStorage.removeItem('verDone'); setTimeout(() => verNotice(`새 버전으로 바꿨어요 (${APP_VER})`, 5000), 500); }
 // 열 때, 화면으로 돌아올 때, 켜 두는 동안 2분마다 서버에 새 버전이 있는지 봐요. 있으면 가운데 주황 안내를 3초 보여주고 바꿔요
 let verBusy = false;
@@ -767,7 +767,7 @@ function drawPhotoNote(g, img, W, H, f) {
     }
     if (rightOn) {
       const x = bx + p + (leftOn ? leftW + gap : 0); chip(x, rightW);
-      let ly = y + cp;
+      let ly = y + cp + (rowH - rightH) / 2;   // 일자 칸보다 낮으면 가운데로
       const row = (k, label, lines) => lines.forEach((t, i) => {
         if (!i) { noteIco(g, k, x + cp, ly + (lh - ic) / 2, ic, INK); font(800, fs); g.fillStyle = INK; g.fillText(label, x + cp + ic + gap * 0.6, ly + (lh - fs) / 2); }
         font(500, fs); g.fillStyle = INK; g.fillText(t, x + cp + ic + gap * 0.6 + labW, ly + (lh - fs) / 2); ly += lh;

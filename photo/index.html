@@ -203,7 +203,7 @@ function drawNote(g, img, W, H, f) {
     }
     if (rightOn) {
       const x = bx + p + (leftOn ? leftW + gap : 0); chip(x, rightW);
-      let ly = y + cp;
+      let ly = y + cp + (rowH - rightH) / 2;   // 일자 칸보다 낮으면 가운데로
       const row = (k, label, ls) => ls.forEach((t, i) => {
         if (!i) { icon(g, k, x + cp, ly + (lh - ic) / 2, ic, INK); font(800, fs); g.fillStyle = INK; g.fillText(label, x + cp + ic + gap * 0.6, ly + (lh - fs) / 2); }
         font(500, fs); g.fillStyle = INK; g.fillText(t, x + cp + ic + gap * 0.6 + labW, ly + (lh - fs) / 2); ly += lh;
