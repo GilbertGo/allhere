@@ -101,6 +101,22 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
 // 앨범 사진은 사진에 들어 있는 찍은 날짜·위치(EXIF)를 읽어 저절로 채우고, 방금 찍은 사진은 지금 위치를 써요.
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
+// 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
+const PHOTO_VER = '2026-10-01h';
+async function checkVer() {
+  try {
+    const t = await (await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' })).text();
+    const m = t.match(/const PHOTO_VER = '([^']+)'/);
+    if (m && m[1] !== PHOTO_VER && sessionStorage.getItem('photoVerTried') !== m[1]) {
+      sessionStorage.setItem('photoVerTried', m[1]);
+      const n = el('div', { style: 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:200;pointer-events:none' },
+        el('div', { style: 'background:#C8793A;color:#fff;font-weight:800;font-size:18px;border-radius:18px;padding:18px 22px;box-shadow:0 10px 30px rgba(0,0,0,.3)', text: '새 버전으로 바꿀게요' }));
+      document.body.append(n); setTimeout(() => location.reload(), 1800);
+    }
+  } catch {}
+}
+checkVer();
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && !photos.length) checkVer(); });
 const ls = {
   get(k, d) { try { const v = localStorage.getItem('photoNote:' + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { localStorage.setItem('photoNote:' + k, JSON.stringify(v)); } catch {} }
@@ -577,7 +593,7 @@ async function camera() {
   let loop = 0;
   const tick = () => {
     const W = video.videoWidth, H = video.videoHeight;
-    if (W && H) { if (ov.width !== W || ov.height !== H) { ov.width = W; ov.height = H; } box = drawNote(ov.getContext('2d'), null, W, H, noteFor({ date: fmtDate(new Date()), place: placeNow }), true); }
+    if (W && H) { if (ov.width !== W || ov.height !== H) { ov.width = W; ov.height = H; } box = drawNote(ov.getContext('2d'), null, W, H, noteFor({ date: fmtDate(new Date()), place: placeNow || EX.place }), true); }
     loop = requestAnimationFrame(tick);
   };
   dragBox(ov, () => box, () => [video.videoWidth || 1, video.videoHeight || 1], () => {});
