@@ -10,7 +10,7 @@
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@600;700;900&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@600;700&display=swap">
 <style>
 :root{--bg:#F5F0E8;--card:#FFFDF9;--ink:#2A2118;--muted:#7A6E62;--line:#E6DCCD;--soft:#EFE7DA;--brown:#6B3F1F;--accent:#C8793A;--shadow:0 1px 2px rgba(60,40,20,.06),0 6px 18px rgba(60,40,20,.08)}
 *{box-sizing:border-box}
@@ -103,7 +103,7 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = '2026-10-01m';
+const PHOTO_VER = '2026-10-01n';
 async function checkVer() {
   try {
     const t = await (await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' })).text();
@@ -118,7 +118,7 @@ async function checkVer() {
 }
 checkVer();
 // 명조 글꼴은 캔버스가 쓸 때 저절로 받지 않아서 미리 받아 두고 다시 그려요
-try { document.fonts.load("900 20px 'Noto Serif KR'", '점심 삼대째손두부').then(() => { if (typeof redraw === 'function') redraw(); }); } catch {}
+try { document.fonts.load("700 20px 'Noto Serif KR'", '점심 삼대째손두부').then(() => { if (typeof redraw === 'function') redraw(); }); } catch {}
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && !photos.length) checkVer(); });
 const ls = {
   get(k, d) { try { const v = localStorage.getItem('photoNote:' + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
@@ -198,8 +198,9 @@ function hereNow() {
 const ICO = {
   cal: ['M4 6.5h16v13.5H4z', 'M4 10.5h16', 'M8.5 4v4', 'M15.5 4v4'],
   pin: ['M12 21s-6.5-6-6.5-11a6.5 6.5 0 0 1 13 0c0 5-6.5 11-6.5 11z', 'M12 12.3a2.3 2.3 0 1 0 0-4.6a2.3 2.3 0 1 0 0 4.6z'],
-  memo: ['M9.5 7h10', 'M9.5 12h10', 'M9.5 17h10', 'M4.5 6h2v2h-2z', 'M4.5 11h2v2h-2z', 'M4.5 16h2v2h-2z'],
+  memo: ['M10 6.5h10', 'M10 12h10', 'M10 17.5h10', 'M4 6.5a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0-3 0z', 'M4 12a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0-3 0z', 'M4 17.5a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0-3 0z'],
   pen: ['M4 20h4L19 9l-4-4L4 16z', 'M13.5 6.5l4 4'],
+  sign: ['M3 17c2-6 4-9 5-8s-2 8 0 8 3-5 4-5 0 4 2 4 3-2 4-2', 'M3 20.5h18'],
   tag: ['M3.5 12.5V4.5h8l9 9-8 8z', 'M8 8.5h.01'],
   clock: ['M12 20.5a8.5 8.5 0 1 0 0-17a8.5 8.5 0 1 0 0 17z', 'M12 7.5V12l3 2'],
   people: ['M9 11a3.5 3.5 0 1 0 0-7a3.5 3.5 0 1 0 0 7z', 'M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5', 'M16 4.3a3.5 3.5 0 0 1 0 6.4', 'M18 14.8c1.8.7 3 2.4 3.5 5.2']
@@ -401,53 +402,60 @@ function measureNote(g, note, W, H) {
     } };
   }
 
-  // 카드: 제목 → [일자 칸 | 나머지 칸] → 담당(오른쪽 끝)
-  const bw = (W - 2 * m) * Math.min(1, (note.size || 1) / 0.88), p = 3.6 * u, inW = bw - 2 * p,   // 카드 너비: 보통 이상은 가득, 작게는 좁게
-  gap = 2.2 * u, cp = 2.6 * u, rad = 2.6 * u;
+  // 카드(기본): 삼성 갤러리 'AI로 만들기' 카드를 그대로 본뜸
+  //  명조 제목 → [일자 칸 | '위치 내용' 칸(머리줄 + 항목별 줄)] → 담당 칸(오른쪽) → 아래 얇은 선
+  const bw = (W - 2 * m) * Math.min(1, (note.size || 1)), cin = 3.8 * u, inW = bw - 2 * cin, gap = 1.7 * u, cp = 2.9 * u, rad = 1.8 * u;
+  const cfs = 3.4 * u, clh = cfs * 1.4, cic = cfs * 1.05, tfs = 5.7 * u;
   const dateR = rows.find(r => r.id === 'date'), whoR = rows.find(r => r.id === 'who'), rest = rows.filter(r => r !== dateR && r !== whoR);
-  const serif = () => { g.font = `900 ${7 * u}px 'Noto Serif KR','Nanum Myeongjo',serif`; };   // 카드 제목은 명조(삼성 갤러리 카드처럼)
-  serif(); const tL = note.title ? lines(g, note.title, inW, 2) : [];
-  const tH = tL.length ? tL.length * 7 * u * 1.25 : 0;
+  const serif = () => { g.font = `700 ${tfs}px 'Noto Serif KR','Nanum Myeongjo',serif`; };   // 카드 제목은 명조(삼성 갤러리 카드처럼)
+  serif(); const tL = note.title ? lines(g, note.title, bw - 2 * 5.7 * u, 2) : [];
+  const tTop = 5.6 * u, tH = tL.length ? tL.length * tfs * 1.3 : 0;
   const rightOn = rest.length > 0, leftOn = !!dateR;
-  font(600, fs * 1.25); const dateW = leftOn ? g.measureText(dateR.value).width + 2 * cp + u : 0;
-  font(800, fs); const dlw = leftOn ? ic + 1.3 * u + g.measureText(dateR.label).width + 2 * cp : 0;
-  const leftW = leftOn ? (rightOn ? Math.min(inW * 0.5, Math.max(inW * 0.3, 26 * u, dateW, dlw)) : inW) : 0, rightW = rightOn ? (leftOn ? inW - leftW - gap : inW) : 0;
-  const labW = rest.length ? Math.max(...rest.map(r => g.measureText(r.label).width)) + gap : 0;
-  const valW = rightW - 2 * cp - ic - gap * 0.6 - labW;
-  font(500, fs);
+  font(400, cfs * 1.08); const dateW = leftOn ? g.measureText(dateR.value).width + 2 * cp + u : 0;
+  const leftW = leftOn ? (rightOn ? Math.min(inW * 0.5, Math.max(inW * 0.32, dateW)) : inW) : 0, rightW = rightOn ? (leftOn ? inW - leftW - gap : inW) : 0;
+  font(700, cfs); const labW = rest.length ? Math.max(...rest.map(r => g.measureText(r.label).width)) + 1.4 * u : 0;
+  const valX = cic + 1.2 * u + labW, valW = rightW - 2 * cp - valX;
+  font(400, cfs);
   const restL = rest.map(r => ({ r, l: lines(g, r.value, valW, r.id === 'memo' ? 3 : 2) }));
-  const rightH = rightOn ? 2 * cp + restL.reduce((a, b) => a + b.l.length, 0) * lh : 0;
-  const leftH = leftOn ? 2 * cp + lh + fs * 1.25 * 1.3 : 0;
-  const rowH = Math.max(rightH, leftH), whoH = whoR ? 2 * cp * 0.7 + lh : 0;
+  const head = rest.length > 1;   // 항목이 둘 이상이면 '위치 내용' 머리줄
+  const rightH = rightOn ? 2 * cp + (head ? clh : 0) + restL.reduce((a, b) => a + b.l.length, 0) * clh : 0;
+  const leftH = leftOn ? 2 * cp + clh + cfs * 1.08 * 1.6 : 0;
+  const rowH = Math.max(rightH, leftH), whoH = whoR ? 2 * 2.2 * u + clh : 0;
   const parts = [tH, rowH, whoH].filter(Boolean);
-  const h = 2 * p + parts.reduce((a, b) => a + b, 0) + gap * (parts.length - 1);
+  const lineGap = 1.8 * u, botPad = 2.8 * u;
+  const h = (tL.length ? tTop : cin) + parts.reduce((a, b) => a + b, 0) + gap * 1.2 * (parts.length - 1) + (tL.length ? 1.2 * u : 0) + lineGap + botPad;
   return { w: bw, h, u, def: [m, m], box: true, paint(bx, by) {
-    let y = by + p;
-    if (tL.length) { serif(); tL.forEach((t, i) => text(t, bx + p, y + i * 7 * u * 1.25, T.title)); y += tH + gap; }
+    const chipFill = 'rgba(255,255,255,.62)', ink = '#26211C';
+    let y = by + (tL.length ? tTop : cin);
+    if (tL.length) { serif(); tL.forEach((t, i) => text(t, bx + 5.7 * u, y + i * tfs * 1.3 - tfs * 0.1, T.title)); y += tH + gap * 1.2 + 1.2 * u; }
     if (rowH) {
-      const chip = (x, w) => { g.fillStyle = T.chip; rr(x, y, w, rowH, rad); g.fill(); };
+      const chip = (x, w) => { g.fillStyle = chipFill; rr(x, y, w, rowH, rad); g.fill(); };
       if (leftOn) {
-        const x = bx + p; chip(x, leftW);
-        icon(g, dateR.icon, x + cp, y + cp + (lh - ic) / 2, ic, T.ink); font(800, fs); text(dateR.label, x + cp + ic + gap * 0.6, y + cp + (lh - fs) / 2, T.ink);
-        font(600, fs * 1.25); text(lines(g, dateR.value, leftW - 2 * cp, 1)[0] || '', x + cp, y + cp + lh + fs * 0.15, T.ink);
+        const x = bx + cin; chip(x, leftW);
+        icon(g, dateR.icon, x + cp, y + cp + (clh - cic) / 2, cic, ink); font(700, cfs); text(dateR.label, x + cp + cic + 1.2 * u, y + cp + (clh - cfs) / 2, ink);
+        font(400, cfs * 1.08); text(lines(g, dateR.value, leftW - 2 * cp, 1)[0] || '', x + cp, y + cp + clh + cfs * 0.45, ink);
       }
       if (rightOn) {
-        const x = bx + p + (leftOn ? leftW + gap : 0); chip(x, rightW);
-        let ly = y + cp + (rowH - rightH) / 2;   // 일자 칸보다 낮으면 가운데로
-        restL.forEach(({ r, l }) => l.forEach((t, i) => {
-          if (!i) { icon(g, r.icon, x + cp, ly + (lh - ic) / 2, ic, T.ink); font(800, fs); text(r.label, x + cp + ic + gap * 0.6, ly + (lh - fs) / 2, T.ink); }
-          font(500, fs); text(t, x + cp + ic + gap * 0.6 + labW, ly + (lh - fs) / 2, T.ink); ly += lh; }));
+        const x = bx + cin + (leftOn ? leftW + gap : 0); chip(x, rightW);
+        let ly = y + cp;
+        if (head) { icon(g, rest[0].icon, x + cp, ly + (clh - cic) / 2, cic, ink); font(700, cfs); text(rest.map(r => r.label).join(' '), x + cp + cic + 1.2 * u, ly + (clh - cfs) / 2, ink); ly += clh; }
+        restL.forEach(({ r, l }, k) => l.forEach((t, i) => {
+          if (!i) { if (!head || k) icon(g, r.icon, x + cp, ly + (clh - cic) / 2, cic, ink); font(700, cfs); text(r.label, x + cp + cic + 1.2 * u, ly + (clh - cfs) / 2, ink); }
+          font(400, cfs); text(t, x + cp + valX, ly + (clh - cfs) / 2, ink); ly += clh; }));
       }
-      y += rowH + gap;
+      y += rowH + gap * 1.2;
     }
     if (whoR) {
-      font(800, fs); const lw = g.measureText(whoR.label).width; font(500, fs); const vw = g.measureText(whoR.value).width;
-      const w = Math.min(inW, cp * 2.8 + ic + gap * 1.4 + lw + vw + u), x = bx + bw - p - w, ty = y + (whoH - fs) / 2;
-      g.fillStyle = T.chip; rr(x, y, w, whoH, rad); g.fill();
-      icon(g, whoR.icon, x + cp * 1.4, y + (whoH - ic) / 2, ic, T.ink);
-      font(800, fs); text(whoR.label, x + cp * 1.4 + ic + gap * 0.6, ty, T.ink);
-      font(500, fs); text(lines(g, whoR.value, w - (cp * 2.8 + ic + gap * 1.4 + lw) + 0.5 * u, 1)[0] || '', x + cp * 1.4 + ic + gap * 0.6 + lw + gap * 0.8, ty, T.ink);
+      font(700, cfs); const lw = g.measureText(whoR.label).width; font(400, cfs); const vw = g.measureText(whoR.value).width;
+      const pad = 2.6 * u, w = Math.min(inW, 2 * pad + cic + 1.2 * u + lw + 1.4 * u + vw), x = bx + bw - cin - w, ty = y + (whoH - cfs) / 2;
+      g.fillStyle = chipFill; rr(x, y, w, whoH, rad); g.fill();
+      icon(g, whoR.icon, x + pad, y + (whoH - cic) / 2, cic, ink);
+      font(700, cfs); text(whoR.label, x + pad + cic + 1.2 * u, ty, ink);
+      font(400, cfs); text(lines(g, whoR.value, w - (2 * pad + cic + 2.6 * u + lw) + 0.5 * u, 1)[0] || '', x + pad + cic + 1.2 * u + lw + 1.4 * u, ty, ink);
+      y += whoH;
     }
+    // 아래 얇은 선
+    g.fillStyle = 'rgba(255,255,255,.55)'; g.fillRect(bx + cin, y + lineGap, bw - 2 * cin, Math.max(1, 0.18 * u));
   } };
 }
 // 사진(img, 없으면 투명) 위에 글상자를 그리고, 그린 자리 {x,y,w,h}를 돌려줘요. ghost면 흐릿하게(찍기 전 미리보기)
@@ -460,11 +468,11 @@ function drawNote(g, img, W, H, note, ghost) {
   g.save();
   if (ghost) g.globalAlpha = 0.55;
   if (L.box) {
-    const R0 = (['strip', 'column'].includes(note.layout) || note.theme === 'dark' ? 4 : 4.8) * L.u;   // 기본 카드는 모서리 조금 더 둥글게
+    const R0 = (['strip', 'column'].includes(note.layout) || note.theme === 'dark' ? 4 : 3.4) * L.u;   // 기본 카드는 모서리 조금 더 둥글게
     g.save(); g.beginPath(); g.roundRect(x, y, L.w, L.h, R0); g.clip();
     if (img && 'filter' in g) { g.filter = `blur(${Math.round(2.4 * L.u)}px)`; g.drawImage(img, 0, 0, W, H); g.filter = 'none'; }
     const isCard = !['strip', 'column'].includes(note.layout) && note.theme !== 'dark';   // 기본 카드: 더 투명하게, 테두리 없이
-    g.fillStyle = isCard ? 'rgba(255,252,246,.38)' : T.box; g.fillRect(x, y, L.w, L.h);
+    g.fillStyle = isCard ? 'rgba(250,247,242,.34)' : T.box; g.fillRect(x, y, L.w, L.h);
     g.restore();
     g.beginPath(); g.roundRect(x, y, L.w, L.h, R0); g.strokeStyle = isCard ? 'rgba(255,255,255,.75)' : T.edge; g.lineWidth = Math.max(1, (isCard ? 0.18 : 0.35) * L.u); g.stroke();   // 기본 카드는 얇은 흰 선
   }
@@ -480,7 +488,7 @@ function drawNote(g, img, W, H, note, ghost) {
 // 항목: 켜기/끄기, 이름 바꾸기, 순서 바꾸기, 새 항목 추가. 일자·위치는 사진마다, 나머지는 모든 사진에 같이
 // 표 빠른 선택 조합(사용자에게 보여준 시안). A = 기본
 const TABLE_PRESETS = [
-  { name: '기본 카드', v: { layout: 'card', theme: 'light', size: 0.88 } },
+  { name: '기본 카드', v: { layout: 'card', theme: 'light', size: 1 } },
   { name: 'A 표', v: { layout: 'table', tStyle: 'basic', tBg: 'white', tRound: true, tEdge: 'none', tIn: 'light', tInW: 'hair', tLine: 'dark' } },
   { name: '1 흰색·검은 선', v: { layout: 'table', tStyle: 'basic', tBg: 'white', tRound: true, tEdge: 'bold', tIn: 'black', tInW: 'normal', tLine: 'dark' } },
   { name: '2 반투명', v: { layout: 'table', tStyle: 'basic', tBg: 'glass', tRound: true, tEdge: 'thin', tIn: 'gray', tInW: 'thin', tLine: 'soft' } },
@@ -494,16 +502,17 @@ const DEF_FIELDS = [
   { id: 'date', label: '일자', on: true, icon: 'cal', per: true },
   { id: 'place', label: '위치', on: true, icon: 'pin', per: true },
   { id: 'memo', label: '내용', on: true, icon: 'memo' },
-  { id: 'who', label: '담당', on: true, icon: 'pen' }
+  { id: 'who', label: '담당', on: true, icon: 'sign' }
 ];
 const PH = { title: '예: 점심 삼대째손두부', date: '예: 2026.10.01', place: '예: 서구 공촌동', memo: '예: 콩물, 두부김치 무료', who: '예: 장남덕' };
-const cfg = Object.assign({ layout: 'card', theme: 'light', size: 0.88, tRound: true, tBg: 'white', tLine: 'dark', tStyle: 'basic', tEdge: 'none', tIn: 'light', tInW: 'hair', color: COLORS[0][1], at: {}, fields: DEF_FIELDS }, ls.get('cfg', {}));
+const cfg = Object.assign({ layout: 'card', theme: 'light', size: 1, tRound: true, tBg: 'white', tLine: 'dark', tStyle: 'basic', tEdge: 'none', tIn: 'light', tInW: 'hair', color: COLORS[0][1], at: {}, fields: DEF_FIELDS }, ls.get('cfg', {}));
 if (ls.get('color')) { cfg.color = ls.get('color'); }
 // 2026-10-01 사용자가 고른 표 모양(A: 바깥 테두리 없이 그림자, 연회색 아주 얇은 칸 선)을 한 번 기본으로 맞춰요
 if ((cfg.tVer || 0) < 3) Object.assign(cfg, { tVer: 3, layout: 'table', tStyle: 'basic', tEdge: 'none', tIn: 'light', tInW: 'hair', tRound: true, tBg: 'white' });   // 2026-10-01 표(A)를 기본 모양으로
 if ((cfg.tVer || 0) < 4) Object.assign(cfg, { tVer: 4, size: 0.65 });   // 2026-10-01 글상자를 더 작게(작게)를 기본으로
 if ((cfg.tVer || 0) < 5) Object.assign(cfg, { tVer: 5, layout: 'card', theme: 'light', size: 0.8 });
-if ((cfg.tVer || 0) < 6) Object.assign(cfg, { tVer: 6, size: cfg.layout === 'card' ? 0.88 : cfg.size });   // 기본 카드 조금 크게   // 2026-10-01 사용자가 고른 기본: 삼성 갤러리 모양 카드
+if ((cfg.tVer || 0) < 6) Object.assign(cfg, { tVer: 6, size: cfg.layout === 'card' ? 0.88 : cfg.size });   // 기본 카드 조금 크게
+if ((cfg.tVer || 0) < 7) { Object.assign(cfg, { tVer: 7, layout: 'card', theme: 'light', size: 1 }); const w = (cfg.fields || []).find(f => f.id === 'who'); if (w && w.icon === 'pen') w.icon = 'sign'; }   // 삼성 갤러리 카드 그대로를 기본으로   // 2026-10-01 사용자가 고른 기본: 삼성 갤러리 모양 카드
 // 예시 글: 처음부터 글상자에 들어가 있고, 칸을 누르면 통째로 골라져서 바로 고쳐 쓸 수 있어요
 const EX = { title: '점심 삼대째손두부', place: '서구 공촌동', memo: '콩물, 두부김치 무료', who: '장남덕' };
 const vals = Object.assign({ title: '', memo: '', who: ls.get('who', '') }, ls.get('vals', {}), { title: EX.title, memo: EX.memo });   // 담당·직접 만든 항목은 기억, 제목·내용은 예시로 새로
@@ -694,7 +703,7 @@ function editor() {
         el('div', { class: 'optrow' }, el('span', { text: '칸 선 굵기' }), seg([['hair', '아주 얇게'], ['thin', '얇게'], ['normal', '기본 굵기']], cfg.tInW, v => { cfg.tInW = v; })),
         el('div', { class: 'optrow' }, el('span', { text: '모서리' }), seg([[true, '둥글게'], [false, '각지게']], cfg.tRound, v => { cfg.tRound = v; })),
         el('div', { class: 'optrow' }, el('span', { text: '선' }), seg([['dark', '진하게'], ['soft', '연하게']], cfg.tLine, v => { cfg.tLine = v; }))] : []),
-      el('div', { class: 'optrow' }, el('span', { text: '크기' }), seg([[0.5, '아주 작게'], [0.65, '작게'], [0.88, '보통'], [1, '크게']], cfg.size, v => { cfg.size = v; })),
+      el('div', { class: 'optrow' }, el('span', { text: '크기' }), seg([[0.6, '아주 작게'], [0.8, '작게'], [1, '보통'], [1.2, '크게']], cfg.size, v => { cfg.size = v; })),
       el('div', { class: 'optrow' }, el('span', { text: '제목 색' }), el('div', { class: 'dots' }, COLORS.map(([n, c, d]) => el('button', { class: 'dot' + (cfg.color === c ? ' on' : ''), style: `background:${cfg.theme === 'dark' || cfg.layout === 'plain' ? d : c}`, 'aria-label': `제목 ${n}`,
         onclick: () => { cfg.color = c; saveCfg(); redraw(); drawPanel(); } })))),
       el('div', { class: 'optrow' }, el('span', { text: '자리' }), el('div', { class: 'seg' },
