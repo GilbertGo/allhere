@@ -148,7 +148,7 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = 'fire-2026-10-01b';
+const PHOTO_VER = 'fire-2026-10-01c';
 async function checkVer() {
   try {
     const t = await (await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' })).text();
@@ -694,7 +694,7 @@ async function camera() {
   const chips = el('div', { class: 'chips' });
   const drawChips = () => chips.replaceChildren(...LAYOUTS.map(([k, n]) => el('button', { class: cfg.layout === k ? 'on' : '', onclick: () => { cfg.layout = k; saveCfg(); drawChips(); } }, n)));
   drawChips();
-  const stop = () => { if (camStream) camStream.getTracks().forEach(t => t.stop()); camStream = null; cancelAnimationFrame(loop); wrap.remove(); };
+  const stop = () => { if (voiceStop) voiceStop(); if (camStream) camStream.getTracks().forEach(t => t.stop()); camStream = null; cancelAnimationFrame(loop); wrap.remove(); };
   const start = async () => {
     if (camStream) camStream.getTracks().forEach(t => t.stop());
     try { camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facing, width: { ideal: 1920 }, height: { ideal: 1440 } }, audio: false }); }
@@ -708,14 +708,28 @@ async function camera() {
     loop = requestAnimationFrame(tick);
   };
     // 글상자를 누르거나 '✏️ 글 고치기' → 찍기 전에 글을 고쳐요(고치는 대로 화면 글상자도 바로 바뀜)
+  let sheetIn = {};   // 열린 고치기 창의 칸(말로 채우면 같이 바뀌게)
+  const camGet = f => (f.per ? ghostP()[f.id] : vals[f.id]) || '';
+  const camSet = (f, t) => { if (f.per) camVals[f.id] = t; else { vals[f.id] = t; if (f.id !== 'title' && f.id !== 'memo') saveCfg(); } };
+  // 장갑 모드처럼 말로 채우기: 칸을 차례로 묻고 → "찍어" 하면 찍기 → 또 "찍어" / "다시"(글 다시) / "다 찍었어" / "그만"
+  const camVoice = () => { document.querySelectorAll('.sheet-bg').forEach(x => x.remove()); voiceFill({ get: camGet, set: camSet, changed: () => Object.entries(sheetIn).forEach(([k, i]) => { const f = cfg.fields.find(x => x.id === k); if (f) i.value = camGet(f); }),
+    help: '대답 · "같음"=그대로 · "찍어" / "다시" / "다 찍었어" · 끝낼 때 "그만" 또는 똑똑똑',
+    confirmQ: sum => `${sum}. 찍어 라고 하면 찍어요`,
+    confirm: async (n, v) => {
+      if (/다\s?찍|완료|끝났/.test(n)) { v.stop(); return done(); }
+      if (SAY.redo.test(n)) return v.restart();
+      if (SAY.shoot.test(n) || SAY.save.test(n)) { await shoot(); beepClick(); return v.ask(`${shots.length}장 찍었어요. 또 찍어, 글을 고치려면 다시, 끝나면 다 찍었어`); }
+      return v.ask('찍어, 다시, 다 찍었어, 그만 중에 말씀하세요');
+    } }); };
+  knockCb = () => camVoice();   // 카메라 화면에서 똑똑똑 → 말로 채우고 찍기(장갑)
   const editText = () => {
-    const on = cfg.fields.filter(f => f.on); if (!on.length) return toast('켠 항목이 없어요');
+    const on = cfg.fields.filter(f => f.on); if (!on.length) return toast('켠 항목이 없어요'); sheetIn = {};
     const g = ghostP(), bg = el('div', { class: 'sheet-bg', onclick: e => { if (e.target === bg) bg.remove(); } });
     const row = f => { const i = el('input', { type: 'text', id: 'c-' + f.id, maxlength: f.id === 'memo' ? 60 : 30, placeholder: PH[f.id] || '', value: (f.per ? g[f.id] : vals[f.id]) || '',
         onfocus: () => { if (i.value && i.value === EX[f.id]) setTimeout(() => i.select(), 0); },
-        oninput: () => { if (f.per) camVals[f.id] = i.value; else { vals[f.id] = i.value; if (f.id !== 'title' && f.id !== 'memo') saveCfg(); } } });
+        oninput: () => camSet(f, i.value) }); sheetIn[f.id] = i;
       return el('label', { class: 'f', for: 'c-' + f.id }, f.label, el('div', { class: 'inrow' }, i, micBtn(i, f))); };
-    bg.append(el('div', { class: 'sheet' }, el('h2', { text: '글상자 고치기' }), el('div', { class: 'hint', style: 'text-align:left', text: '고친 글은 이제부터 찍는 사진에 들어가요.' }),
+    bg.append(el('div', { class: 'sheet' }, el('h2', { text: '글상자 고치기' }), SR ? el('button', { class: 'vbtn', onclick: camVoice }, '🧤 말로 모두 채우고 찍기 (똑똑똑으로도)') : null, el('div', { class: 'hint', style: 'text-align:left', text: '고친 글은 이제부터 찍는 사진에 들어가요.' }),
       ...on.map(row), el('button', { class: 'big pri', onclick: () => bg.remove() }, '다 고쳤어요')));
     document.body.append(bg);
   };
@@ -1121,21 +1135,21 @@ async function gloveMode() {
 // ---------- 편집 화면에서 말로 채우기 ----------
 // 켠 칸을 차례로 소리 내어 묻고("같음"=그대로) → 읽어 주고 → "저장"(사진첩에 저장) / "다시" / "다음"(여러 장일 때 다음 사진) / "그만"
 let refreshInputs = null, voiceStop = null;
-async function voiceFill() {
+async function voiceFill(opt = {}) {   // opt: 카메라 화면처럼 다른 곳에서 쓸 때 칸 읽기·쓰기·확인 단계를 바꿔요
   if (voiceStop) return voiceStop();   // 이미 듣는 중이면 끄기
   if (!SR) return toast('이 브라우저는 음성 인식이 안 돼요');
   let active = true, rec = null, qi = 0, state = 'ask';
   const fields = () => cfg.fields.filter(f => f.on);
-  const getV = f => (f.per ? photos[cur][f.id] : vals[f.id]) || '';
-  const setV = (f, t) => { if (f.per) photos[cur][f.id] = t; else vals[f.id] = t; if (f.id === 'who') saveCfg(); };
+  const getV = opt.get || (f => (f.per ? photos[cur][f.id] : vals[f.id]) || '');
+  const setV = opt.set || ((f, t) => { if (f.per) photos[cur][f.id] = t; else vals[f.id] = t; if (f.id === 'who') saveCfg(); });
   const stEl = el('div', { class: 'g-state' }), heard = el('div', { class: 'g-heard' });
   const bar = el('div', { class: 'vbar' }, stEl, heard,
-    el('div', { class: 'g-help', text: '대답 · "같음"=그대로 · "저장" / "다시" / "다음 사진" · 끝낼 때 "그만" 또는 똑똑똑' }),
+    el('div', { class: 'g-help', text: opt.help || '대답 · "같음"=그대로 · "저장" / "다시" / "다음 사진" · 끝낼 때 "그만" 또는 똑똑똑' }),
     el('button', { class: 'g-b x', onclick: () => stop() }, '말로 채우기 끝내기'));
   document.body.append(bar);
   let wake = null; try { wake = await navigator.wakeLock.request('screen'); } catch {}
   const stopRec = () => { if (rec) { rec.onend = null; try { rec.abort(); } catch {} rec = null; } };
-  function stop(msg) { if (!active) return; active = false; voiceStop = null; stopRec(); try { speechSynthesis.cancel(); } catch {} try { wake && wake.release(); } catch {} bar.remove(); if (msg) speak(msg); }
+  function stop(msg) { if (!active) return; active = false; voiceStop = null; opt.onStop && opt.onStop(); stopRec(); try { speechSynthesis.cancel(); } catch {} try { wake && wake.release(); } catch {} bar.remove(); if (msg) speak(msg); }
   voiceStop = () => stop('말로 채우기를 끝내요');
   const listen = () => {
     if (!active) return; stopRec();
@@ -1148,7 +1162,7 @@ async function voiceFill() {
   const ask = async t => { stopRec(); stEl.textContent = t; heard.textContent = ''; await speak(t); listen(); };
   const josa = w => { const c = (w || '').charCodeAt(w.length - 1); return c >= 0xAC00 && c <= 0xD7A3 && (c - 0xAC00) % 28 ? '을' : '를'; };
   const askNext = () => {
-    const fs = fields(); if (qi >= fs.length) { state = 'confirm'; return ask(`${fs.map(f => `${f.label} ${getV(f) || '없음'}`).join(', ')}. 저장할까요?`); }
+    const fs = fields(); if (qi >= fs.length) { state = 'confirm'; const sum = fs.map(f => `${f.label} ${getV(f) || '없음'}`).join(', '); return ask(opt.confirmQ ? opt.confirmQ(sum) : `${sum}. 저장할까요?`); }
     const f = fs[qi], v = getV(f); ask(`${f.label}${josa(f.label)} 말씀하세요${v ? '. 지금은 ' + v : ''}`);
   };
   async function handle(t) {
@@ -1156,10 +1170,12 @@ async function voiceFill() {
     if (SAY.quit.test(n) && n.length <= 5) return stop('말로 채우기를 끝내요');
     if (state === 'ask') {
       const f = fields()[qi];
-      if (!SAY.same.test(n)) { setV(f, t.slice(0, f.id === 'memo' ? 60 : 30)); refreshInputs && refreshInputs(); redraw(); }
+      if (!SAY.same.test(n)) { setV(f, t.slice(0, f.id === 'memo' ? 60 : 30)); if (opt.changed) opt.changed(); else { refreshInputs && refreshInputs(); redraw(); } }
       qi++; return askNext();
     }
-    if (SAY.redo.test(n)) { state = 'ask'; qi = 0; return askNext(); }
+    const restart = () => { state = 'ask'; qi = 0; return askNext(); };
+    if (opt.confirm) return opt.confirm(n, { ask, stop, restart });
+    if (SAY.redo.test(n)) return restart();
     if (/다음/.test(n) && photos.length > 1) { photos[cur].look = lookOf(); cur = (cur + 1) % photos.length; useLook(photos[cur]); onPhotoChange && onPhotoChange(); refreshInputs && refreshInputs(); redraw(); state = 'ask'; qi = 0; stopRec(); await speak(`${cur + 1}번째 사진이에요`); return askNext(); }
     if (SAY.save.test(n)) { await save(); return stop(photos.length > 1 ? `${photos.length}장을 저장했어요` : '저장했어요'); }
     return ask('저장, 다시, 다음 사진, 그만 중에 말씀하세요');
