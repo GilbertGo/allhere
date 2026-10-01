@@ -458,8 +458,10 @@ const DEF_FIELDS = [
   { id: 'who', label: '담당', on: true, icon: 'pen' }
 ];
 const PH = { title: '예: 점심 삼대째손두부', date: '예: 2026.10.01', place: '예: 서구 공촌동', memo: '예: 콩물, 두부김치 무료', who: '예: 장남덕' };
-const cfg = Object.assign({ layout: 'card', theme: 'light', size: 1, tRound: true, tBg: 'white', tLine: 'dark', tStyle: 'basic', tEdge: 'bold', tIn: 'black', tInW: 'normal', color: COLORS[0][1], at: {}, fields: DEF_FIELDS }, ls.get('cfg', {}));
+const cfg = Object.assign({ layout: 'card', theme: 'light', size: 1, tRound: true, tBg: 'white', tLine: 'dark', tStyle: 'basic', tEdge: 'none', tIn: 'light', tInW: 'hair', color: COLORS[0][1], at: {}, fields: DEF_FIELDS }, ls.get('cfg', {}));
 if (ls.get('color')) { cfg.color = ls.get('color'); }
+// 2026-10-01 사용자가 고른 표 모양(A: 바깥 테두리 없이 그림자, 연회색 아주 얇은 칸 선)을 한 번 기본으로 맞춰요
+if (cfg.tVer !== 2) Object.assign(cfg, { tVer: 2, tStyle: 'basic', tEdge: 'none', tIn: 'light', tInW: 'hair', tRound: true, tBg: 'white' });
 const vals = Object.assign({ title: '', memo: '', who: ls.get('who', '') }, ls.get('vals', {}), { title: '', memo: '' });   // 담당·직접 만든 항목은 기억, 제목·내용은 새로
 const saveCfg = () => { ls.set('cfg', cfg); const keep = {}; cfg.fields.forEach(f => { if (f.id !== 'title' && f.id !== 'memo' && !f.per) keep[f.id] = vals[f.id] || ''; }); ls.set('vals', keep); };
 function noteFor(p) {
