@@ -117,6 +117,8 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
 .cam .chips button{height:34px;border-radius:999px;background:rgba(255,255,255,.14);color:#fff;font-weight:700;font-size:13.5px;padding:0 12px}
 .cam .chips button.on{background:#fff;color:#2A2118}
 .cam .edit{position:absolute;right:12px;bottom:12px;height:40px;border-radius:999px;background:rgba(255,255,255,.92);color:#2A2118;font-weight:800;font-size:14.5px;padding:0 16px;box-shadow:0 2px 10px rgba(0,0,0,.3)}
+.cam .edit.gl{right:auto;left:12px;background:#2A2118;color:#FFD9B5}
+.cam .side{min-width:84px;width:auto!important;padding:0 10px}
 .cam .shots{position:absolute;left:12px;bottom:12px;background:rgba(0,0,0,.55);color:#fff;border-radius:999px;font-size:13px;font-weight:700;padding:5px 11px}
 @media (max-height:700px){.panel{max-height:28vh}.home h1{font-size:26px}.big{height:56px}input[type=text]{height:40px}.acts .big{height:48px}label.f{font-size:12px}}
 </style>
@@ -130,7 +132,7 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = '2026-10-02a';
+const PHOTO_VER = '2026-10-02b';
 async function checkVer() {
   try {
     const t = await (await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' })).text();
@@ -564,7 +566,9 @@ const camIn = el('input', { type: 'file', accept: 'image/*', capture: 'environme
 const pickIn = el('input', { type: 'file', accept: 'image/*', multiple: true, style: 'display:none', onchange: () => { load([...pickIn.files], false); pickIn.value = ''; } });
 document.body.append(camIn, pickIn);
 
-function home() {
+// 첫 화면 = 촬영 화면(2026-10-02 사용자: 첫 화면과 촬영 화면을 하나로). 카메라를 못 쓰는 브라우저만 예전 첫 화면
+function home() { if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) return camera(true); homeOld(); }
+function homeOld() {
   appendNext = false;
   knockCb = () => gloveMode();   // 첫 화면에서 똑똑똑 → 장갑 모드
   const cv = el('canvas', { width: 900, height: 560 });
@@ -602,6 +606,7 @@ async function fillPlaces(list, here) {
 }
 async function load(files, fresh) {
   if (!files.length) return;
+  if (camClose) camClose();   // 촬영 화면에서 앨범을 골랐으면 카메라를 닫아요
   toast('사진을 여는 중이에요…');
   const here = fresh ? hereNow() : null, list = [];
   for (const file of files.slice(0, 20)) {
@@ -631,10 +636,11 @@ function dragBox(canvas, getBox, size, onMove, onTap) {
 }
 
 // ---------- 카메라: 글상자 자리를 흐릿하게 보며 찍어요 ----------
-let camStream = null, facing = 'environment';
-async function camera() {
+let camStream = null, facing = 'environment', camClose = null;
+async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않고) 연 촬영 화면
+  if (camClose) camClose();
   appendNext = photos.length > 0;   // 편집 중에 더 찍으면 지금 사진들에 더해요
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return camIn.click();   // 안 되는 브라우저는 휴대폰 카메라 앱으로
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return auto ? homeOld() : camIn.click();   // 안 되는 브라우저는 휴대폰 카메라 앱으로
   const video = el('video', { autoplay: true, playsinline: true, muted: true }), ov = el('canvas', { class: 'drag' });
   const shots = [], here = hereNow(); let placeNow = '', box = null;
   const camVals = {};   // 카메라에서 고친 사진마다 칸(일자·위치 등). 이어서 찍는 사진에 같이 들어가요
@@ -642,13 +648,14 @@ async function camera() {
   here.then(h => h && placeName(h.lat, h.lng).then(n => { if (n) placeNow = n; }));
   const shotsEl = el('div', { class: 'shots', style: 'display:none' });
   const chips = el('div', { class: 'chips' });
-  const drawChips = () => chips.replaceChildren(...LAYOUTS.map(([k, n]) => el('button', { class: cfg.layout === k ? 'on' : '', onclick: () => { cfg.layout = k; saveCfg(); drawChips(); } }, n)));
+  let setBtn = null;
+  const drawChips = () => { chips.replaceChildren(...LAYOUTS.map(([k, n]) => el('button', { class: cfg.layout === k ? 'on' : '', onclick: () => { cfg.layout = k; saveCfg(); drawChips(); } }, n))); if (setBtn) chips.append(setBtn); };
   drawChips();
-  const stop = () => { if (voiceStop) voiceStop(); if (camStream) camStream.getTracks().forEach(t => t.stop()); camStream = null; cancelAnimationFrame(loop); wrap.remove(); };
+  const stop = () => { camClose = null; if (voiceStop) voiceStop(); if (camStream) camStream.getTracks().forEach(t => t.stop()); camStream = null; cancelAnimationFrame(loop); wrap.remove(); };
   const start = async () => {
     if (camStream) camStream.getTracks().forEach(t => t.stop());
     try { camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facing, width: { ideal: 1920 }, height: { ideal: 1440 } }, audio: false }); }
-    catch { stop(); toast('카메라를 열 수 없어 휴대폰 카메라로 찍어요'); return camIn.click(); }
+    catch { stop(); if (auto) { if (!photos.length) homeOld(); toast('카메라를 열 수 없어요. 카메라 사용을 허락하거나 아래 버튼으로 찍어 주세요'); return; } toast('카메라를 열 수 없어 휴대폰 카메라로 찍어요'); return camIn.click(); }
     video.srcObject = camStream;
   };
   let loop = 0;
@@ -689,15 +696,32 @@ async function camera() {
     const c = document.createElement('canvas'); c.width = W; c.height = H; c.getContext('2d').drawImage(video, 0, 0);
     const h = await Promise.race([here, new Promise(r => setTimeout(() => r(null), 50))]);
     const p = photoOf(await createImageBitmap(c), new Date(), h?.lat, h?.lng); if (placeNow) p.place = placeNow; Object.assign(p, camVals);
-    shots.push(p); shotsEl.style.display = ''; shotsEl.textContent = `${shots.length}장 찍음`;
+    shots.push(p); drawLeft();
     wrap.animate([{ opacity: 0.3 }, { opacity: 1 }], 180);
   };
-  const done = () => { stop(); if (!shots.length) return photos.length ? editor() : home(); photos = photos.concat(shots); cur = photos.length - shots.length; editor(); fillPlaces(shots, here); };
+  const done = () => { if (!shots.length && !photos.length) return; stop(); if (!shots.length) return editor(); photos = photos.concat(shots); cur = photos.length - shots.length; editor(); fillPlaces(shots, here); };
+  // 왼쪽 아래 버튼: 찍기 전 = 앨범에서 고르기, 찍은 뒤 = 다 찍음(장 수)
+  const leftBtn = el('button', { class: 'side' });
+  const drawLeft = () => { leftBtn.textContent = shots.length ? `다 찍음 · ${shots.length}장` : photos.length ? '돌아가기' : '앨범'; leftBtn.onclick = shots.length || photos.length ? done : () => pickIn.click(); };
+  drawLeft();
+  // 설정(예전 첫 화면에 있던 것): AI로 채우기 설정 · 두드림 감도
+  const openSet = () => {
+    const bg = el('div', { class: 'sheet-bg', onclick: e => { if (e.target === bg) bg.remove(); } });
+    bg.append(el('div', { class: 'sheet' }, el('h2', { text: '설정' }),
+      el('button', { class: 'big sec', onclick: () => { bg.remove(); openAiSettings(); } }, aiReady() ? '🤖 AI로 채우기: 켜짐 (설정)' : '🤖 AI로 채우기 설정'),
+      el('div', { class: 'hint', style: 'text-align:left;margin-bottom:-4px', text: '두드림(똑똑똑) 감도' }), el('div', { class: 'seg', style: 'flex-wrap:nowrap' },
+        ...[['low', '둔하게'], ['mid', '보통'], ['high', '예민하게']].map(([k, n]) => el('button', { style: 'flex:1 1 0', class: ls.get('knockSens', 'mid') === k ? 'on' : '', onclick: e => { ls.set('knockSens', k); e.currentTarget.parentNode.querySelectorAll('button').forEach(b => b.classList.remove('on')); e.currentTarget.classList.add('on'); } }, n))),
+      el('div', { class: 'hint', style: 'text-align:left', text: '장갑을 낀 채 휴대폰을 똑똑똑 세 번 두드리면 말로 글을 채우고 "찍어"로 찍어요. 다시 똑똑똑 하면 꺼져요. 사진은 휴대폰 안에서만 만들어져요.' }),
+      el('button', { class: 'big pri', onclick: () => bg.remove() }, '닫기')));
+    document.body.append(bg);
+  };
+  setBtn = el('button', { 'aria-label': '설정', onclick: openSet }, '⚙️ 설정'); chips.append(setBtn);
+  camClose = stop;
   const wrap = el('div', { class: 'cam' },
     chips,
-    el('div', { class: 'view' }, video, ov, shotsEl, el('button', { class: 'edit', onclick: editText }, '✏️ 글 고치기')),
+    el('div', { class: 'view' }, video, ov, el('button', { class: 'edit gl', onclick: async () => { await allowMotion(); stop(); gloveMode(); } }, '🧤 장갑 모드'), el('button', { class: 'edit', onclick: editText }, '✏️ 글 고치기')),
     el('div', { class: 'bar' },
-      el('button', { class: 'side', onclick: done }, '다 찍음'),
+      leftBtn,
       el('button', { class: 'shut', 'aria-label': '찍기', onclick: shoot }),
       el('button', { class: 'side', onclick: () => { facing = facing === 'environment' ? 'user' : 'environment'; start(); } }, '앞/뒤 바꾸기')));
   document.body.append(wrap);
