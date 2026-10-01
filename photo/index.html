@@ -55,6 +55,11 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
 body:has(.cam) .toast{bottom:auto;top:calc(70px + env(safe-area-inset-top,0px))}   /* 촬영 화면에서는 알림을 위쪽에(아래 버튼을 가리지 않게) */
 
 /* 아래 칸: 글 / 모양 / 항목 */
+.etools{display:flex;gap:8px;margin-bottom:10px}
+.etools button{flex:1 1 0;height:62px;border-radius:16px;background:var(--card);box-shadow:var(--shadow);font-size:14px;font-weight:800;color:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}
+.etools button b{font-size:21px;line-height:1}
+.panel.in-sheet{max-height:58vh}
+details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summary{font-weight:700;color:var(--muted);padding:6px 0;cursor:pointer}details.more[open]{display:flex;flex-direction:column;gap:8px}
 .tabs{display:flex;gap:4px;background:var(--soft);border-radius:12px;padding:3px;margin-bottom:8px}
 .tabs button{flex:1;height:36px;border-radius:10px;background:none;font-weight:700;font-size:14px;color:var(--muted)}
 .tabs button.on{background:var(--card);color:var(--ink);box-shadow:var(--shadow)}
@@ -139,7 +144,7 @@ body:has(.cam) .toast{bottom:auto;top:calc(70px + env(safe-area-inset-top,0px))}
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = '2026-10-02d';
+const PHOTO_VER = '2026-10-02e';
 async function checkVer() {
   try {
     const t = await (await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' })).text();
@@ -813,9 +818,16 @@ function editor() {
   setTimeout(() => tip.remove(), 3500);
   dragBox(cv, () => lastBox, () => [photos[cur].W, photos[cur].H], redraw);
   const panel = el('div', { class: 'panel' });
-  const tabs = el('div', { class: 'tabs' });
-  const setTab = t => { tab = t; ls.set('tab', t); drawTabs(); drawPanel(); };
-  const drawTabs = () => tabs.replaceChildren(...[['text', '글 적기'], ['look', '모양'], ['fields', '항목']].map(([k, n]) => el('button', { class: tab === k ? 'on' : '', onclick: () => setTab(k) }, n)));
+  const setTab = t => { tab = t; if (sheetTitle) sheetTitle.textContent = TITLES[t]; drawPanel(); };
+  const TITLES = { text: '글 수정', look: '표 수정 (글상자 모양)', fields: '항목 고르기' };
+  let sheetTitle = null;
+  // 2026-10-02 사용자: 편집 화면이 복잡 → 탭·입력칸을 화면에서 빼고, 아래 버튼을 누르면 창으로
+  const openSheet = t => {
+    const bg = el('div', { class: 'sheet-bg', onclick: e => { if (e.target === bg) bg.remove(); } });
+    sheetTitle = el('h2'); panel.classList.add('in-sheet');
+    bg.append(el('div', { class: 'sheet' }, sheetTitle, panel, el('button', { class: 'big pri', onclick: () => bg.remove() }, '다 됐어요')));
+    document.body.append(bg); setTab(t);
+  };
   // 글 적기: 켠 항목마다 입력 칸
   const inputs = {};
   function textPanel() {
@@ -829,7 +841,8 @@ function editor() {
       return el('label', { class: 'f', for: 'f-' + f.id, style: f.id === 'memo' ? 'grid-column:1/-1' : null }, f.label + (f.per && many ? ' (사진마다)' : ''), el('div', { class: 'inrow' }, i, micBtn(i, f)));
     };
     const title = on.find(f => f.id === 'title'), others = on.filter(f => f !== title);
-    return [aiReady() ? el('button', { class: 'vbtn ai', onclick: () => aiFillEditor() }, '🤖 AI로 채우기 (사진 보고 저절로)') : null, SR ? el('button', { class: 'vbtn', onclick: () => voiceFill() }, '🎤 말로 모두 채우기 (똑똑똑으로도)') : null, title ? box(title) : null, el('div', { class: 'grid2' }, others.map(box))];
+    return [title ? box(title) : null, el('div', { class: 'grid2' }, others.map(box)),
+      el('button', { class: 'lnk', style: 'align-self:flex-start;margin-top:2px', onclick: () => setTab('fields') }, '항목 고르기 (켜기·끄기·이름 바꾸기) ›')];
   }
   // 모양: 글상자 모양 · 바탕 · 글자 크기 · 제목 색 · 자리 처음대로
   function lookPanel() {
@@ -875,26 +888,33 @@ function editor() {
         el('button', { class: 'mini', 'aria-label': '위로', onclick: mv(-1) }, '↑'), el('button', { class: 'mini', 'aria-label': '아래로', onclick: mv(1) }, '↓'),
         f.id.startsWith('c') ? el('button', { class: 'mini x', 'aria-label': '항목 지우기', onclick: () => { cfg.fields.splice(i, 1); delete vals[f.id]; saveCfg(); redraw(); drawPanel(); } }, '×') : null);
     });
-    return [el('div', { class: 'hint', style: 'text-align:left', text: '체크한 항목만 사진에 들어가요. 이름을 눌러 바꿀 수 있어요. (카드 모양에서 "일자"는 왼쪽 칸, "담당"은 오른쪽 아래)' }), ...rows,
+    return [el('button', { class: 'lnk', style: 'align-self:flex-start', onclick: () => setTab('text') }, '‹ 글 적기로'), el('div', { class: 'hint', style: 'text-align:left', text: '체크한 항목만 사진에 들어가요. 이름을 눌러 바꿀 수 있어요. (카드 모양에서 "일자"는 왼쪽 칸, "담당"은 오른쪽 아래)' }), ...rows,
       el('button', { class: 'add', onclick: () => { const id = 'c' + Date.now().toString(36); cfg.fields.push({ id, label: '항목', on: true, icon: ['clock', 'people', 'tag'][cfg.fields.length % 3] }); saveCfg(); redraw(); drawPanel(); } }, '+ 항목 추가 (예: 시간, 인원, 날씨)'),
       el('button', { class: 'add', style: 'border-style:solid;color:var(--muted)', onclick: () => { if (confirm('항목을 처음 상태(제목·일자·위치·내용·담당)로 되돌릴까요?')) { cfg.fields = DEF_FIELDS.map(f => ({ ...f })); saveCfg(); redraw(); drawPanel(); } } }, '처음 항목으로 되돌리기')];
   }
-  const drawPanel = () => panel.replaceChildren(...(tab === 'look' ? lookPanel() : tab === 'fields' ? fieldsPanel() : textPanel()).filter(Boolean));
+  const lookSimple = () => {
+    const all = lookPanel().filter(Boolean), keep = ['모양', '크기'];
+    const isMain = n => keep.includes(n.querySelector && n.querySelector(':scope > span')?.textContent);
+    return [...all.filter(isMain), el('details', { class: 'more' }, el('summary', { text: '자세히 꾸미기 (빠른 선택·바탕·테두리·선·색·자리)' }), ...all.filter(n => !isMain(n)))];
+  };
+  const drawPanel = () => { const open = panel.querySelector('details.more')?.open; panel.replaceChildren(...(tab === 'look' ? lookSimple() : tab === 'fields' ? fieldsPanel() : textPanel()).filter(Boolean)); if (open) { const d = panel.querySelector('details.more'); if (d) d.open = true; } };
   refreshInputs = () => { Object.entries(inputs).forEach(([k, i]) => { const f = cfg.fields.find(x => x.id === k); if (f) i.value = valOf(photos[cur], f); }); };
   onPhotoChange = () => { const p = photos[cur]; ['date', 'place'].forEach(k => { if (inputs[k] && document.activeElement !== inputs[k]) inputs[k].value = p[k] || ''; }); if (countEl) countEl.textContent = `${cur + 1} / ${photos.length}`; };
   const go = d => { photos[cur].look = lookOf(); cur = (cur + d + photos.length) % photos.length; useLook(photos[cur]); onPhotoChange(); drawPanel(); redraw(); };
   app.replaceChildren(
     el('div', { class: 'top' },
-      el('button', { class: 'lnk', onclick: () => { if (confirm('처음으로 갈까요? 저장하지 않은 사진은 사라져요.')) { photos = []; home(); } } }, '← 처음으로'),
-      el('div', { class: 'seg' }, el('button', { onclick: () => camera() }, '+ 찍기'), el('button', { onclick: () => { appendNext = true; pickIn.click(); } }, '+ 앨범'))),
+      el('button', { class: 'lnk', onclick: () => { if (confirm('처음으로 갈까요? 저장하지 않은 사진은 사라져요.')) { photos = []; home(); } } }, '← 처음으로')),
     el('div', { class: 'stage' }, cv, tip,
       many ? el('button', { class: 'nav l', 'aria-label': '이전 사진', onclick: () => go(-1) }, '‹') : null,
       many ? el('button', { class: 'nav r', 'aria-label': '다음 사진', onclick: () => go(1) }, '›') : null, countEl),
-    tabs, panel,
+    el('div', { class: 'etools' },
+      el('button', { onclick: () => openSheet('text') }, el('b', { text: '✏️' }), '글 수정'),
+      el('button', { onclick: () => openSheet('look') }, el('b', { text: '🎨' }), '표 수정'),
+      aiReady() ? el('button', { onclick: () => aiFillEditor() }, el('b', { text: '🤖' }), 'AI로 채우기') : null),
     el('div', { class: 'acts' },
       el('button', { class: 'big sec', onclick: share }, '보내기'),
       el('button', { class: 'big pri', onclick: save }, many ? `${photos.length}장 저장` : '사진첩에 저장')));
-  drawTabs(); drawPanel(); onPhotoChange(); redraw();
+  onPhotoChange(); redraw();
   if (document.fonts) document.fonts.ready.then(redraw);
 }
 // 모양 고르기 버튼의 작은 그림
@@ -991,7 +1011,7 @@ async function aiFillEditor() {
   toast('🤖 AI가 사진을 보고 있어요…');
   try {
     const out = await aiDescribe(p, askSheet);
-    if (out.title) vals.title = out.title; if (out.memo) vals.memo = out.memo;
+    if (photos.length > 1) applyAi(p, out); else { if (out.title) vals.title = out.title; if (out.memo) vals.memo = out.memo; saveCfg(); }   // 여러 장이면 그 사진에만
     refreshInputs && refreshInputs(); redraw(); toast('AI가 제목·내용을 썼어요. 고칠 곳은 고쳐 주세요');
   } catch (e) { toast('AI로 채우지 못했어요: ' + e.message); }
 }
