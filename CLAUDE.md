@@ -29,6 +29,11 @@
   - **주의: 인솔자 화면 정리(2026-09-27) 이후 변경이 Firebase 버전에는 없다.** 사용자가 "Firebase는 아직"이라고 해서 보류 중. 다왔나 기능(인솔자 링크 검사, 첫 화면, 참여 중인 나들이, 디자인 등)만 맞추면 됨.
   - `firebase/index.html`은 Copilot이 만든 시험용 버전의 복사본(정식 버전 아님). 정리 필요.
 
+## 사진 글상자 (`photo/` 폴더, 2026-10-01, 따로 쓰는 웹앱)
+- 주소 https://gilbertgo.github.io/allhere/photo/ . 다왔나 '사진에 글 넣기'만 떼어 낸 것. 한 파일(`photo/index.html`) + 자기 `manifest.webmanifest`·아이콘(바탕화면에 따로 둘 수 있음). 다왔나와 링크로 잇지 않았다.
+- 사진 찍기 / 앨범에서 여러 장(20장까지). 제목·내용·담당·글상자 위치·제목 색(갈색·초록·남색·검정)은 모든 사진에 같이, 일자·위치는 사진마다(앨범 사진은 EXIF 찍은 날짜·GPS를 읽음 `readExif`, 방금 찍은 사진은 지금 위치) → `placeName`(Nominatim)으로 동네 이름. 저장 = 다운로드(파일 이름은 영문 `photo_날짜_시각_n.jpg`: 한글 이름은 'download'로 바뀌는 경우가 있음), 보내기 = 공유 창.
+- localStorage 키는 `photoNote:` 앞붙임(다왔나와 같은 주소 아래라 섞이지 않게). 그리는 코드 `drawNote`는 다왔나 `drawPhotoNote`와 같은 모양(고치면 둘 다).
+
 ## 안드로이드 앱 (`app/` 폴더, 2026-09-29 시작)
 - 목적: 화면이 꺼져도 위치 기록·전송. 지금은 인솔자용 시험(디버그 APK를 직접 설치). Play 스토어는 아직.
 - Capacitor 8. 화면은 `server.url`로 https://gilbertgo.github.io/allhere/ 를 그대로 불러온다(웹을 push하면 앱도 바뀜). appId `io.github.gilbertgo.allhere`, 이름 다왔나.

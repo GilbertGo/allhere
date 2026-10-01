@@ -311,7 +311,7 @@ function verNotice(msg, ms) {
 }
 // 앱·바탕화면 아이콘은 예전 화면을 한동안 다시 쓰기도 해요. 열 때 서버의 파일을 새로 받아 버전이 다르면 한 번 새로고침해요.
 // 배포할 때마다 APP_VER를 바꿔 주세요.
-const APP_VER = '2026-10-01a';
+const APP_VER = '2026-10-01b';
 if (sessionStorage.getItem('verDone') === APP_VER) { sessionStorage.removeItem('verDone'); setTimeout(() => verNotice(`새 버전으로 바꿨어요 (${APP_VER})`, 5000), 500); }
 // 열 때, 화면으로 돌아올 때, 켜 두는 동안 2분마다 서버에 새 버전이 있는지 봐요. 있으면 가운데 주황 안내를 3초 보여주고 바꿔요
 let verBusy = false;
@@ -733,7 +733,8 @@ function drawPhotoNote(g, img, W, H, f) {
   font(800, 7 * u); const tLines = has('title') ? noteLines(g, f.title.trim(), inW, 2) : [];
   const tH = tLines.length ? tLines.length * 7 * u * 1.25 : 0;
   const rightOn = has('place') || has('memo'), leftOn = has('date');
-  const leftW = leftOn ? (rightOn ? Math.max(inW * 0.34, 28 * u) : inW) : 0, rightW = rightOn ? (leftOn ? inW - leftW - gap : inW) : 0;
+  font(600, fs * 1.25); const dateW = leftOn ? g.measureText(f.date.trim()).width + 2 * cp + u : 0;   // 날짜가 잘리지 않게 칸을 넓혀요
+  const leftW = leftOn ? (rightOn ? Math.min(inW * 0.5, Math.max(inW * 0.34, 28 * u, dateW)) : inW) : 0, rightW = rightOn ? (leftOn ? inW - leftW - gap : inW) : 0;
   font(800, fs); const labW = Math.max(g.measureText('위치').width, g.measureText('내용').width) + gap;
   const valW = rightW - 2 * cp - ic - gap * 0.6 - labW;
   font(500, fs);
@@ -818,7 +819,7 @@ function openPhotoNote(file, defaults) {
       drawPhotoNote(c.getContext('2d'), bmp, W, H, withText ? f : {});
       const out = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.9));
       bg.remove();
-      if (out && iSave.checked) savePhotoToPhone(out, `다왔나_${(f.title || '사진').replace(/[\\/:*?"<>|]/g, '').slice(0, 20)}_${Date.now()}.jpg`);
+      if (out && iSave.checked) savePhotoToPhone(out, `dawatna_${Date.now()}.jpg`);   // 한글 파일 이름은 'download'로 바뀌는 휴대폰이 있어서
       resolve(out || file);
     };
     const bg = el('div', { class: 'sheet-bg' });
