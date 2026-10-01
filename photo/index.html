@@ -76,6 +76,12 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
 .preset canvas{width:104px;height:65px;border-radius:9px;display:block}
 .preset span{font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .preset.on{box-shadow:0 0 0 2.5px var(--brown)}
+.inrow{display:flex;gap:6px;align-items:center}
+.inrow input{flex:1;min-width:0}
+.grid2 .mic{width:36px}
+.mic{flex-shrink:0;width:42px;height:44px;border-radius:12px;background:var(--card);color:var(--brown);box-shadow:var(--shadow);display:flex;align-items:center;justify-content:center}
+.mic.on{background:#C0392B;color:#fff;animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.6}}
 .add{height:42px;border-radius:12px;background:none;border:1.5px dashed var(--line);font-weight:700;color:var(--brown)}
 .tip{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);background:rgba(0,0,0,.55);color:#fff;font-size:12.5px;font-weight:600;border-radius:999px;padding:5px 11px;white-space:nowrap;pointer-events:none}
 .stage canvas.drag{cursor:grab;touch-action:none}
@@ -103,7 +109,7 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = '2026-10-01n';
+const PHOTO_VER = '2026-10-01o';
 async function checkVer() {
   try {
     const t = await (await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' })).text();
@@ -651,6 +657,25 @@ function redraw() {
 }
 const svgIco = k => { const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('width', 18); s.setAttribute('height', 18);
   s.innerHTML = (ICO[k] || ICO.tag).map(d => `<path d="${d}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`).join(''); return s; };
+// 말로 입력: 칸 옆 마이크를 누르고 말하면 글자로 바뀌어요(휴대폰 브라우저의 음성 인식, 한국어). 키보드로도 그대로 적을 수 있어요
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recNow = null;
+function micBtn(input, f) {
+  if (!SR) return null;   // 음성 인식이 안 되는 브라우저는 마이크 버튼 없이 키보드만
+  const b = el('button', { class: 'mic', type: 'button', 'aria-label': `${f.label} 말로 입력` });
+  b.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>';
+  b.onclick = e => {
+    e.preventDefault();
+    if (recNow) { recNow.stop(); return; }
+    const r = new SR(); r.lang = 'ko-KR'; r.interimResults = true; r.continuous = false;
+    const before = input.value && input.value !== EX[f.id] ? input.value.trim() + ' ' : '';   // 예시 글이면 바꾸고, 적어 둔 글이 있으면 뒤에 이어 써요
+    r.onresult = ev => { const t = [...ev.results].map(x => x[0].transcript).join(''); input.value = (before + t).slice(0, +input.maxLength || 60); input.dispatchEvent(new Event('input')); };
+    r.onerror = ev => { toast(ev.error === 'not-allowed' ? '마이크 사용을 허락해 주세요' : ev.error === 'no-speech' ? '말소리가 들리지 않았어요' : '말로 입력하지 못했어요'); };
+    r.onend = () => { recNow = null; b.classList.remove('on'); };
+    try { r.start(); recNow = r; b.classList.add('on'); toast('말씀하세요…'); } catch { toast('말로 입력하지 못했어요'); }
+  };
+  return b;
+}
 function editor() {
   useLook(photos[cur]);
   cv = el('canvas', { class: 'drag' });
@@ -673,7 +698,7 @@ function editor() {
         onfocus: () => { if (i.value && i.value === EX[f.id]) setTimeout(() => i.select(), 0); },   // 예시 글이면 통째로 골라서 바로 덮어쓰게
         oninput: () => { if (f.per) photos[cur][f.id] = i.value; else vals[f.id] = i.value; if (f.id !== 'title' && f.id !== 'memo' && !f.per) saveCfg(); redraw(); } });
       inputs[f.id] = i;
-      return el('label', { class: 'f', for: 'f-' + f.id }, f.label + (f.per && many ? ' (사진마다)' : ''), i);
+      return el('label', { class: 'f', for: 'f-' + f.id, style: f.id === 'memo' ? 'grid-column:1/-1' : null }, f.label + (f.per && many ? ' (사진마다)' : ''), el('div', { class: 'inrow' }, i, micBtn(i, f)));
     };
     const title = on.find(f => f.id === 'title'), others = on.filter(f => f !== title);
     return [title ? box(title) : null, el('div', { class: 'grid2' }, others.map(box))];
