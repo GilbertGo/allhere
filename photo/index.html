@@ -206,10 +206,10 @@ function lines(g, text, maxW, maxLines) {
 // 모양: 카드(넓은 상자) · 띠(가로로 얇게) · 세로(세로로 길게) · 글씨만(상자 없이 그림자 글씨)
 // note = { title, rows:[{id,icon,label,value}], layout, theme('light'|'dark'), size, color, at:{x,y}|null }
 const COLORS = [['갈색', '#6B3F1F', '#FFD9B5'], ['초록', '#1E4D36', '#C9F0D8'], ['남색', '#1D3F6E', '#CFE2FF'], ['빨강', '#9E2A1E', '#FFD0C8'], ['검정', '#1F1F1F', '#FFFFFF']];
-const LAYOUTS = [['card', '카드'], ['strip', '가로 띠'], ['column', '세로 기둥'], ['plain', '글씨만']];
+const LAYOUTS = [['card', '카드'], ['strip', '가로 띠'], ['column', '세로 기둥'], ['plain', '글씨만'], ['shade', '아래 그늘'], ['bar', '왼쪽 선'], ['pills', '이름표']];
 const FONT = "'Pretendard Variable',Pretendard,'Apple SD Gothic Neo','Malgun Gothic',sans-serif";
 function themeOf(note) {
-  const dark = note.theme === 'dark' || note.layout === 'plain';
+  const dark = note.theme === 'dark' || ['plain', 'shade', 'bar', 'pills'].includes(note.layout);
   const c = COLORS.find(x => x[1] === note.color) || COLORS[0];
   return dark ? { box: 'rgba(22,17,12,.5)', chip: 'rgba(255,255,255,.13)', ink: '#FFFFFF', sub: 'rgba(255,255,255,.75)', title: c[2], edge: 'rgba(255,255,255,.28)' }
     : { box: 'rgba(255,252,246,.62)', chip: 'rgba(255,255,255,.72)', ink: '#2A2118', sub: '#6B6055', title: c[1], edge: 'rgba(255,255,255,.85)' };
@@ -271,6 +271,58 @@ function measureNote(g, note, W, H) {
       let cy = y;
       font(800, tfs); tL.forEach(t => { text(t, x, cy, T.title); cy += tfs * 1.22; }); if (tL.length && rows.length) cy += 1.5 * u;
       rows.forEach((r, i) => { icon(g, r.icon, x, cy + rfs * 0.2, rfs * 1.05, '#fff'); font(800, rfs); text(r.label, x + rfs * 1.4, cy + rfs * 0.25, '#fff'); font(600, rfs); text(rv[i], x + rfs * 1.4 + labW, cy + rfs * 0.25, '#fff'); cy += rfs * 1.5; });
+      g.restore();
+    } };
+  }
+
+  // 시안 A '아래 그늘': 사진 아래(또는 위)를 어둡게 깔고 흰 글씨. 어떤 사진에서도 잘 읽혀요
+  // 시안 B '왼쪽 선': 글씨 뒤에만 어두운 반투명 상자 + 왼쪽 색 선
+  // 시안 C '이름표': 줄마다 따로 떨어진 알약 모양 이름표
+  if (['shade', 'bar', 'pills'].includes(note.layout)) {
+    const kind = note.layout, tfs = 6.6 * u, rfs = 3.9 * u, gi = rfs * 1.05, line = rfs * 1.55;
+    const c = COLORS.find(x => x[1] === note.color) || COLORS[0];
+    const pad = kind === 'shade' ? 5 * u : kind === 'bar' ? 3.4 * u : 2.2 * u, lead = kind === 'bar' ? 1.6 * u : 0;
+    const maxW = (kind === 'shade' ? W - 2 * m : W - 2 * m) - 2 * pad - lead;
+    font(800, rfs); const labW = rows.length ? Math.max(...rows.map(r => g.measureText(r.label).width)) + 1.8 * u : 0;
+    font(800, tfs); const tL = note.title ? lines(g, note.title, maxW, 2) : [];
+    const tW = tL.length ? Math.max(...tL.map(t => g.measureText(t).width)) : 0;
+    font(600, rfs); const rv = rows.map(r => lines(g, r.value, maxW - gi - 1.4 * u - labW, kind === 'pills' ? 1 : 2));
+    const rW = rows.map((r, i) => gi + 1.4 * u + labW + Math.max(...rv[i].map(t => g.measureText(t).width)));
+    if (kind === 'pills') {
+      const ph = rfs * 2.1, tph = tfs * 1.5, gap = 1.4 * u;
+      const tPill = tL.length ? { w: Math.min(W - 2 * m, tW + 2 * pad * 1.6), h: tph * tL.length - (tL.length - 1) * tfs * 0.28 } : null;
+      const pills = rows.map((r, i) => ({ w: Math.min(W - 2 * m, rW[i] + 2 * pad * 1.4), h: ph + (rv[i].length - 1) * line }));
+      const all = [tPill, ...pills].filter(Boolean), w = Math.max(...all.map(q => q.w)), h = all.reduce((a, q) => a + q.h, 0) + gap * (all.length - 1);
+      return { w, h, u, def: [m, H - m - h], box: false, paint(x, y) {
+        let cy = y;
+        if (tPill) { g.fillStyle = c[1] === '#1F1F1F' ? 'rgba(20,20,20,.82)' : c[1]; g.globalAlpha *= 1; g.beginPath(); g.roundRect(x, cy, tPill.w, tPill.h, tPill.h / 2 > 6 * u ? 3 * u : tPill.h / 2); g.fill();
+          font(800, tfs); tL.forEach((t, i) => text(t, x + pad * 1.6, cy + (tph - tfs) / 2 + i * tfs * 1.22, '#fff')); cy += tPill.h + gap; }
+        rows.forEach((r, i) => { const q = pills[i];
+          g.fillStyle = 'rgba(18,15,12,.62)'; g.beginPath(); g.roundRect(x, cy, q.w, q.h, Math.min(q.h / 2, ph / 2)); g.fill();
+          const lx = x + pad * 1.4, ly = cy + (ph - rfs) / 2;
+          icon(g, r.icon, lx, cy + (ph - gi) / 2, gi, '#fff'); font(800, rfs); text(r.label, lx + gi + 1.4 * u, ly, c[2]);
+          font(600, rfs); rv[i].forEach((t, j) => text(t, lx + gi + 1.4 * u + labW, ly + j * line, '#fff')); cy += q.h + gap; });
+      } };
+    }
+    const contentH = tL.length * tfs * 1.22 + (tL.length && rows.length ? 1.6 * u : 0) + rv.reduce((a, l) => a + l.length, 0) * line;
+    const w = kind === 'shade' ? W : Math.min(W - 2 * m, Math.max(tW, ...rW, 20 * u) + 2 * pad + lead);
+    const h = contentH + 2 * pad + (kind === 'shade' ? 4 * u : 0);
+    return { w, h, u, def: kind === 'shade' ? [0, H - h] : [m, H - m - h], box: false, paint(x, y) {
+      const top = y + h / 2 < H / 2;
+      if (kind === 'shade') {
+        const gr = g.createLinearGradient(0, y, 0, y + h);
+        if (top) { gr.addColorStop(0, 'rgba(10,8,6,.72)'); gr.addColorStop(.7, 'rgba(10,8,6,.45)'); gr.addColorStop(1, 'rgba(10,8,6,0)'); }
+        else { gr.addColorStop(0, 'rgba(10,8,6,0)'); gr.addColorStop(.3, 'rgba(10,8,6,.45)'); gr.addColorStop(1, 'rgba(10,8,6,.72)'); }
+        g.fillStyle = gr; g.fillRect(0, y, W, h);
+      } else {
+        g.fillStyle = 'rgba(18,15,12,.5)'; g.beginPath(); g.roundRect(x, y, w, h, 2.4 * u); g.fill();
+        g.fillStyle = c[2]; g.beginPath(); g.roundRect(x + pad * 0.55, y + pad, lead * 0.75, h - 2 * pad, lead); g.fill();
+      }
+      let cx = kind === 'shade' ? m + pad * 0.2 : x + pad + lead, cy = y + pad + (kind === 'shade' && !top ? 4 * u : 0);
+      g.save(); g.shadowColor = 'rgba(0,0,0,.5)'; g.shadowBlur = 1.2 * u;
+      font(800, tfs); tL.forEach(t => { text(t, cx, cy, c[2]); cy += tfs * 1.22; }); if (tL.length && rows.length) cy += 1.6 * u;
+      rows.forEach((r, i) => { icon(g, r.icon, cx, cy + (line - gi) / 2, gi, '#fff'); font(800, rfs); text(r.label, cx + gi + 1.4 * u, cy + (line - rfs) / 2, 'rgba(255,255,255,.82)');
+        font(600, rfs); rv[i].forEach(t => { text(t, cx + gi + 1.4 * u + labW, cy + (line - rfs) / 2, '#fff'); cy += line; }); });
       g.restore();
     } };
   }
@@ -514,7 +566,7 @@ function editor() {
     const seg = (items, cur, set) => el('div', { class: 'seg' }, items.map(([k, n, ico]) => el('button', { class: cur === k ? 'on' : '', onclick: () => { set(k); saveCfg(); redraw(); drawPanel(); } }, ico ? shapeIco(ico) : null, n)));
     return [
       el('div', { class: 'optrow' }, el('span', { text: '모양' }), seg(LAYOUTS.map(([k, n]) => [k, n, k]), cfg.layout, v => { cfg.layout = v; })),
-      cfg.layout === 'plain' ? null : el('div', { class: 'optrow' }, el('span', { text: '바탕' }), seg([['light', '밝게'], ['dark', '어둡게']], cfg.theme, v => { cfg.theme = v; })),
+      ['plain', 'shade', 'bar', 'pills'].includes(cfg.layout) ? null : el('div', { class: 'optrow' }, el('span', { text: '바탕' }), seg([['light', '밝게'], ['dark', '어둡게']], cfg.theme, v => { cfg.theme = v; })),
       el('div', { class: 'optrow' }, el('span', { text: '글자 크기' }), seg([[0.8, '작게'], [1, '보통'], [1.25, '크게']], cfg.size, v => { cfg.size = v; })),
       el('div', { class: 'optrow' }, el('span', { text: '제목 색' }), el('div', { class: 'dots' }, COLORS.map(([n, c, d]) => el('button', { class: 'dot' + (cfg.color === c ? ' on' : ''), style: `background:${cfg.theme === 'dark' || cfg.layout === 'plain' ? d : c}`, 'aria-label': `제목 ${n}`,
         onclick: () => { cfg.color = c; saveCfg(); redraw(); drawPanel(); } })))),
@@ -558,7 +610,7 @@ function editor() {
 // 모양 고르기 버튼의 작은 그림
 function shapeIco(k) {
   const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('width', 18); s.setAttribute('height', 18);
-  const R = { card: '<rect x="3" y="4" width="18" height="10" rx="2"/>', strip: '<rect x="3" y="15" width="18" height="5" rx="1.5"/>', column: '<rect x="3" y="3" width="8" height="18" rx="2"/>', plain: '<path d="M4 17h12M4 20h8"/>' }[k];
+  const R = { card: '<rect x="3" y="4" width="18" height="10" rx="2"/>', strip: '<rect x="3" y="15" width="18" height="5" rx="1.5"/>', column: '<rect x="3" y="3" width="8" height="18" rx="2"/>', plain: '<path d="M4 17h12M4 20h8"/>', shade: '<rect x="2.5" y="13" width="19" height="8.5" rx="1" fill-opacity=".5" stroke="none"/><path d="M5 16.5h9M5 19h6" stroke="#fff"/>', bar: '<path d="M4 13v7"/><path d="M7.5 14h9M7.5 18h6"/>', pills: '<rect x="3" y="12" width="13" height="4" rx="2" stroke="none"/><rect x="3" y="17.5" width="9" height="3.5" rx="1.75" stroke="none"/>' }[k];
   s.innerHTML = `<rect x="2" y="2" width="20" height="20" rx="3" fill="none" stroke="currentColor" stroke-opacity=".35" stroke-width="1.5"/><g fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round">${R}</g>`;
   return s;
 }
