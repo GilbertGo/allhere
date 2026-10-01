@@ -123,6 +123,12 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 .cam .chips button{height:34px;border-radius:999px;background:rgba(255,255,255,.14);color:#fff;font-weight:700;font-size:13.5px;padding:0 12px}
 .cam .chips button.on{background:#fff;color:#2A2118}
 .cam .edit{position:absolute;right:12px;bottom:12px;height:40px;border-radius:999px;background:rgba(255,255,255,.92);color:#2A2118;font-weight:800;font-size:14.5px;padding:0 16px;box-shadow:0 2px 10px rgba(0,0,0,.3)}
+.cam .review{position:absolute;inset:0;z-index:5;background:#000;display:flex;flex-direction:column}
+.cam .review canvas{position:static;inset:auto;height:auto;flex:1;min-height:0;width:100%;object-fit:contain}
+.rv-msg{color:#FFD9B5;font-weight:800;font-size:18px;text-align:center;padding:10px 12px 4px}
+.rv-bar{display:flex;gap:8px;padding:8px 12px calc(18px + env(safe-area-inset-bottom,0px))}
+.rv-bar button{flex:1;height:58px;border-radius:16px;background:rgba(255,255,255,.14);color:#fff;font-weight:800;font-size:16px}
+.rv-bar button.pri{background:#E8742A;flex:1.3}
 .cam .tools{display:flex;gap:6px;padding:8px 10px 0}
 .cam .tools button{flex:1 1 0;min-width:0;height:60px;border-radius:14px;background:rgba(255,255,255,.12);color:#fff;font-size:12.5px;font-weight:700;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;white-space:nowrap;letter-spacing:-.03em}
 .cam .tools button b{font-size:21px;line-height:1}
@@ -144,7 +150,7 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = '2026-10-02e';
+const PHOTO_VER = '2026-10-02f';
 async function checkVer() {
   try {
     const t = await (await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' })).text();
@@ -694,8 +700,13 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     confirmQ: sum => `${sum}. 찍어 라고 하면 찍어요`,
     confirm: async (n, v) => {
       if (/다\s?찍|완료|끝났/.test(n)) { v.stop(); return done(); }
+      if (review) {   // 찍은 사진을 보여 주는 중: 저장 / 다시(지우기)
+        if (SAY.save.test(n)) { await review.keep(); return v.ask(`저장했어요. ${shots.length}장째예요. 또 찍어, 끝나면 다 찍었어`); }
+        if (SAY.redo.test(n) || SAY.drop.test(n)) { review.drop(); return v.ask('지웠어요. 찍어 라고 하면 다시 찍어요'); }
+        return v.ask('저장, 또는 다시 라고 말씀하세요');
+      }
       if (SAY.redo.test(n)) return v.restart();
-      if (SAY.shoot.test(n) || SAY.save.test(n)) { await shoot(); beepClick(); return v.ask(`${shots.length}장 찍었어요. 또 찍어, 글을 고치려면 다시, 끝나면 다 찍었어`); }
+      if (SAY.shoot.test(n) || SAY.save.test(n)) { await shoot(); beepClick(); return v.ask('저장할까요? 저장, 또는 다시 라고 말씀하세요'); }
       return v.ask('찍어, 다시, 다 찍었어, 그만 중에 말씀하세요');
     } }); };
   knockCb = () => camVoice();   // 카메라 화면에서 똑똑똑 → 말로 채우고 찍기(장갑)
@@ -716,13 +727,42 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     const c = document.createElement('canvas'); c.width = W; c.height = H; c.getContext('2d').drawImage(video, 0, 0);
     const h = await Promise.race([here, new Promise(r => setTimeout(() => r(null), 50))]);
     const p = photoOf(await createImageBitmap(c), new Date(), h?.lat, h?.lng); if (placeNow && cfg.mode !== 'fire') p.place = placeNow; Object.assign(p, camVals);
-    shots.push(p); drawLeft(); if (aiAuto) aiQueue(p);
-    wrap.animate([{ opacity: 0.3 }, { opacity: 1 }], 180);
+    if (aiAuto) p.aiP = aiQueue(p);
+    wrap.animate([{ opacity: 0.3 }, { opacity: 1 }], 180); if (navigator.vibrate) navigator.vibrate(40);
+    showReview(p);
+  };
+  // 찍은 사진 확인(2026-10-02 사용자: 찍고 나서 찍은 사진 보여주고 저장할지 물어봐): 다시 찍기 / 글 수정 / 저장
+  let review = null;
+  const showReview = p => {
+    const rc = el('canvas'), msg = el('div', { class: 'rv-msg' });
+    const draw = () => { rc.width = p.W; rc.height = p.H; drawNote(rc.getContext('2d'), p.bmp, p.W, p.H, noteFor(p)); msg.textContent = p.aiP && !p.aiDone ? '🤖 AI가 글을 쓰는 중이에요…' : '이 사진을 저장할까요?'; };
+    const close = () => { if (review) { review.el.remove(); review = null; } };
+    const keep = async () => {   // 저장: 휴대폰에 내려받고, 찍은 사진 목록(보내기·사진대지용)에도 넣어요
+      if (p.aiP && !p.aiDone) { msg.textContent = '🤖 AI가 다 쓰면 저장할게요…'; await p.aiP; }
+      saveCfg(); rememberPer(p); p.saved = true; shots.push(p); thumb = null; drawLeft();
+      const [f] = await render([p]); if (f) { const url = URL.createObjectURL(f), a = el('a', { href: url, download: f.name }); document.body.append(a); a.click(); setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 30000); }
+      close(); toast(`저장했어요 (사진첩 > 다운로드) · 찍은 사진 ${shots.length}장`);
+    };
+    const drop = () => { close(); toast('지웠어요. 다시 찍어 주세요'); };
+    const editIt = () => {
+      const bg = el('div', { class: 'sheet-bg', onclick: e => { if (e.target === bg) bg.remove(); } });
+      const row = f => { const i = el('input', { type: 'text', id: 'r-' + f.id, maxlength: f.id === 'memo' ? 60 : 30, placeholder: PH[f.id] || '', value: valOf(p, f),
+          oninput: () => { putVal(p, f, i.value); if (!f.per) saveCfg(); draw(); } });
+        return el('label', { class: 'f', for: 'r-' + f.id }, f.label, el('div', { class: 'inrow' }, i, micBtn(i, f))); };
+      bg.append(el('div', { class: 'sheet' }, el('h2', { text: '이 사진 글 수정' }), ...cfg.fields.filter(f => f.on).map(row), el('button', { class: 'big pri', onclick: () => bg.remove() }, '다 고쳤어요')));
+      document.body.append(bg);
+    };
+    const box = el('div', { class: 'review' }, rc, msg, el('div', { class: 'rv-bar' },
+      el('button', { onclick: drop }, '다시 찍기'), el('button', { onclick: editIt }, '✏️ 글 수정'), el('button', { class: 'pri', onclick: keep }, '저장')));
+    close(); review = { el: box, p, keep, drop, draw }; wrap.append(box); draw();
+    if (p.aiP) p.aiP.then(() => { p.aiDone = true; if (review && review.p === p) draw(); });
   };
   const done = () => { if (!shots.length && !photos.length) return; stop(); if (!shots.length) return editor(); photos = photos.concat(shots); cur = photos.length - shots.length; editor(); fillPlaces(shots, here); };
   // 왼쪽 아래 버튼: 찍기 전 = 앨범에서 고르기, 찍은 뒤 = 다 찍음(장 수)
   const leftBtn = el('button', { class: 'side' });
-  const drawLeft = () => { leftBtn.textContent = shots.length ? `다 찍음 · ${shots.length}장` : photos.length ? '돌아가기' : '앨범'; leftBtn.onclick = shots.length || photos.length ? done : () => pickIn.click(); };
+  let thumb = null;
+  const drawLeft = () => { if (shots.length) { const q = shots[shots.length - 1]; if (!thumb) { const c = document.createElement('canvas'), k = 120 / Math.max(q.W, q.H); c.width = Math.round(q.W * k); c.height = Math.round(q.H * k); drawNote(c.getContext('2d'), q.bmp, c.width, c.height, { ...noteFor(q), at: null }); thumb = c.toDataURL('image/jpeg', .7); } leftBtn.style.cssText = `background:#222 url(${thumb}) center/cover;padding-left:52px;background-size:44px 44px;background-position:6px center;background-repeat:no-repeat`; } else leftBtn.style.cssText = '';
+    leftBtn.textContent = shots.length ? `찍은 사진 · ${shots.length}장` : photos.length ? '돌아가기' : '앨범'; leftBtn.onclick = shots.length || photos.length ? done : () => pickIn.click(); };
   drawLeft();
   // 설정(예전 첫 화면에 있던 것): AI로 채우기 설정 · 두드림 감도
   const openSet = () => {
@@ -756,10 +796,10 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     aiAuto = !aiAuto; ls.set('aiAuto', aiAuto); drawAi(); toast(aiAuto ? '이제 찍을 때마다 AI가 글을 써요' : 'AI 자동 입력을 껐어요');
   } });
   const drawAi = () => { aiBtn.classList.toggle('on', aiAuto); aiBtn.replaceChildren(el('b', { text: '🤖' }), aiBusy ? `AI 쓰는 중 ${aiBusy}` : aiAuto ? 'AI 자동 입력 켬' : 'AI 자동 입력'); };
-  const aiQueue = p => { aiBusy++; drawAi(); aiChain = aiChain.then(async () => {
+  const aiQueue = p => { aiBusy++; drawAi(); return aiChain = aiChain.then(async () => {
     try { const out = await aiDescribe(p, askSheet); applyAi(p, out); redraw(); if (photos[cur] === p && refreshInputs) refreshInputs(); }
     catch { toast('AI가 글을 쓰지 못했어요. 직접 적어 주세요'); }
-    aiBusy--; drawAi(); }); };
+    aiBusy--; drawAi(); p.aiDone = true; if (review && review.p === p) review.draw(); }); };
   drawAi();
   camClose = stop;
   const wrap = el('div', { class: 'cam' },
@@ -913,7 +953,7 @@ function editor() {
       aiReady() ? el('button', { onclick: () => aiFillEditor() }, el('b', { text: '🤖' }), 'AI로 채우기') : null),
     el('div', { class: 'acts' },
       el('button', { class: 'big sec', onclick: share }, '보내기'),
-      el('button', { class: 'big pri', onclick: save }, many ? `${photos.length}장 저장` : '사진첩에 저장')));
+      el('button', { class: 'big pri', onclick: save }, photos.every(x => x.saved) ? '✓ 저장됨 · 다시 저장' : many ? `${photos.length}장 저장` : '사진첩에 저장')));
   onPhotoChange(); redraw();
   if (document.fonts) document.fonts.ready.then(redraw);
 }
@@ -1217,9 +1257,9 @@ async function voiceFill(opt = {}) {   // opt: 카메라 화면처럼 다른 곳
   if (navigator.vibrate) navigator.vibrate(200);
   askNext();
 }
-async function render() {
+async function render(list = photos) {
   const out = [];
-  for (const [i, p] of photos.entries()) {
+  for (const [i, p] of list.entries()) {
     const c = document.createElement('canvas'); c.width = p.W; c.height = p.H;
     drawNote(c.getContext('2d'), p.bmp, p.W, p.H, noteFor(p));
     const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.9));
@@ -1229,6 +1269,7 @@ async function render() {
   return out;
 }
 async function save() {
+  photos.forEach(x => x.saved = true);
   saveCfg(); rememberPer(photos[photos.length - 1]);   // 저장할 때의 글·디자인을 다음 기본으로
   const files = await render();
   for (const f of files) {
