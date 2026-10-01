@@ -130,7 +130,7 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = '2026-10-01w';
+const PHOTO_VER = '2026-10-02a';
 async function checkVer() {
   try {
     const t = await (await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' })).text();
@@ -430,7 +430,7 @@ function measureNote(g, note, W, H) {
   }
 
   // 카드(기본): 삼성 갤러리 'AI로 만들기' 카드를 그대로 본뜸
-  //  명조 제목 → [일자 칸 | '위치 내용' 칸(머리줄 + 항목별 줄)] → 담당 칸(오른쪽) → 아래 얇은 선
+  //  명조 제목 → [일자 칸 | 항목별 줄 칸(위치·내용 등)] → 담당 칸(오른쪽) → 아래 얇은 선
   const bw = (W - 2 * m) * Math.min(1, (note.size || 1)), cin = 3.8 * u, inW = bw - 2 * cin, gap = 1.7 * u, cp = 2.9 * u, rad = 1.8 * u;
   const cfs = 3.4 * u, clh = cfs * 1.4, cic = cfs * 1.05, tfs = 5.7 * u;
   const dateR = rows.find(r => r.id === 'date'), whoR = rows.find(r => r.id === 'who'), rest = rows.filter(r => r !== dateR && r !== whoR);
@@ -444,7 +444,7 @@ function measureNote(g, note, W, H) {
   const valX = cic + 1.2 * u + labW, valW = rightW - 2 * cp - valX;
   font(400, cfs);
   const restL = rest.map(r => ({ r, l: lines(g, r.value, valW, r.id === 'memo' ? 3 : 2) }));
-  const head = rest.length > 1;   // 항목이 둘 이상이면 '위치 내용' 머리줄
+  const head = false;   // 2026-10-02 사용자: '위치 내용' 머리줄 + '위치' 줄이 겹쳐 틀려 보임 → 머리줄 없이 항목마다 아이콘·이름·값 한 줄
   const rightH = rightOn ? 2 * cp + (head ? clh : 0) + restL.reduce((a, b) => a + b.l.length, 0) * clh : 0;
   const leftH = leftOn ? 2 * cp + clh + cfs * 1.08 * 1.6 : 0;
   const rowH = Math.max(rightH, leftH), whoH = whoR ? 2 * 2.2 * u + clh : 0;
