@@ -95,6 +95,11 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
 .g-cnt{position:absolute;right:12px;top:calc(12px + env(safe-area-inset-top,0px));background:rgba(0,0,0,.55);color:#fff;border-radius:999px;font-size:15px;font-weight:800;padding:6px 12px}
 .g-cnt:empty{display:none}
 .vbtn{flex-shrink:0;min-height:56px;border-radius:16px;background:#2A2118;color:#FFD9B5;font-size:17px;font-weight:800}
+.sheet-bg{position:fixed;inset:0;background:rgba(20,15,10,.5);z-index:80;display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--bg);width:100%;max-width:560px;border-radius:24px 24px 0 0;padding:20px 16px calc(18px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:10px;max-height:88vh;overflow:auto}
+.sheet h2{font-size:20px;margin:0}
+.sheet .seg button{flex:1 1 40%}
+.vbtn.ai{background:#3B5BDB;color:#fff}
 .vbar{position:fixed;left:0;right:0;bottom:0;z-index:60;background:#14100C;color:#fff;padding:14px 16px calc(16px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:8px;border-radius:22px 22px 0 0;box-shadow:0 -10px 30px rgba(0,0,0,.35)}
 .vbar .g-b{height:64px;font-size:19px}
 .add{height:42px;border-radius:12px;background:none;border:1.5px dashed var(--line);font-weight:700;color:var(--brown)}
@@ -124,7 +129,7 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = '2026-10-01r';
+const PHOTO_VER = '2026-10-01s';
 async function checkVer() {
   try {
     const t = await (await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' })).text();
@@ -569,6 +574,7 @@ function home() {
       el('button', { class: 'big sec', onclick: () => pickIn.click() }, '앨범에서 고르기 (여러 장 가능)'),
       el('button', { class: 'big glove', onclick: async () => { await allowMotion(); gloveMode(); } }, '🧤 장갑 모드 · 말로만 찍고 적기'),
       el('div', { class: 'hint', style: 'margin-top:-6px', text: '장갑을 낀 채 휴대폰을 똑똑똑 세 번 두드려도 켜지고, 다시 똑똑똑 하면 꺼져요.' }),
+      el('button', { class: 'lnk', style: 'align-self:center', onclick: openAiSettings }, aiReady() ? '🤖 AI로 채우기: 켜짐 (설정)' : '🤖 AI로 채우기 설정'),
       el('div', { class: 'seg', style: 'justify-content:center' }, el('span', { class: 'hint', text: '두드림 감도' }),
         ...[['low', '둔하게'], ['mid', '보통'], ['high', '예민하게']].map(([k, n]) => el('button', { class: ls.get('knockSens', 'mid') === k ? 'on' : '', onclick: e => { ls.set('knockSens', k); e.currentTarget.parentNode.querySelectorAll('button').forEach(b => b.classList.remove('on')); e.currentTarget.classList.add('on'); } }, n))),
       el('div', { class: 'hint', text: '찍을 때 글상자 자리가 흐릿하게 보여요. 사진은 휴대폰 안에서만 만들어져요.' })));
@@ -722,7 +728,7 @@ function editor() {
       return el('label', { class: 'f', for: 'f-' + f.id, style: f.id === 'memo' ? 'grid-column:1/-1' : null }, f.label + (f.per && many ? ' (사진마다)' : ''), el('div', { class: 'inrow' }, i, micBtn(i, f)));
     };
     const title = on.find(f => f.id === 'title'), others = on.filter(f => f !== title);
-    return [SR ? el('button', { class: 'vbtn', onclick: () => voiceFill() }, '🎤 말로 모두 채우기 (똑똑똑으로도)') : null, title ? box(title) : null, el('div', { class: 'grid2' }, others.map(box))];
+    return [aiReady() ? el('button', { class: 'vbtn ai', onclick: () => aiFillEditor() }, '🤖 AI로 채우기 (사진 보고 저절로)') : null, SR ? el('button', { class: 'vbtn', onclick: () => voiceFill() }, '🎤 말로 모두 채우기 (똑똑똑으로도)') : null, title ? box(title) : null, el('div', { class: 'grid2' }, others.map(box))];
   }
   // 모양: 글상자 모양 · 바탕 · 글자 크기 · 제목 색 · 자리 처음대로
   function lookPanel() {
@@ -813,6 +819,82 @@ function speak(t) {
   });
 }
 function beepClick() { try { const a = new (window.AudioContext || window.webkitAudioContext)(), o = a.createOscillator(), g = a.createGain(); o.frequency.value = 1400; g.gain.setValueAtTime(.3, a.currentTime); g.gain.exponentialRampToValueAtTime(.001, a.currentTime + .12); o.connect(g).connect(a.destination); o.start(); o.stop(a.currentTime + .13); } catch {} if (navigator.vibrate) navigator.vibrate(120); }
+// ---------- AI로 채우기: 사진을 보고 AI(claude-haiku-4-5)가 제목·내용을 써요 ----------
+// AI 키는 웹앱에 두지 않고 작은 서버(Cloudflare Worker, photo/ai-worker/worker.js)에만 둬요. 웹앱은 서버 주소와 앱 암호만 알아요
+// AI가 확실하지 않으면 찍은 사람에게 물을 질문을 돌려주고, 대답을 넣어 다시 써요(한 장에 최대 2번). 대답은 이번에 쓰는 동안 기억해요(aiFacts)
+const aiCfg = () => ls.get('ai', { on: false, url: '', key: '' });
+const aiReady = () => { const a = aiCfg(); return !!(a.on && a.url && a.key); };
+let aiFacts = [];
+async function aiImage(p) {
+  const s = Math.min(1, 1024 / Math.max(p.W, p.H)), c = document.createElement('canvas');
+  c.width = Math.round(p.W * s); c.height = Math.round(p.H * s); c.getContext('2d').drawImage(p.bmp, 0, 0, c.width, c.height);
+  return c.toDataURL('image/jpeg', 0.8).split(',')[1];
+}
+async function aiCall(p, answers) {
+  const a = aiCfg();
+  const r = await fetch(a.url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-App-Key': a.key },
+    body: JSON.stringify({ image: await aiImage(p), date: p.date, place: p.place, facts: aiFacts, answers }) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || `AI 서버 오류 ${r.status}`);
+  return j;
+}
+// 질문이 있으면 ask(질문, 보기) → 대답(없으면 null)을 받아 다시 써요
+async function aiDescribe(p, ask) {
+  const answers = [];
+  let out = await aiCall(p, answers);
+  while (out.question && answers.length < 2) {
+    const a = await ask(out.question, out.choices || []);
+    if (!a) break;
+    answers.push({ q: out.question, a }); aiFacts.push(`${out.question} → ${a}`); aiFacts = aiFacts.slice(-8);
+    out = await aiCall(p, answers);
+  }
+  return out;
+}
+function openAiSettings() {
+  const a = aiCfg();
+  const on = el('input', { type: 'checkbox', id: 'ai-on', checked: a.on, style: 'width:22px;height:22px' });
+  const url = el('input', { type: 'text', id: 'ai-url', value: a.url, placeholder: 'https://○○○.workers.dev' });
+  const key = el('input', { type: 'text', id: 'ai-key', value: a.key, placeholder: '서버에 정해 둔 앱 암호' });
+  const bg = el('div', { class: 'sheet-bg', onclick: e => { if (e.target === bg) bg.remove(); } });
+  bg.append(el('div', { class: 'sheet' },
+    el('h2', { text: '🤖 AI로 채우기 설정' }),
+    el('p', { class: 'hint', style: 'text-align:left;margin:0', text: '켜면 찍은 사진을 AI 서버로 보내 제목·내용을 받아 써요. 확실하지 않은 건 물어봐요. 사진 1장에 약 3~5원(Anthropic 요금).' }),
+    el('label', { class: 'frow' }, on, el('span', { class: 'ttl', text: 'AI로 채우기 쓰기' })),
+    el('label', { class: 'f', for: 'ai-url' }, 'AI 서버 주소', url),
+    el('label', { class: 'f', for: 'ai-key' }, '앱 암호', key),
+    el('div', { class: 'acts' },
+      el('button', { class: 'big sec', onclick: () => bg.remove() }, '닫기'),
+      el('button', { class: 'big pri', onclick: () => { ls.set('ai', { on: on.checked, url: url.value.trim(), key: key.value.trim() }); bg.remove(); toast(on.checked ? 'AI로 채우기를 켰어요' : 'AI로 채우기를 껐어요'); if (photos.length) editor(); } }, '저장'))));
+  document.body.append(bg);
+}
+// 편집 화면: AI 질문은 화면 창으로(보기 단추 + 직접 적기·말하기)
+function askSheet(q, choices) {
+  return new Promise(res => {
+    const inp = el('input', { type: 'text', id: 'ai-ans', placeholder: '직접 적거나 🎤로 말하기' });
+    document.querySelectorAll('.toast').forEach(t => t.remove());
+    const bg = el('div', { class: 'sheet-bg' });
+    const done = v => { bg.remove(); res(v && v.trim() ? v.trim() : null); };
+    bg.append(el('div', { class: 'sheet' },
+      el('div', { class: 'hint', style: 'text-align:left', text: '🤖 AI가 확인하고 싶어 해요' }),
+      el('h2', { style: 'margin:0', text: q }),
+      el('div', { class: 'seg' }, choices.map(c => el('button', { style: 'height:52px;font-size:16px', onclick: () => done(c) }, c))),
+      el('div', { class: 'inrow' }, inp, micBtn(inp, { id: 'ai', label: '대답' })),
+      el('div', { class: 'acts' },
+        el('button', { class: 'big sec', onclick: () => done(null) }, '넘어가기'),
+        el('button', { class: 'big pri', onclick: () => done(inp.value) }, '대답하기'))));
+    document.body.append(bg);
+  });
+}
+async function aiFillEditor() {
+  const p = photos[cur]; if (!p) return;
+  toast('🤖 AI가 사진을 보고 있어요…');
+  try {
+    const out = await aiDescribe(p, askSheet);
+    if (out.title) vals.title = out.title; if (out.memo) vals.memo = out.memo;
+    refreshInputs && refreshInputs(); redraw(); toast('AI가 제목·내용을 썼어요. 고칠 곳은 고쳐 주세요');
+  } catch (e) { toast('AI로 채우지 못했어요: ' + e.message); }
+}
+
 // ---------- 똑똑똑: 휴대폰을 세 번 두드리면 장갑 모드 켜기·끄기 ----------
 // 장갑 낀 손은 화면이 눌리지 않아서, 화면 터치 대신 흔들림 센서로 '똑똑똑'(짧고 센 떨림 3번)을 알아채요
 let knockCb = null;   // 지금 똑똑똑을 받으면 할 일(첫 화면: 장갑 모드 켜기 / 장갑 모드: 끄기)
@@ -843,7 +925,7 @@ const KNOCK_K = { low: 6, mid: 4, high: 2.6 };   // 떨림 세기 기준(예민�
 async function allowMotion() { try { if (typeof DeviceMotionEvent !== 'undefined' && DeviceMotionEvent.requestPermission) return (await DeviceMotionEvent.requestPermission()) === 'granted'; } catch { return false; } return true; }
 let gloveOn = false;
 async function gloveMode() {
-  if (gloveOn) return; gloveOn = true;
+  if (gloveOn) return; gloveOn = true; aiFacts = [];
   if (!SR) { gloveOn = false; return alert('이 브라우저는 음성 인식이 안 돼요. 삼성 인터넷이나 크롬으로 열어 주세요.'); }
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { gloveOn = false; return alert('이 브라우저는 카메라를 열 수 없어요.'); }
   let stream; try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1440 } }, audio: false }); }
@@ -893,7 +975,21 @@ async function gloveMode() {
     const h = await Promise.race([here, new Promise(r => setTimeout(() => r(null), 50))]);
     cur = photoOf(await createImageBitmap(c), new Date(), h?.lat, h?.lng); cur.place = placeNow || '';
     const g = ov.getContext('2d'); ov.width = cur.W; ov.height = cur.H; drawNote(g, cur.bmp, cur.W, cur.H, noteFor(cur));
+    if (aiReady()) return aiShot();
     state = 'ask'; qi = 0; asking = pickFields(); askNext();
+  }
+  // AI로 채우기: AI가 쓰고, 확실하지 않은 건 소리로 묻고, 읽어 준 뒤 3초 안에 "다시"·"버려"가 없으면 저장
+  let aiAnswer = null;
+  async function aiShot() {
+    state = 'ai'; stopRec(); setState('🤖 AI가 사진을 보고 있어요', true); heard.textContent = '';
+    try {
+      const out = await aiDescribe(cur, (q, ch) => new Promise(res => { aiAnswer = res; state = 'aiq'; ask(q.replace(/[?？.]+$/, '') + '? ' + (ch.length ? ch.join(', ') + ' 중에 말씀하세요' : ''), true); }));
+      state = 'ai'; stopRec();
+      if (out.title) vals.title = out.title; if (out.memo) vals.memo = out.memo;
+      const g = ov.getContext('2d'); drawNote(g, cur.bmp, cur.W, cur.H, noteFor(cur));
+      state = 'aiconfirm'; await ask(`${summary()}. 저장할게요`);
+      setTimeout(async () => { if (state === 'aiconfirm' && cur) { stopRec(); await saveCur(); state = 'wait'; await speak('저장했어요'); setState('"찍어"라고 말하면 찍어요', true); heard.textContent = ''; listen(); } }, 3500);
+    } catch (e) { setState('AI가 안 돼서 말로 받을게요'); await speak('AI가 안 돼서 말로 받을게요'); state = 'ask'; qi = 0; asking = pickFields(); askNext(); }
   }
   async function saveCur() {
     const c = document.createElement('canvas'); c.width = cur.W; c.height = cur.H; drawNote(c.getContext('2d'), cur.bmp, cur.W, cur.H, noteFor(cur));
@@ -905,6 +1001,13 @@ async function gloveMode() {
     const n = norm(t);
     if (SAY.quit.test(n) && state !== 'ask') return finish();
     if (state === 'wait') { if (SAY.shoot.test(n)) return shoot(); return listen(); }
+    if (state === 'aiq') { const r = aiAnswer; aiAnswer = null; state = 'ai'; stopRec(); setState('🤖 다시 쓰는 중이에요', true); return r && r(/^(몰라|모름|넘어가|패스|다음|없음)$/.test(n) ? null : t); }
+    if (state === 'aiconfirm') {
+      if (SAY.drop.test(n)) { cur = null; state = 'wait'; await speak('사진을 버렸어요'); setState('"찍어"라고 말하면 찍어요', true); return listen(); }
+      if (SAY.redo.test(n)) { state = 'ask'; qi = 0; asking = pickFields(); return askNext(); }
+      if (SAY.save.test(n)) { state = 'ai'; await saveCur(); state = 'wait'; await speak('저장했어요'); setState('"찍어"라고 말하면 찍어요', true); return listen(); }
+      return listen();
+    }
     if (state === 'ask') {
       const f = askFields()[qi];
       if (SAY.drop.test(n) && n.length <= 4) { cur = null; state = 'wait'; await speak('사진을 버렸어요'); setState('"찍어"라고 말하면 찍어요', true); return listen(); }
@@ -929,7 +1032,7 @@ async function gloveMode() {
   const wrap = el('div', { class: 'cam glove-cam' },
     el('div', { class: 'view' }, video, ov, cnt),
     el('div', { class: 'g-panel' }, stEl, heard,
-      el('div', { class: 'g-help', text: '말: "찍어" · 묻는 칸 대답("같음"=그대로) · "저장" / "다시" / "버려" · 끝낼 때 "그만" 또는 휴대폰을 똑똑똑' }),
+      el('div', { class: 'g-help', text: aiReady() ? '말: "찍어" → 🤖 AI가 쓰고 확인할 것만 물어요 → 3초 뒤 저장("다시" / "버려") · 끝: "그만" 또는 똑똑똑' : '말: "찍어" · 묻는 칸 대답("같음"=그대로) · "저장" / "다시" / "버려" · 끝낼 때 "그만" 또는 휴대폰을 똑똑똑' }),
       el('div', { class: 'g-btns' },
         el('button', { class: 'g-b', onclick: () => { if (state === 'wait') shoot(); } }, '찍기'),
         el('button', { class: 'g-b x', onclick: finish }, '끝내기'))));
