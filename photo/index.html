@@ -283,7 +283,9 @@ function measureNote(g, note, W, H) {
   //  table2 = 한 줄에 두 항목씩 [항목|내용|항목|내용], 긴 내용은 한 줄 통째로 (가로로 얇게)
   if (['table', 'tableH', 'table2'].includes(note.layout)) {
     const kind = note.layout, c = COLORS.find(x => x[1] === note.color) || COLORS[0];
-    const fs = 3.7 * u, tfs = 4.5 * u, lh = fs * 1.4, px = 2.2 * u, py = 1.6 * u, thin = Math.max(1, 0.28 * u), thick = Math.max(1.5, 0.5 * u);
+    // 표 스타일: basic(기본) · mini(미니멀: 가는 선·넉넉한 여백·회색 작은 항목명) · tint(색 포인트: 항목 칸·제목에 연한 제목 색) · doc(문서형: 가운데 제목·가로선만)
+    const st = note.tStyle || 'basic', airy = st !== 'basic';
+    const fs = 3.7 * u, tfs = (st === 'doc' ? 4.8 : 4.5) * u, lh = fs * 1.4, px = (airy ? 3 : 2.2) * u, py = (airy ? 2.1 : 1.6) * u, thin = Math.max(1, (st === 'mini' || st === 'doc' ? 0.14 : airy ? 0.2 : 0.28) * u), thick = Math.max(1.5, (st === 'mini' ? 0.24 : airy ? 0.36 : 0.5) * u);
     const mm = 2.5 * u, maxW = W - 2 * mm;
     font(700, fs); const labW = Math.max(15 * u, ...rows.map(r => g.measureText(r.label).width + 2 * px));
     const natV = r => { font(500, fs); return g.measureText(r.value).width + 2 * px; };
@@ -309,32 +311,45 @@ function measureNote(g, note, W, H) {
     const rowH = cl => Math.max(1, ...cl.map(x => x.l.length)) * lh + 2 * py;   // 빈 칸도 한 줄 높이
     const h = tH + lines2.reduce((a, cl) => a + rowH(cl), 0);
     return { w, h, u, def: [mm, mm], box: false, blurR: note.tBg === 'glass' ? (note.tRound === false ? 0.01 : 2.6 * u) : 0, paint(x, y) {
-      // 표 꾸미기: 모서리(각지게·둥글게) · 바탕(흰색·반투명·투명) · 선(진하게·연하게)
-      const R = note.tRound === false ? 0 : 2.6 * u, bg = note.tBg || 'white', clear = bg === 'clear';
-      const ink = clear ? '#FFFFFF' : '#111', lab = clear ? '#FFFFFF' : '#2A2A2A';
-      const lineC = clear ? 'rgba(255,255,255,.9)' : note.tLine === 'soft' ? 'rgba(0,0,0,.28)' : '#111';
+      // 표 꾸미기: 모서리(각지게·둥글게) · 바탕(흰색·반투명·투명) · 선(진하게·연하게) · 스타일
+      const R = note.tRound === false ? 0 : (airy ? 3.2 : 2.6) * u, bg = note.tBg || 'white', clear = bg === 'clear';
+      const mix = (hex, a) => { const n = parseInt(hex.slice(1), 16), f = v => Math.round(255 - (255 - v) * a); return `rgb(${f(n >> 16)},${f((n >> 8) & 255)},${f(n & 255)})`; };
+      const ink = clear ? '#FFFFFF' : '#141414';
+      const lab = clear ? '#FFFFFF' : st === 'mini' ? '#8A8780' : st === 'tint' ? c[1] : st === 'doc' ? '#6B6760' : '#2A2A2A';
+      const labFill = clear || kind === 'tableH' || st === 'mini' || st === 'doc' ? null : st === 'tint' ? mix(c[1], bg === 'glass' ? 0.16 : 0.1) : bg === 'glass' ? 'rgba(255,255,255,.45)' : '#F2F1EE';
+      const lineC = clear ? 'rgba(255,255,255,.9)' : note.tLine === 'soft' ? 'rgba(0,0,0,.28)' : '#1A1A1A';
+      const vLines = st !== 'doc';
+      // 은은한 그림자(세련된 스타일, 흰 바탕일 때)
+      if (airy && bg === 'white') { g.save(); g.shadowColor = 'rgba(0,0,0,.28)'; g.shadowBlur = 3 * u; g.shadowOffsetY = 0.8 * u; g.fillStyle = '#fff'; g.beginPath(); g.roundRect(x, y, w, h, R); g.fill(); g.restore(); }
       g.save(); g.beginPath(); g.roundRect(x, y, w, h, R); g.clip();
       if (bg === 'white') { g.fillStyle = '#FFFFFF'; g.fillRect(x, y, w, h); }
       else if (bg === 'glass') { g.fillStyle = 'rgba(255,255,255,.62)'; g.fillRect(x, y, w, h); }
       else { g.fillStyle = 'rgba(0,0,0,.18)'; g.fillRect(x, y, w, h); }   // 투명: 아주 옅은 그늘만(흰 글씨가 읽히게)
       if (clear) { g.shadowColor = 'rgba(0,0,0,.65)'; g.shadowBlur = 1.2 * u; }
       g.strokeStyle = lineC; g.lineWidth = thin;
-      const hl = yy => { g.beginPath(); g.moveTo(x, yy); g.lineTo(x + w, yy); g.stroke(); };
-      const vl = (xx, y0, y1) => { g.beginPath(); g.moveTo(xx, y0); g.lineTo(xx, y1); g.stroke(); };
+      const hl = (yy, lw) => { g.save(); if (lw) g.lineWidth = lw; g.beginPath(); g.moveTo(x, yy); g.lineTo(x + w, yy); g.stroke(); g.restore(); };
+      const vl = (xx, y0, y1) => { if (!vLines) return; g.beginPath(); g.moveTo(xx, y0); g.lineTo(xx, y1); g.stroke(); };
       let cy = y;
       if (tL.length) {
         if (kind === 'tableH') { g.save(); g.shadowBlur = 0; g.fillStyle = c[1]; g.globalAlpha *= clear ? 0.85 : 1; g.fillRect(x, y, w, tH); g.restore(); }
-        font(800, tfs); tL.forEach((t, i) => text(t, x + px, cy + py * 1.2 + i * tfs * 1.3 + tfs * 0.12, kind === 'tableH' ? '#fff' : clear ? '#fff' : '#111'));
-        cy += tH; if (lines2.length) hl(cy);
+        const tc = kind === 'tableH' || clear ? '#fff' : st === 'tint' ? c[1] : '#111';
+        font(800, tfs);
+        tL.forEach((t, i) => { const ty = cy + py * 1.2 + i * tfs * 1.3 + tfs * 0.12;
+          if (st === 'doc') text(t, x + (w - g.measureText(t).width) / 2, ty, tc); else text(t, x + px, ty, tc); });
+        // 미니멀: 제목 아래 짧은 색 밑줄
+        if (st === 'mini' && kind !== 'tableH' && note.title) { g.save(); g.shadowBlur = 0; g.fillStyle = clear ? '#fff' : c[1]; g.fillRect(x + px, cy + tH - py * 0.75, 7 * u, 0.6 * u); g.restore(); }
+        cy += tH;
+        if (lines2.length) { if (st === 'doc' && kind !== 'tableH') { hl(cy - 0.9 * u, thick); hl(cy); } else hl(cy, st === 'mini' ? thick * 0.9 : 0); }
       }
       lines2.forEach((cl, ri) => {
         const rh = rowH(cl);
         let cx = x;
         cl.forEach((cell, k) => {
           const vw = kind === 'table2' ? (cl.length === 2 ? cols.vw2 : cols.vw1) : w - labW;
-          if (kind !== 'tableH' && !clear) { g.save(); g.shadowBlur = 0; g.fillStyle = bg === 'glass' ? 'rgba(255,255,255,.45)' : '#F2F1EE'; g.fillRect(cx, cy, labW, rh); g.restore(); }
-          font(700, fs); const lw = g.measureText(cell.r.label).width;
-          text(cell.r.label, cx + (labW - lw) / 2, cy + (rh - fs) / 2, lab);
+          if (labFill) { g.save(); g.shadowBlur = 0; g.fillStyle = labFill; g.fillRect(cx, cy, labW, rh); g.restore(); }
+          const lfs = st === 'mini' || st === 'doc' ? fs * 0.92 : fs;
+          font(st === 'mini' || st === 'doc' ? 600 : 700, lfs); const lw = g.measureText(cell.r.label).width;
+          text(cell.r.label, st === 'mini' || st === 'doc' ? cx + px : cx + (labW - lw) / 2, cy + (rh - lfs) / 2, lab);
           if (k || cx > x) vl(cx, cy, cy + rh);
           vl(cx + labW, cy, cy + rh);
           font(500, fs); const top = cy + (rh - cell.l.length * lh) / 2 + (lh - fs) / 2;
@@ -344,7 +359,7 @@ function measureNote(g, note, W, H) {
         cy += rh; if (ri < lines2.length - 1) hl(cy);
       });
       g.restore();
-      g.save(); g.shadowBlur = 0; g.beginPath(); g.roundRect(x, y, w, h, R); g.strokeStyle = lineC; g.lineWidth = note.tLine === 'soft' ? thin * 1.4 : thick; g.stroke(); g.restore();
+      if (st !== 'doc' || bg !== 'white') { g.save(); g.shadowBlur = 0; g.beginPath(); g.roundRect(x, y, w, h, R); g.strokeStyle = lineC; g.lineWidth = note.tLine === 'soft' ? thin * 1.4 : thick; g.stroke(); g.restore(); }   // 문서형(흰 바탕)은 바깥 테두리 없이 그림자로
     } };
   }
 
@@ -429,7 +444,7 @@ const DEF_FIELDS = [
   { id: 'who', label: '담당', on: true, icon: 'pen' }
 ];
 const PH = { title: '예: 점심 삼대째손두부', date: '예: 2026.10.01', place: '예: 서구 공촌동', memo: '예: 콩물, 두부김치 무료', who: '예: 장남덕' };
-const cfg = Object.assign({ layout: 'card', theme: 'light', size: 1, tRound: true, tBg: 'white', tLine: 'dark', color: COLORS[0][1], at: {}, fields: DEF_FIELDS }, ls.get('cfg', {}));
+const cfg = Object.assign({ layout: 'card', theme: 'light', size: 1, tRound: true, tBg: 'white', tLine: 'dark', tStyle: 'basic', color: COLORS[0][1], at: {}, fields: DEF_FIELDS }, ls.get('cfg', {}));
 if (ls.get('color')) { cfg.color = ls.get('color'); }
 const vals = Object.assign({ title: '', memo: '', who: ls.get('who', '') }, ls.get('vals', {}), { title: '', memo: '' });   // 담당·직접 만든 항목은 기억, 제목·내용은 새로
 const saveCfg = () => { ls.set('cfg', cfg); const keep = {}; cfg.fields.forEach(f => { if (f.id !== 'title' && f.id !== 'memo' && !f.per) keep[f.id] = vals[f.id] || ''; }); ls.set('vals', keep); };
@@ -437,7 +452,7 @@ function noteFor(p) {
   const v = id => (cfg.fields.find(f => f.id === id)?.per ? p?.[id] : vals[id]) || '';
   const on = cfg.fields.filter(f => f.on);
   return { titleOn: on.some(f => f.id === 'title'), title: on.some(f => f.id === 'title') ? v('title').trim() : '', rows: on.filter(f => f.id !== 'title').map(f => ({ id: f.id, icon: f.icon || 'tag', label: f.label || '항목', value: v(f.id).trim() })),   // 빈 칸도 넘겨요(표는 빈 칸도 그리고, 나머지 모양은 뺌)
-    layout: cfg.layout, theme: cfg.theme, size: cfg.size, color: cfg.color, tRound: cfg.tRound, tBg: cfg.tBg, tLine: cfg.tLine, at: cfg.at[cfg.layout] || null };
+    layout: cfg.layout, theme: cfg.theme, size: cfg.size, color: cfg.color, tRound: cfg.tRound, tBg: cfg.tBg, tLine: cfg.tLine, tStyle: cfg.tStyle, at: cfg.at[cfg.layout] || null };
 }
 
 // ---------- 화면 ----------
@@ -593,6 +608,7 @@ function editor() {
       el('div', { class: 'optrow' }, el('span', { text: '모양' }), seg(LAYOUTS.map(([k, n]) => [k, n, k]), cfg.layout, v => { cfg.layout = v; })),
       ['plain', 'table', 'tableH', 'table2'].includes(cfg.layout) ? null : el('div', { class: 'optrow' }, el('span', { text: '바탕' }), seg([['light', '밝게'], ['dark', '어둡게']], cfg.theme, v => { cfg.theme = v; })),
       ...(['table', 'tableH', 'table2'].includes(cfg.layout) ? [
+        el('div', { class: 'optrow' }, el('span', { text: '스타일' }), seg([['basic', '기본'], ['mini', '미니멀'], ['tint', '색 포인트'], ['doc', '문서형']], cfg.tStyle, v => { cfg.tStyle = v; })),
         el('div', { class: 'optrow' }, el('span', { text: '바탕' }), seg([['white', '흰색'], ['glass', '반투명'], ['clear', '투명']], cfg.tBg, v => { cfg.tBg = v; })),
         el('div', { class: 'optrow' }, el('span', { text: '모서리' }), seg([[true, '둥글게'], [false, '각지게']], cfg.tRound, v => { cfg.tRound = v; })),
         el('div', { class: 'optrow' }, el('span', { text: '선' }), seg([['dark', '진하게'], ['soft', '연하게']], cfg.tLine, v => { cfg.tLine = v; }))] : []),
