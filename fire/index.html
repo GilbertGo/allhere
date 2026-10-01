@@ -120,6 +120,8 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
 .cam .chips button{height:34px;border-radius:999px;background:rgba(255,255,255,.14);color:#fff;font-weight:700;font-size:13.5px;padding:0 12px}
 .cam .chips button.on{background:#fff;color:#2A2118}
 .cam .edit{position:absolute;right:12px;bottom:12px;height:40px;border-radius:999px;background:rgba(255,255,255,.92);color:#2A2118;font-weight:800;font-size:14.5px;padding:0 16px;box-shadow:0 2px 10px rgba(0,0,0,.3)}
+.cam .edits{position:absolute;right:12px;bottom:12px;display:flex;gap:8px}.cam .edits .edit{position:static}
+.cam .gear{position:absolute;right:12px;top:calc(12px + env(safe-area-inset-top,0px));width:44px;height:44px;border-radius:50%;background:rgba(0,0,0,.45);color:#fff;font-size:20px}
 .cam .edit.gl{right:auto;left:12px;background:#2A2118;color:#FFD9B5}
 .cam .side{min-width:84px;width:auto!important;padding:0 10px}
 .cam .shots{position:absolute;left:12px;bottom:12px;background:rgba(0,0,0,.55);color:#fff;border-radius:999px;font-size:13px;font-weight:700;padding:5px 11px}
@@ -150,7 +152,7 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = 'fire-2026-10-02b';
+const PHOTO_VER = 'fire-2026-10-02c';
 async function checkVer() {
   try {
     const t = await (await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' })).text();
@@ -589,9 +591,13 @@ if ((cfg.tVer || 0) < 7) { Object.assign(cfg, { tVer: 7, layout: 'card', theme: 
 // 예시 글: 처음부터 글상자에 들어가 있고, 칸을 누르면 통째로 골라져서 바로 고쳐 쓸 수 있어요
 const EX_BASIC = { title: '점심 삼대째손두부', place: '서구 공촌동', memo: '콩물, 두부김치 무료', who: '장남덕' };
 const EX = Object.assign({}, EX_BASIC, cfg.mode === 'fire' ? EX_FIRE : {});   // 양식에 맞는 예시 글
-const vals = Object.assign({ title: '', memo: '', who: ls.get('who', '') }, ls.get('vals', {}), { title: EX.title, memo: EX.memo });   // 담당·직접 만든 항목은 기억, 제목·내용은 예시로 새로
+const vals = Object.assign({ title: EX.title, memo: EX.memo, who: ls.get('who', '') }, ls.get('vals', {}));   // 2026-10-02 사용자: 직전에 쓴 글을 기본으로 → 제목·내용도 기억(처음만 예시)
 if (!vals.who) vals.who = EX.who;
-const saveCfg = () => { ls.set('cfg', cfg); const keep = {}; cfg.fields.forEach(f => { if (f.id !== 'title' && f.id !== 'memo' && !f.per) keep[f.id] = vals[f.id] || ''; }); ls.set('vals', keep); };
+const saveCfg = () => { ls.set('cfg', cfg); const keep = {}; cfg.fields.forEach(f => { if (!f.per) keep[f.id] = vals[f.id] || ''; }); ls.set('vals', keep); };
+// 사진마다 칸(소방: 설비명·위치·불량내용 등)도 직전에 쓴 값을 다음 사진의 기본으로 기억(일자는 빼고, 위치는 소방만: 사진 글상자의 위치는 지금 동네로 저절로)
+const lastKeys = () => cfg.fields.filter(f => f.per && f.id !== 'date' && (f.id !== 'place' || cfg.mode === 'fire')).map(f => f.id);
+const rememberPer = p => { if (!p) return; const o = ls.get('last', {}); lastKeys().forEach(k => { if (p[k] != null) o[k] = p[k]; }); ls.set('last', o); };
+const lastOr = k => { const o = ls.get('last', {}); return o[k] != null ? o[k] : (EX[k] || ''); };
 // 디자인(모양·바탕·테두리·자리 등)은 사진마다 따로 기억해요. 찍을 때·불러올 때의 디자인이 그 사진의 디자인
 const LOOK_KEYS = ['layout', 'theme', 'size', 'color', 'tRound', 'tBg', 'tLine', 'tStyle', 'tEdge', 'tIn', 'tInW', 'at'];
 const lookOf = () => JSON.parse(JSON.stringify(Object.fromEntries(LOOK_KEYS.map(k => [k, cfg[k]]))));
@@ -640,14 +646,14 @@ function homeOld() {
 }
 
 // 사진마다 따로 적는 칸(소방점검 양식의 설비명·불량내용 등)은 예시 글로 시작해요
-const perDefaults = () => Object.fromEntries(cfg.fields.filter(f => f.per && !['date', 'place'].includes(f.id)).map(f => [f.id, EX[f.id] || '']));
+const perDefaults = () => Object.fromEntries(cfg.fields.filter(f => f.per && !['date', 'place'].includes(f.id)).map(f => [f.id, lastOr(f.id)]));
 // 칸 값 읽기·쓰기(사진마다 칸이면 그 사진에, 아니면 모든 사진에 같이)
 const getVal = (p, id) => { const f = cfg.fields.find(x => x.id === id); return ((f && f.per) ? p?.[id] : vals[id]) || ''; };
 const setVal = (p, id, v) => { const f = cfg.fields.find(x => x.id === id); if (f && f.per) p[id] = v; else vals[id] = v; };
 // 사진 한 장 정보: 그림 · 크기 · 일자 · 위치(사진마다)
 function photoOf(bmp, d, lat, lng) {
   const s = Math.min(1, 2000 / Math.max(bmp.width, bmp.height));
-  return { bmp, W: Math.round(bmp.width * s), H: Math.round(bmp.height * s), date: fmtDate(d), lat: lat ?? null, lng: lng ?? null, place: EX.place, look: lookOf(), ...perDefaults() };   // 위치는 찾으면 바꿔요
+  return { bmp, W: Math.round(bmp.width * s), H: Math.round(bmp.height * s), date: fmtDate(d), lat: lat ?? null, lng: lng ?? null, place: cfg.mode === 'fire' ? lastOr('place') : EX.place, look: lookOf(), ...perDefaults() };   // 위치는 찾으면 바꿔요
 }
 async function fillPlaces(list, here) {
   if (here) { const h = await here; if (h) list.forEach(p => { if (p.lat == null) { p.lat = h.lat; p.lng = h.lng; } }); }
@@ -694,7 +700,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   const video = el('video', { autoplay: true, playsinline: true, muted: true }), ov = el('canvas', { class: 'drag' });
   const shots = [], here = hereNow(); let placeNow = '', box = null;
   const camVals = {};   // 카메라에서 고친 사진마다 칸(일자·위치 등). 이어서 찍는 사진에 같이 들어가요
-  const ghostP = () => Object.assign({ date: fmtDate(new Date()), place: placeNow || EX.place }, typeof perDefaults === 'function' ? perDefaults() : {}, camVals);
+  const ghostP = () => Object.assign({ date: fmtDate(new Date()), place: cfg.mode === 'fire' ? lastOr('place') : (placeNow || EX.place) }, typeof perDefaults === 'function' ? perDefaults() : {}, camVals);
   here.then(h => h && placeName(h.lat, h.lng).then(n => { if (n) placeNow = n; }));
   const shotsEl = el('div', { class: 'shots', style: 'display:none' });
   const chips = el('div', { class: 'chips' });
@@ -717,7 +723,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     // 글상자를 누르거나 '✏️ 글 고치기' → 찍기 전에 글을 고쳐요(고치는 대로 화면 글상자도 바로 바뀜)
   let sheetIn = {};   // 열린 고치기 창의 칸(말로 채우면 같이 바뀌게)
   const camGet = f => (f.per ? ghostP()[f.id] : vals[f.id]) || '';
-  const camSet = (f, t) => { if (f.per) camVals[f.id] = t; else { vals[f.id] = t; if (f.id !== 'title' && f.id !== 'memo') saveCfg(); } };
+  const camSet = (f, t) => { if (f.per) camVals[f.id] = t; else { vals[f.id] = t; saveCfg(); } if (f.per) rememberPer(camVals); };
   // 장갑 모드처럼 말로 채우기: 칸을 차례로 묻고 → "찍어" 하면 찍기 → 또 "찍어" / "다시"(글 다시) / "다 찍었어" / "그만"
   const camVoice = () => { document.querySelectorAll('.sheet-bg').forEach(x => x.remove()); voiceFill({ get: camGet, set: camSet, changed: () => Object.entries(sheetIn).forEach(([k, i]) => { const f = cfg.fields.find(x => x.id === k); if (f) i.value = camGet(f); }),
     help: '대답 · "같음"=그대로 · "찍어" / "다시" / "다 찍었어" · 끝낼 때 "그만" 또는 똑똑똑',
@@ -745,7 +751,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     const W = video.videoWidth, H = video.videoHeight; if (!W) return;
     const c = document.createElement('canvas'); c.width = W; c.height = H; c.getContext('2d').drawImage(video, 0, 0);
     const h = await Promise.race([here, new Promise(r => setTimeout(() => r(null), 50))]);
-    const p = photoOf(await createImageBitmap(c), new Date(), h?.lat, h?.lng); if (placeNow) p.place = placeNow; Object.assign(p, camVals);
+    const p = photoOf(await createImageBitmap(c), new Date(), h?.lat, h?.lng); if (placeNow && cfg.mode !== 'fire') p.place = placeNow; Object.assign(p, camVals);
     shots.push(p); drawLeft();
     wrap.animate([{ opacity: 0.3 }, { opacity: 1 }], 180);
   };
@@ -765,11 +771,26 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
       el('button', { class: 'big pri', onclick: () => bg.remove() }, '닫기')));
     document.body.append(bg);
   };
-  setBtn = el('button', { 'aria-label': '설정', onclick: openSet }, '⚙️ 설정'); chips.append(setBtn);
+  // 표 수정: 글상자 모양·크기·자리 (2026-10-02 사용자: 위 모양 단추 줄을 '표 수정'으로, '글 수정'과 나눠서)
+  const openLook = () => {
+    const bg = el('div', { class: 'sheet-bg', onclick: e => { if (e.target === bg) bg.remove(); } });
+    const draw = () => box2.replaceChildren(el('h2', { text: '표 수정 (글상자 모양)' }),
+      el('div', { class: 'hint', style: 'text-align:left;margin-bottom:-4px', text: '모양' }),
+      el('div', { class: 'seg' }, LAYOUTS.map(([k, n]) => el('button', { class: cfg.layout === k ? 'on' : '', onclick: () => { cfg.layout = k; saveCfg(); draw(); } }, shapeIco(k), n))),
+      el('div', { class: 'hint', style: 'text-align:left;margin-bottom:-4px', text: '크기' }),
+      el('div', { class: 'seg', style: 'flex-wrap:nowrap' }, [[0.6, '아주 작게'], [0.8, '작게'], [1, '보통'], [1.2, '크게']].map(([k, n]) => el('button', { style: 'flex:1 1 0', class: cfg.size === k ? 'on' : '', onclick: () => { cfg.size = k; saveCfg(); draw(); } }, n))),
+      el('button', { class: 'big sec', onclick: () => { delete cfg.at[cfg.layout]; saveCfg(); toast('글상자를 처음 자리로 옮겼어요'); } }, '글상자 처음 자리로'),
+      el('div', { class: 'hint', style: 'text-align:left', text: '글상자는 화면에서 손가락으로 끌어 옮길 수 있어요. 더 자세한 꾸미기(바탕·선 등)는 찍은 뒤 편집 화면 "모양"에서.' }),
+      el('button', { class: 'big pri', onclick: () => bg.remove() }, '다 골랐어요'));
+    const box2 = el('div', { class: 'sheet' }); bg.append(box2); draw();
+    document.body.append(bg);
+  };
   camClose = stop;
   const wrap = el('div', { class: 'cam' },
-    chips,
-    el('div', { class: 'view' }, video, ov, el('button', { class: 'edit gl', onclick: async () => { await allowMotion(); stop(); gloveMode(); } }, '🧤 장갑 모드'), el('button', { class: 'edit', onclick: editText }, '✏️ 글 고치기')),
+    el('div', { class: 'view' }, video, ov,
+      el('button', { class: 'gear', 'aria-label': '설정', onclick: openSet }, '⚙️'),
+      el('button', { class: 'edit gl', onclick: async () => { await allowMotion(); stop(); gloveMode(); } }, '🧤 장갑 모드'),
+      el('div', { class: 'edits' }, el('button', { class: 'edit', onclick: openLook }, '🎨 표 수정'), el('button', { class: 'edit', onclick: editText }, '✏️ 글 수정'))),
     el('div', { class: 'bar' },
       leftBtn,
       el('button', { class: 'shut', 'aria-label': '찍기', onclick: shoot }),
@@ -827,7 +848,7 @@ function editor() {
     const box = f => {
       const i = el('input', { type: 'text', id: 'f-' + f.id, maxlength: f.id === 'memo' ? 60 : 30, placeholder: PH[f.id] || '', value: (f.per ? photos[cur][f.id] : vals[f.id]) || '',
         onfocus: () => { if (i.value && i.value === EX[f.id]) setTimeout(() => i.select(), 0); },   // 예시 글이면 통째로 골라서 바로 덮어쓰게
-        oninput: () => { if (f.per) photos[cur][f.id] = i.value; else vals[f.id] = i.value; if (f.id !== 'title' && f.id !== 'memo' && !f.per) saveCfg(); redraw(); } });
+        oninput: () => { if (f.per) { photos[cur][f.id] = i.value; rememberPer(photos[cur]); } else { vals[f.id] = i.value; saveCfg(); } redraw(); } });
       inputs[f.id] = i;
       // 소방점검: 자주 쓰는 말 단추(설비명 → 그 설비의 흔한 불량내용 → 조치사항)
       let chips = null;
@@ -1122,7 +1143,7 @@ async function gloveMode() {
     if (state === 'ask') {
       const f = askFields()[qi];
       if (SAY.drop.test(n) && n.length <= 4) { cur = null; state = 'wait'; await speak('사진을 버렸어요'); setState('"찍어"라고 말하면 찍어요', true); return listen(); }
-      if (!SAY.same.test(n)) { setVal(cur, f.id, t.slice(0, f.id === 'memo' ? 60 : 30)); if (f.id === 'who') saveCfg(); }
+      if (!SAY.same.test(n)) { setVal(cur, f.id, t.slice(0, f.id === 'memo' ? 60 : 30)); saveCfg(); rememberPer(cur && cur.bmp ? cur : null); }
       const g = ov.getContext('2d'); drawNote(g, cur.bmp, cur.W, cur.H, noteFor(cur));
       qi++; return askNext();
     }
@@ -1165,7 +1186,7 @@ async function voiceFill(opt = {}) {   // opt: 카메라 화면처럼 다른 곳
   let active = true, rec = null, qi = 0, state = 'ask';
   const fields = () => cfg.fields.filter(f => f.on);
   const getV = opt.get || (f => (f.per ? photos[cur][f.id] : vals[f.id]) || '');
-  const setV = opt.set || ((f, t) => { if (f.per) photos[cur][f.id] = t; else vals[f.id] = t; if (f.id === 'who') saveCfg(); });
+  const setV = opt.set || ((f, t) => { if (f.per) photos[cur][f.id] = t; else vals[f.id] = t; saveCfg(); if (f.per) rememberPer(photos[cur]); });
   const stEl = el('div', { class: 'g-state' }), heard = el('div', { class: 'g-heard' });
   const bar = el('div', { class: 'vbar' }, stEl, heard,
     el('div', { class: 'g-help', text: opt.help || '대답 · "같음"=그대로 · "저장" / "다시" / "다음 사진" · 끝낼 때 "그만" 또는 똑똑똑' }),
@@ -1240,6 +1261,7 @@ async function render() {
   return out;
 }
 async function save() {
+  saveCfg(); rememberPer(photos[photos.length - 1]);   // 저장할 때의 글·디자인을 다음 기본으로
   const files = await render();
   for (const f of files) {
     const url = URL.createObjectURL(f), a = el('a', { href: url, download: f.name }); document.body.append(a); a.click();
@@ -1249,6 +1271,7 @@ async function save() {
   toast(files.length > 1 ? `${files.length}장을 저장했어요 (사진첩 > 다운로드)` : '사진을 저장했어요 (사진첩 > 다운로드)');
 }
 async function share() {
+  saveCfg(); rememberPer(photos[photos.length - 1]);
   const files = await render();
   if (navigator.canShare && navigator.canShare({ files })) { try { await navigator.share({ files }); } catch {} }
   else { toast('이 브라우저는 바로 보내기가 안 돼요. 저장한 뒤 보내 주세요'); save(); }
