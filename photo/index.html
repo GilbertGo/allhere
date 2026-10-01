@@ -71,7 +71,7 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
 .frow .mini.x{color:#B3261E}
 .frow .ttl{flex:1;font-weight:700;font-size:15px}
 .add{height:42px;border-radius:12px;background:none;border:1.5px dashed var(--line);font-weight:700;color:var(--brown)}
-.tip{position:absolute;left:50%;top:10px;transform:translateX(-50%);background:rgba(0,0,0,.55);color:#fff;font-size:12.5px;font-weight:600;border-radius:999px;padding:5px 11px;white-space:nowrap;pointer-events:none}
+.tip{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);background:rgba(0,0,0,.55);color:#fff;font-size:12.5px;font-weight:600;border-radius:999px;padding:5px 11px;white-space:nowrap;pointer-events:none}
 .stage canvas.drag{cursor:grab;touch-action:none}
 /* 카메라 */
 .cam{position:fixed;inset:0;background:#000;z-index:50;display:flex;flex-direction:column}
@@ -221,7 +221,9 @@ function measureNote(g, note, W, H) {
   const rr = (x, y, w, h, r) => { g.beginPath(); g.roundRect(x, y, w, h, r); };
   const text = (t, x, y, color) => { g.fillStyle = color; g.fillText(t, x, y); };
   g.textBaseline = 'top';
-  const rows = note.rows, fs = 3.7 * u, lh = fs * 1.45, ic = fs * 1.05;
+  // 표는 켠 항목을 빈 칸까지 모두 그리고(현장 사진 표처럼), 다른 모양은 적은 항목만
+  const isTable = ['table', 'tableH', 'table2'].includes(note.layout);
+  const rows = isTable ? note.rows : note.rows.filter(r => r.value), fs = 3.7 * u, lh = fs * 1.45, ic = fs * 1.05;
 
   if (note.layout === 'strip') {
     const p = 2.4 * u, w = W - 2 * m, maxW = w - 2 * p, sfs = 3.5 * u, slh = sfs * 1.5, sic = sfs * 1.05, sep = 3 * u, tfs = 4.3 * u;
@@ -302,9 +304,9 @@ function measureNote(g, note, W, H) {
       w = Math.min(maxW, Math.max(48 * u, titleNat, ...rows.map(r => labW + natV(r))));
       font(500, fs); lines2 = rows.map(r => [{ r, l: lines(g, r.value, w - labW - 2 * px, 2) }]);
     }
-    font(800, tfs); const tL = note.title ? lines(g, note.title, w - 2 * px, 2) : [];
+    font(800, tfs); const tL = note.title ? lines(g, note.title, w - 2 * px, 2) : note.titleOn ? [''] : [];   // 제목을 켰으면 비어 있어도 제목 줄을 그려요
     const tH = tL.length ? tL.length * tfs * 1.3 + 2 * py * 1.2 : 0;
-    const rowH = cl => Math.max(...cl.map(x => x.l.length)) * lh + 2 * py;
+    const rowH = cl => Math.max(1, ...cl.map(x => x.l.length)) * lh + 2 * py;   // 빈 칸도 한 줄 높이
     const h = tH + lines2.reduce((a, cl) => a + rowH(cl), 0);
     return { w, h, u, def: [mm, mm], box: false, paint(x, y) {
       g.fillStyle = '#FFFFFF'; g.fillRect(x, y, w, h);
@@ -387,6 +389,7 @@ function measureNote(g, note, W, H) {
 // 사진(img, 없으면 투명) 위에 글상자를 그리고, 그린 자리 {x,y,w,h}를 돌려줘요. ghost면 흐릿하게(찍기 전 미리보기)
 function drawNote(g, img, W, H, note, ghost) {
   if (img) g.drawImage(img, 0, 0, W, H); else g.clearRect(0, 0, W, H);
+  if (!note.title && !note.rows.some(r => r.value) && !['table', 'tableH', 'table2'].includes(note.layout)) return null;
   if (!note.title && !note.rows.length) return null;
   const L = measureNote(g, note, W, H), T = themeOf(note);
   const x = note.at ? Math.max(0, Math.min(W - L.w, note.at.x * W)) : L.def[0], y = note.at ? Math.max(0, Math.min(H - L.h, note.at.y * H)) : L.def[1];
@@ -421,7 +424,7 @@ const saveCfg = () => { ls.set('cfg', cfg); const keep = {}; cfg.fields.forEach(
 function noteFor(p) {
   const v = id => (cfg.fields.find(f => f.id === id)?.per ? p?.[id] : vals[id]) || '';
   const on = cfg.fields.filter(f => f.on);
-  return { title: on.some(f => f.id === 'title') ? v('title').trim() : '', rows: on.filter(f => f.id !== 'title').map(f => ({ id: f.id, icon: f.icon || 'tag', label: f.label || '항목', value: v(f.id).trim() })).filter(r => r.value),
+  return { titleOn: on.some(f => f.id === 'title'), title: on.some(f => f.id === 'title') ? v('title').trim() : '', rows: on.filter(f => f.id !== 'title').map(f => ({ id: f.id, icon: f.icon || 'tag', label: f.label || '항목', value: v(f.id).trim() })),   // 빈 칸도 넘겨요(표는 빈 칸도 그리고, 나머지 모양은 뺌)
     layout: cfg.layout, theme: cfg.theme, size: cfg.size, color: cfg.color, at: cfg.at[cfg.layout] || null };
 }
 
