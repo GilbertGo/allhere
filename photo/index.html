@@ -94,6 +94,9 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
 .g-b.x{background:rgba(255,255,255,.14);color:#fff}
 .g-cnt{position:absolute;right:12px;top:calc(12px + env(safe-area-inset-top,0px));background:rgba(0,0,0,.55);color:#fff;border-radius:999px;font-size:15px;font-weight:800;padding:6px 12px}
 .g-cnt:empty{display:none}
+.vbtn{flex-shrink:0;min-height:56px;border-radius:16px;background:#2A2118;color:#FFD9B5;font-size:17px;font-weight:800}
+.vbar{position:fixed;left:0;right:0;bottom:0;z-index:60;background:#14100C;color:#fff;padding:14px 16px calc(16px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:8px;border-radius:22px 22px 0 0;box-shadow:0 -10px 30px rgba(0,0,0,.35)}
+.vbar .g-b{height:64px;font-size:19px}
 .add{height:42px;border-radius:12px;background:none;border:1.5px dashed var(--line);font-weight:700;color:var(--brown)}
 .tip{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);background:rgba(0,0,0,.55);color:#fff;font-size:12.5px;font-weight:600;border-radius:999px;padding:5px 11px;white-space:nowrap;pointer-events:none}
 .stage canvas.drag{cursor:grab;touch-action:none}
@@ -121,7 +124,7 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = '2026-10-01q';
+const PHOTO_VER = '2026-10-01r';
 async function checkVer() {
   try {
     const t = await (await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' })).text();
@@ -694,7 +697,7 @@ function micBtn(input, f) {
   return b;
 }
 function editor() {
-  knockCb = null;
+  knockCb = () => voiceFill();   // 편집 화면에서 똑똑똑 → 말로 채우기 켜기·끄기
   useLook(photos[cur]);
   cv = el('canvas', { class: 'drag' });
   const many = photos.length > 1;
@@ -719,7 +722,7 @@ function editor() {
       return el('label', { class: 'f', for: 'f-' + f.id, style: f.id === 'memo' ? 'grid-column:1/-1' : null }, f.label + (f.per && many ? ' (사진마다)' : ''), el('div', { class: 'inrow' }, i, micBtn(i, f)));
     };
     const title = on.find(f => f.id === 'title'), others = on.filter(f => f !== title);
-    return [title ? box(title) : null, el('div', { class: 'grid2' }, others.map(box))];
+    return [SR ? el('button', { class: 'vbtn', onclick: () => voiceFill() }, '🎤 말로 모두 채우기 (똑똑똑으로도)') : null, title ? box(title) : null, el('div', { class: 'grid2' }, others.map(box))];
   }
   // 모양: 글상자 모양 · 바탕 · 글자 크기 · 제목 색 · 자리 처음대로
   function lookPanel() {
@@ -770,6 +773,7 @@ function editor() {
       el('button', { class: 'add', style: 'border-style:solid;color:var(--muted)', onclick: () => { if (confirm('항목을 처음 상태(제목·일자·위치·내용·담당)로 되돌릴까요?')) { cfg.fields = DEF_FIELDS.map(f => ({ ...f })); saveCfg(); redraw(); drawPanel(); } } }, '처음 항목으로 되돌리기')];
   }
   const drawPanel = () => panel.replaceChildren(...(tab === 'look' ? lookPanel() : tab === 'fields' ? fieldsPanel() : textPanel()).filter(Boolean));
+  refreshInputs = () => { Object.entries(inputs).forEach(([k, i]) => { const f = cfg.fields.find(x => x.id === k); if (f) i.value = (f.per ? photos[cur][k] : vals[k]) || ''; }); };
   onPhotoChange = () => { const p = photos[cur]; ['date', 'place'].forEach(k => { if (inputs[k] && document.activeElement !== inputs[k]) inputs[k].value = p[k] || ''; }); if (countEl) countEl.textContent = `${cur + 1} / ${photos.length}`; };
   const go = d => { photos[cur].look = lookOf(); cur = (cur + d + photos.length) % photos.length; useLook(photos[cur]); onPhotoChange(); drawPanel(); redraw(); };
   app.replaceChildren(
@@ -937,6 +941,55 @@ async function gloveMode() {
   await speak('장갑 모드를 시작해요. 찍어 라고 말하면 찍어요');
   setState('"찍어"라고 말하면 찍어요', true);
   listen();
+}
+// ---------- 편집 화면에서 말로 채우기 ----------
+// 켠 칸을 차례로 소리 내어 묻고("같음"=그대로) → 읽어 주고 → "저장"(사진첩에 저장) / "다시" / "다음"(여러 장일 때 다음 사진) / "그만"
+let refreshInputs = null, voiceStop = null;
+async function voiceFill() {
+  if (voiceStop) return voiceStop();   // 이미 듣는 중이면 끄기
+  if (!SR) return toast('이 브라우저는 음성 인식이 안 돼요');
+  let active = true, rec = null, qi = 0, state = 'ask';
+  const fields = () => cfg.fields.filter(f => f.on);
+  const getV = f => (f.per ? photos[cur][f.id] : vals[f.id]) || '';
+  const setV = (f, t) => { if (f.per) photos[cur][f.id] = t; else vals[f.id] = t; if (f.id === 'who') saveCfg(); };
+  const stEl = el('div', { class: 'g-state' }), heard = el('div', { class: 'g-heard' });
+  const bar = el('div', { class: 'vbar' }, stEl, heard,
+    el('div', { class: 'g-help', text: '대답 · "같음"=그대로 · "저장" / "다시" / "다음 사진" · 끝낼 때 "그만" 또는 똑똑똑' }),
+    el('button', { class: 'g-b x', onclick: () => stop() }, '말로 채우기 끝내기'));
+  document.body.append(bar);
+  let wake = null; try { wake = await navigator.wakeLock.request('screen'); } catch {}
+  const stopRec = () => { if (rec) { rec.onend = null; try { rec.abort(); } catch {} rec = null; } };
+  function stop(msg) { if (!active) return; active = false; voiceStop = null; stopRec(); try { speechSynthesis.cancel(); } catch {} try { wake && wake.release(); } catch {} bar.remove(); if (msg) speak(msg); }
+  voiceStop = () => stop('말로 채우기를 끝내요');
+  const listen = () => {
+    if (!active) return; stopRec();
+    const r = new SR(); r.lang = 'ko-KR'; r.interimResults = true; r.continuous = false; let final = '';
+    r.onresult = ev => { const t = [...ev.results].map(x => x[0].transcript).join(''); heard.textContent = t; if (ev.results[ev.results.length - 1].isFinal) final = t; };
+    r.onerror = ev => { if (ev.error === 'not-allowed') stop(), toast('마이크 사용을 허락해 주세요'); };
+    r.onend = () => { rec = null; if (!active) return; if (final.trim()) handle(final.trim()); else setTimeout(listen, 150); };
+    try { r.start(); rec = r; } catch { setTimeout(listen, 500); }
+  };
+  const ask = async t => { stopRec(); stEl.textContent = t; heard.textContent = ''; await speak(t); listen(); };
+  const josa = w => { const c = (w || '').charCodeAt(w.length - 1); return c >= 0xAC00 && c <= 0xD7A3 && (c - 0xAC00) % 28 ? '을' : '를'; };
+  const askNext = () => {
+    const fs = fields(); if (qi >= fs.length) { state = 'confirm'; return ask(`${fs.map(f => `${f.label} ${getV(f) || '없음'}`).join(', ')}. 저장할까요?`); }
+    const f = fs[qi], v = getV(f); ask(`${f.label}${josa(f.label)} 말씀하세요${v ? '. 지금은 ' + v : ''}`);
+  };
+  async function handle(t) {
+    const n = norm(t);
+    if (SAY.quit.test(n) && n.length <= 5) return stop('말로 채우기를 끝내요');
+    if (state === 'ask') {
+      const f = fields()[qi];
+      if (!SAY.same.test(n)) { setV(f, t.slice(0, f.id === 'memo' ? 60 : 30)); refreshInputs && refreshInputs(); redraw(); }
+      qi++; return askNext();
+    }
+    if (SAY.redo.test(n)) { state = 'ask'; qi = 0; return askNext(); }
+    if (/다음/.test(n) && photos.length > 1) { photos[cur].look = lookOf(); cur = (cur + 1) % photos.length; useLook(photos[cur]); onPhotoChange && onPhotoChange(); refreshInputs && refreshInputs(); redraw(); state = 'ask'; qi = 0; stopRec(); await speak(`${cur + 1}번째 사진이에요`); return askNext(); }
+    if (SAY.save.test(n)) { await save(); return stop(photos.length > 1 ? `${photos.length}장을 저장했어요` : '저장했어요'); }
+    return ask('저장, 다시, 다음 사진, 그만 중에 말씀하세요');
+  }
+  if (navigator.vibrate) navigator.vibrate(200);
+  askNext();
 }
 async function render() {
   const out = [];
