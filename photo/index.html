@@ -70,6 +70,11 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
 .frow .mini{width:34px;height:34px;border-radius:9px;background:var(--soft);font-weight:800;flex-shrink:0}
 .frow .mini.x{color:#B3261E}
 .frow .ttl{flex:1;font-weight:700;font-size:15px}
+.presets{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch}
+.preset{flex-shrink:0;width:112px;background:var(--card);border-radius:12px;padding:4px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:3px;align-items:stretch}
+.preset canvas{width:104px;height:65px;border-radius:9px;display:block}
+.preset span{font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.preset.on{box-shadow:0 0 0 2.5px var(--brown)}
 .add{height:42px;border-radius:12px;background:none;border:1.5px dashed var(--line);font-weight:700;color:var(--brown)}
 .tip{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);background:rgba(0,0,0,.55);color:#fff;font-size:12.5px;font-weight:600;border-radius:999px;padding:5px 11px;white-space:nowrap;pointer-events:none}
 .stage canvas.drag{cursor:grab;touch-action:none}
@@ -450,6 +455,16 @@ function drawNote(g, img, W, H, note, ghost) {
 
 // ---------- 설정과 값 ----------
 // 항목: 켜기/끄기, 이름 바꾸기, 순서 바꾸기, 새 항목 추가. 일자·위치는 사진마다, 나머지는 모든 사진에 같이
+// 표 빠른 선택 조합(사용자에게 보여준 시안). A = 기본
+const TABLE_PRESETS = [
+  { name: 'A 기본', v: { layout: 'table', tStyle: 'basic', tBg: 'white', tRound: true, tEdge: 'none', tIn: 'light', tInW: 'hair', tLine: 'dark' } },
+  { name: '1 흰색·검은 선', v: { layout: 'table', tStyle: 'basic', tBg: 'white', tRound: true, tEdge: 'bold', tIn: 'black', tInW: 'normal', tLine: 'dark' } },
+  { name: '2 반투명', v: { layout: 'table', tStyle: 'basic', tBg: 'glass', tRound: true, tEdge: 'thin', tIn: 'gray', tInW: 'thin', tLine: 'soft' } },
+  { name: '3 투명', v: { layout: 'table', tStyle: 'basic', tBg: 'clear', tRound: true, tEdge: 'bold', tIn: 'black', tInW: 'normal', tLine: 'dark' } },
+  { name: '4 제목띠', v: { layout: 'tableH', tStyle: 'basic', tBg: 'white', tRound: true, tEdge: 'thin', tIn: 'gray', tInW: 'thin', tLine: 'soft' } },
+  { name: '5 제목띠·반투명', v: { layout: 'tableH', tStyle: 'basic', tBg: 'glass', tRound: true, tEdge: 'thin', tIn: 'gray', tInW: 'thin', tLine: 'soft' } },
+  { name: '6 두 칸', v: { layout: 'table2', tStyle: 'basic', tBg: 'white', tRound: true, tEdge: 'thin', tIn: 'gray', tInW: 'thin', tLine: 'soft' } }
+];
 const DEF_FIELDS = [
   { id: 'title', label: '제목', on: true, icon: 'tag' },
   { id: 'date', label: '일자', on: true, icon: 'cal', per: true },
@@ -620,7 +635,18 @@ function editor() {
   // 모양: 글상자 모양 · 바탕 · 글자 크기 · 제목 색 · 자리 처음대로
   function lookPanel() {
     const seg = (items, cur, set) => el('div', { class: 'seg' }, items.map(([k, n, ico]) => el('button', { class: cur === k ? 'on' : '', onclick: () => { set(k); saveCfg(); redraw(); drawPanel(); } }, ico ? shapeIco(ico) : null, n)));
+    // 빠른 선택: 표 조합을 미리보기로 보고 한 번에 고르기(A가 기본)
+    const isPre = pr => Object.entries(pr.v).every(([k, v]) => cfg[k] === v);
+    const quick = el('div', { class: 'presets' }, TABLE_PRESETS.map(pr => {
+      const c = el('canvas', { width: 240, height: 150 }), p = photos[cur];
+      const sw = Math.min(p.W * 0.6, p.H * 0.6 * 240 / 150), sh = sw * 150 / 240;   // 사진 왼쪽 위(표 자리)를 잘라 작게
+      const tmp = document.createElement('canvas'); tmp.width = Math.round(sw); tmp.height = Math.round(sh);
+      drawNote(tmp.getContext('2d'), p.bmp, p.W, p.H, { ...noteFor(p), ...pr.v, at: null });
+      c.getContext('2d').drawImage(tmp, 0, 0, sw, sh, 0, 0, 240, 150);
+      return el('button', { class: 'preset' + (isPre(pr) ? ' on' : ''), onclick: () => { Object.assign(cfg, pr.v); saveCfg(); redraw(); drawPanel(); } }, c, el('span', { text: pr.name }));
+    }));
     return [
+      el('div', { class: 'optrow', style: 'align-items:flex-start' }, el('span', { text: '빠른 선택', style: 'padding-top:6px' }), quick),
       el('div', { class: 'optrow' }, el('span', { text: '모양' }), seg(LAYOUTS.map(([k, n]) => [k, n, k]), cfg.layout, v => { cfg.layout = v; })),
       ['plain', 'table', 'tableH', 'table2'].includes(cfg.layout) ? null : el('div', { class: 'optrow' }, el('span', { text: '바탕' }), seg([['light', '밝게'], ['dark', '어둡게']], cfg.theme, v => { cfg.theme = v; })),
       ...(['table', 'tableH', 'table2'].includes(cfg.layout) ? [
