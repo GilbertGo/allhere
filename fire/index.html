@@ -169,7 +169,7 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = 'fire-2026-10-03d';
+const PHOTO_VER = 'fire-2026-10-03e';
 async function checkVer() {
   try {
     const t = await (await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' })).text();
@@ -822,6 +822,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
       el('button', { class: 'big sec', onclick: () => { bg.remove(); openAiSettings(); } }, aiReady() ? 'AI로 채우기: 켜짐 (설정)' : 'AI로 채우기 설정'),
       el('button', { class: 'big sec', onclick: () => { bg.remove(); knockTest(); } }, '두드림 · 말소리 시험 (감도 맞추기)'),
       el('div', { class: 'hint', style: 'text-align:left', text: '음성 입력: 장갑을 낀 채 휴대폰을 똑똑똑 세 번 두드려도 켜져요(말로 글을 채우고 "찍어"로 찍기). 다시 똑똑똑 하면 꺼져요. AI 자동 입력: 켜 두면 찍을 때마다 AI가 그 사진의 글을 써요. 사진은 휴대폰 안에서만 만들어져요.' }),
+      el('div', { class: 'hint', style: 'text-align:center;opacity:.7', text: `버전 ${PHOTO_VER}${location.host.includes('githack') ? ' · 미리 보기(text-box)' : ''}` }),
       el('button', { class: 'big pri', onclick: () => bg.remove() }, '닫기')));
     document.body.append(bg);
   };
@@ -853,7 +854,6 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   drawAi();
   // 똑똑똑 안내: 카메라를 열 때 6초 보여 줘요(장갑 낀 사람이 알 수 있게)
   const knockTip = el('div', { class: 'knock-tip' }, ui('mic', 16), '휴대폰 뒤를 똑똑똑 두드려도 음성 입력이 시작돼요');
-  setTimeout(() => knockTip.classList.add('hide'), 6000);
   camClose = stop;
   const wrap = el('div', { class: 'cam' },
     el('div', { class: 'view' }, video, ov, knockTip,
@@ -871,6 +871,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
       el('button', { class: 'side', onclick: () => { facing = facing === 'environment' ? 'user' : 'environment'; start(); } }, '앞/뒤 바꾸기')));
   document.body.append(wrap);
   await start(); tick();
+  setTimeout(() => knockTip.classList.add('hide'), 9000);   // 카메라 허락 창이 떠 있는 동안 지나가지 않게, 카메라가 켜진 뒤부터 9초
 }
 
 // ---------- 편집 화면 ----------
