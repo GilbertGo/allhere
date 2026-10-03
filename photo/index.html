@@ -104,6 +104,16 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 .sheet{background:var(--bg);width:100%;max-width:560px;border-radius:24px 24px 0 0;padding:20px 16px calc(18px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:10px;max-height:88vh;overflow:auto}
 .sheet h2{font-size:20px;margin:0}
 .sheet .seg button{flex:1 1 40%}
+.sheet-bg.peek{background:none;pointer-events:none}
+.sheet.peek{pointer-events:auto;gap:8px;padding:12px 12px calc(12px + env(safe-area-inset-bottom,0px));background:rgba(250,246,240,.97);box-shadow:0 -8px 24px rgba(0,0,0,.25)}
+.sheet.peek h2{font-size:16px;display:flex;align-items:baseline;gap:8px}
+.sheet.peek h2 small{font-size:12px;font-weight:600;color:var(--sub,#8a7a6a)}
+.sheet.peek .seg{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding:2px 2px 4px;margin:0 -2px}
+.sheet.peek .seg::-webkit-scrollbar{display:none}
+.sheet.peek .seg button{flex:0 0 auto;height:38px}
+.sheet.peek .seg.fit button{flex:1 1 0}
+.sheet.peek .row2{display:flex;gap:8px}
+.sheet.peek .row2 .big{flex:1;height:46px;font-size:16px;border-radius:14px}
 .vbtn.ai{background:#3B5BDB;color:#fff}
 .vbar{position:fixed;left:0;right:0;bottom:0;z-index:60;background:#14100C;color:#fff;padding:14px 16px calc(16px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:8px;border-radius:22px 22px 0 0;box-shadow:0 -10px 30px rgba(0,0,0,.35)}
 .vbar .g-b{height:64px;font-size:19px}
@@ -152,7 +162,7 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = '2026-10-03g';
+const PHOTO_VER = '2026-10-04a';
 async function checkVer() {
   try {
     const t = await (await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' })).text();
@@ -778,18 +788,21 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     document.body.append(bg);
   };
   // 표 수정: 글상자 모양·크기·자리 (2026-10-02 사용자: 위 모양 단추 줄을 '표 수정'으로, '글 수정'과 나눠서)
+  // 2026-10-04 사용자: 고르면서 사진에 어떻게 보이는지 보이게 — 창을 낮게, 뒤를 가리지 않고(카메라 위 글상자가 바로 바뀌어 보임),
+  // 창 밖은 손가락이 카메라 화면에 닿아서 글상자를 끌어 옮길 수 있어요. 모양은 한 줄로 옆으로 밀어서
   const openLook = () => {
-    const bg = el('div', { class: 'sheet-bg', onclick: e => { if (e.target === bg) bg.remove(); } });
-    const draw = () => box2.replaceChildren(el('h2', { text: '표 수정 (글상자 모양)' }),
-      el('div', { class: 'hint', style: 'text-align:left;margin-bottom:-4px', text: '모양' }),
+    const bg = el('div', { class: 'sheet-bg peek' });
+    const keepScroll = () => { const s = box2.querySelector('.seg'); return s ? s.scrollLeft : 0; };
+    const draw = () => { const sl = keepScroll(); box2.replaceChildren(el('h2', {}, '표 수정', el('small', { text: '고르면 바로 보여요 · 글상자는 끌어 옮겨요' })),
       el('div', { class: 'seg' }, LAYOUTS.map(([k, n]) => el('button', { class: cfg.layout === k ? 'on' : '', onclick: () => { cfg.layout = k; saveCfg(); draw(); } }, shapeIco(k), n))),
-      el('div', { class: 'hint', style: 'text-align:left;margin-bottom:-4px', text: '크기' }),
-      el('div', { class: 'seg', style: 'flex-wrap:nowrap' }, [[0.6, '아주 작게'], [0.8, '작게'], [1, '보통'], [1.2, '크게']].map(([k, n]) => el('button', { style: 'flex:1 1 0', class: cfg.size === k ? 'on' : '', onclick: () => { cfg.size = k; saveCfg(); draw(); } }, n))),
-      el('button', { class: 'big sec', onclick: () => { delete cfg.at[cfg.layout]; saveCfg(); toast('글상자를 처음 자리로 옮겼어요'); } }, '글상자 처음 자리로'),
-      el('div', { class: 'hint', style: 'text-align:left', text: '글상자는 화면에서 손가락으로 끌어 옮길 수 있어요. 더 자세한 꾸미기(바탕·선 등)는 찍은 뒤 편집 화면 "모양"에서.' }),
-      el('button', { class: 'big pri', onclick: () => bg.remove() }, '다 골랐어요'));
-    const box2 = el('div', { class: 'sheet' }); bg.append(box2); draw();
+      el('div', { class: 'seg fit' }, [[0.6, '아주 작게'], [0.8, '작게'], [1, '보통'], [1.2, '크게']].map(([k, n]) => el('button', { class: cfg.size === k ? 'on' : '', onclick: () => { cfg.size = k; saveCfg(); draw(); } }, n))),
+      el('div', { class: 'row2' },
+        el('button', { class: 'big sec', onclick: () => { delete cfg.at[cfg.layout]; saveCfg(); toast('글상자를 처음 자리로 옮겼어요'); } }, '처음 자리로'),
+        el('button', { class: 'big pri', onclick: () => bg.remove() }, '다 골랐어요')));
+      const s = box2.querySelector('.seg'); if (s) s.scrollLeft = sl; };
+    const box2 = el('div', { class: 'sheet peek' }); bg.append(box2); draw();
     document.body.append(bg);
+    const on = box2.querySelector('.seg button.on'); if (on) on.scrollIntoView({ inline: 'center', block: 'nearest' });
   };
   // AI 자동 입력: 켜 두면 찍을 때마다 AI가 그 사진의 글을 써요(한 장씩 차례로, 모르면 물어봄)
   let aiAuto = !!ls.get('aiAuto', false) && aiReady(), aiBusy = 0, aiChain = Promise.resolve();
