@@ -169,7 +169,7 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = 'fire-2026-10-03c';
+const PHOTO_VER = 'fire-2026-10-03d';
 async function checkVer() {
   try {
     const t = await (await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' })).text();
@@ -1129,15 +1129,15 @@ async function aiFillEditor() {
 // ---------- 똑똑똑: 휴대폰을 세 번 두드리면 장갑 모드 켜기·끄기 ----------
 // 장갑 낀 손은 화면이 눌리지 않아서, 화면 터치 대신 흔들림 센서로 '똑똑똑'(짧고 센 떨림 3번)을 알아채요
 let knockCb = null, knockDebug = null;   // knockDebug: 두드림 시험 화면이 센서 값을 받아 그려요   // 지금 똑똑똑을 받으면 할 일(첫 화면: 장갑 모드 켜기 / 장갑 모드: 끄기)
-const KNOCK_K = { low: 6, mid: 4, high: 2.6 };   // 떨림 세기 기준(예민할수록 작게)
+const KNOCK_K = { low: 3, mid: 1.8, high: 1.1 };   // 떨림 '튀는 정도' 기준(예민할수록 작게). 2026-10-03 사용자: 약하게 두드리면 안 됨 → 세기 대신 바로 전 값과의 차이로 봐요
 (() => {
   let peaks = [], lastPeak = 0, prev = null, timer = 0;
   addEventListener('devicemotion', e => {
     const a = e.acceleration && e.acceleration.x != null ? e.acceleration : null, g = e.accelerationIncludingGravity;
-    let m;
-    if (a) m = Math.hypot(a.x, a.y, a.z);
-    else if (g && g.x != null) { const cur = [g.x, g.y, g.z]; m = prev ? Math.hypot(cur[0] - prev[0], cur[1] - prev[1], cur[2] - prev[2]) : 0; prev = cur; }
-    else return;
+    // 두드림은 아주 짧고 날카로운 떨림이라, 바로 전 값과의 차이(튀는 정도)를 봐요. 손을 천천히 움직이는 건 차이가 작아서 걸러져요
+    const v = a ? a : (g && g.x != null ? g : null);
+    if (!v) return;
+    const cur = [v.x, v.y, v.z], m = prev ? Math.hypot(cur[0] - prev[0], cur[1] - prev[1], cur[2] - prev[2]) : 0; prev = cur;
     const now = performance.now(), K = KNOCK_K[ls.get('knockSens', 'mid')] || 4;
     if (knockDebug) knockDebug('m', m, K);
     if (m <= K || now - lastPeak < 180) return;   // 한 번 두드려도 떨림이 두세 번 튀어서, 0.18초 안은 한 번으로 셈
