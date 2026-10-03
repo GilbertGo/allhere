@@ -124,6 +124,7 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 .cam .edit{position:absolute;right:12px;bottom:12px;height:40px;border-radius:999px;background:rgba(255,255,255,.92);color:#2A2118;font-weight:800;font-size:14.5px;padding:0 16px;box-shadow:0 2px 10px rgba(0,0,0,.3)}
 .cam .review{position:absolute;inset:0;z-index:5;background:#000;display:flex;flex-direction:column}
 .cam .review canvas{position:static;inset:auto;height:auto;flex:1;min-height:0;width:100%;object-fit:contain}
+.kt-st{font-size:17px;font-weight:700;min-height:24px}
 .rv-msg{color:rgba(255,255,255,.88);letter-spacing:.01em;font-weight:800;font-size:18px;text-align:center;padding:10px 12px 4px}
 .rv-bar{display:flex;gap:8px;padding:8px 12px calc(18px + env(safe-area-inset-bottom,0px))}
 .rv-bar button{flex:1;height:56px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.2);color:#fff;font-weight:600;font-size:15.5px;letter-spacing:.01em}
@@ -149,7 +150,7 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = '2026-10-03a';
+const PHOTO_VER = '2026-10-03b';
 async function checkVer() {
   try {
     const t = await (await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' })).text();
@@ -768,8 +769,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     const bg = el('div', { class: 'sheet-bg', onclick: e => { if (e.target === bg) bg.remove(); } });
     bg.append(el('div', { class: 'sheet' }, el('h2', { text: '설정' }),
       el('button', { class: 'big sec', onclick: () => { bg.remove(); openAiSettings(); } }, aiReady() ? 'AI로 채우기: 켜짐 (설정)' : 'AI로 채우기 설정'),
-      el('div', { class: 'hint', style: 'text-align:left;margin-bottom:-4px', text: '두드림(똑똑똑) 감도' }), el('div', { class: 'seg', style: 'flex-wrap:nowrap' },
-        ...[['low', '둔하게'], ['mid', '보통'], ['high', '예민하게']].map(([k, n]) => el('button', { style: 'flex:1 1 0', class: ls.get('knockSens', 'mid') === k ? 'on' : '', onclick: e => { ls.set('knockSens', k); e.currentTarget.parentNode.querySelectorAll('button').forEach(b => b.classList.remove('on')); e.currentTarget.classList.add('on'); } }, n))),
+      el('button', { class: 'big sec', onclick: () => { bg.remove(); knockTest(); } }, '두드림 · 말소리 시험 (감도 맞추기)'),
       el('div', { class: 'hint', style: 'text-align:left', text: '음성 입력: 장갑을 낀 채 휴대폰을 똑똑똑 세 번 두드려도 켜져요(말로 글을 채우고 "찍어"로 찍기). 다시 똑똑똑 하면 꺼져요. AI 자동 입력: 켜 두면 찍을 때마다 AI가 그 사진의 글을 써요. 사진은 휴대폰 안에서만 만들어져요.' }),
       el('button', { class: 'big pri', onclick: () => bg.remove() }, '닫기')));
     document.body.append(bg);
@@ -1067,7 +1067,7 @@ async function aiFillEditor() {
 
 // ---------- 똑똑똑: 휴대폰을 세 번 두드리면 장갑 모드 켜기·끄기 ----------
 // 장갑 낀 손은 화면이 눌리지 않아서, 화면 터치 대신 흔들림 센서로 '똑똑똑'(짧고 센 떨림 3번)을 알아채요
-let knockCb = null;   // 지금 똑똑똑을 받으면 할 일(첫 화면: 장갑 모드 켜기 / 장갑 모드: 끄기)
+let knockCb = null, knockDebug = null;   // knockDebug: 두드림 시험 화면이 센서 값을 받아 그려요   // 지금 똑똑똑을 받으면 할 일(첫 화면: 장갑 모드 켜기 / 장갑 모드: 끄기)
 const KNOCK_K = { low: 6, mid: 4, high: 2.6 };   // 떨림 세기 기준(예민할수록 작게)
 (() => {
   let peaks = [], lastPeak = 0, prev = null, timer = 0;
@@ -1078,7 +1078,9 @@ const KNOCK_K = { low: 6, mid: 4, high: 2.6 };   // 떨림 세기 기준(예민�
     else if (g && g.x != null) { const cur = [g.x, g.y, g.z]; m = prev ? Math.hypot(cur[0] - prev[0], cur[1] - prev[1], cur[2] - prev[2]) : 0; prev = cur; }
     else return;
     const now = performance.now(), K = KNOCK_K[ls.get('knockSens', 'mid')] || 4;
-    if (m <= K || now - lastPeak < 110) return;
+    if (knockDebug) knockDebug('m', m, K);
+    if (m <= K || now - lastPeak < 180) return;   // 한 번 두드려도 떨림이 두세 번 튀어서, 0.18초 안은 한 번으로 셈
+    if (knockDebug) knockDebug('peak');
     lastPeak = now;
     peaks = peaks.filter(t => now - t < 3000); peaks.push(now);
     clearTimeout(timer);
@@ -1086,12 +1088,57 @@ const KNOCK_K = { low: 6, mid: 4, high: 2.6 };   // 떨림 세기 기준(예민�
     timer = setTimeout(() => {
       const n = peaks.length, last3 = peaks.slice(-3);
       const ok = n >= 3 && last3[1] - last3[0] < 650 && last3[2] - last3[1] < 650 && (n === 3 || last3[0] - peaks[n - 4] > 800);
+      if (knockDebug) knockDebug('end', ok, n);
       peaks = [];
       if (ok && knockCb) { if (navigator.vibrate) navigator.vibrate([60, 60, 60]); knockCb(); }
     }, 400);
   });
 })();
 // 아이폰은 흔들림 센서를 쓰려면 한 번 눌러서 허락받아야 해요
+// 두드림·말소리 시험(2026-10-03 사용자: 장갑 모드 시작이 잘 안 됨 → 휴대폰에서 직접 보며 확인)
+function knockTest() {
+  const cv = el('canvas', { width: 640, height: 200, style: 'width:100%;height:120px;background:#14100C;border-radius:12px' }), g = cv.getContext('2d');
+  const st = el('div', { class: 'kt-st', text: '휴대폰을 손에 든 채 뒤판을 똑똑똑 세 번 두드려 보세요' }), info = el('div', { class: 'hint', style: 'text-align:left' });
+  const heard = el('div', { class: 'hint', style: 'text-align:left;min-height:20px' });
+  let pts = [], taps = 0, events = 0, t0 = performance.now(), maxM = 0, K = 4;
+  const keep = knockCb; knockCb = () => { st.textContent = '똑똑똑을 알아챘어요'; st.style.color = '#2E7D4F'; };
+  knockDebug = (k, a, b) => {
+    if (k === 'm') { events++; K = b; pts.push([performance.now(), a]); if (a > maxM) maxM = a; }
+    else if (k === 'peak') { taps++; st.style.color = ''; st.textContent = `두드림 ${taps}번 느꼈어요`; if (navigator.vibrate) navigator.vibrate(25); }
+    else if (k === 'end') { if (!a) { st.textContent = `${b}번 느꼈지만 똑똑똑으로는 못 알아챘어요(세 번, 일정하게)`; st.style.color = '#B4532A'; } taps = 0; }
+  };
+  let raf = 0;
+  const draw = () => {
+    const now = performance.now(); pts = pts.filter(q => now - q[0] < 4000);
+    const top = Math.max(K * 2.5, 10), y = v => 190 - Math.min(v, top) / top * 180;
+    g.clearRect(0, 0, 640, 200);
+    g.strokeStyle = 'rgba(216,182,122,.9)'; g.setLineDash([6, 6]); g.beginPath(); g.moveTo(0, y(K)); g.lineTo(640, y(K)); g.stroke(); g.setLineDash([]);
+    g.strokeStyle = '#fff'; g.lineWidth = 2; g.beginPath(); pts.forEach(([t, v], i) => { const x = 640 - (now - t) / 4000 * 640; i ? g.lineTo(x, y(v)) : g.moveTo(x, y(v)); }); g.stroke();
+    const sec = (now - t0) / 1000;
+    info.textContent = events ? `센서 신호: 1초에 약 ${Math.round(events / sec)}번 · 가장 센 떨림 ${maxM.toFixed(1)} · 알아채는 기준(점선) ${K}` : (sec > 2 ? '흔들림 센서 신호가 안 와요(이 브라우저·설정에서는 똑똑똑을 쓸 수 없어요)' : '센서 신호 기다리는 중…');
+    raf = requestAnimationFrame(draw);
+  };
+  const speechTest = async () => {
+    heard.textContent = '앱이 말해요…';
+    await speak('말소리 시험이에요. 삐 소리 뒤에 아무 말이나 해 보세요');
+    if (!SR) return heard.textContent = '이 브라우저는 음성 인식이 안 돼요(크롬이나 삼성 인터넷으로 열어 주세요)';
+    beepClick(); heard.textContent = '듣는 중… 말해 보세요';
+    const r = new SR(); r.lang = 'ko-KR'; r.interimResults = false;
+    r.onresult = ev => { heard.textContent = `알아들은 말: "${ev.results[0][0].transcript}"`; };
+    r.onerror = ev => { heard.textContent = ev.error === 'not-allowed' ? '마이크 허락이 안 돼 있어요' : ev.error === 'no-speech' ? '말소리가 안 들렸어요' : `음성 인식 오류: ${ev.error}`; };
+    try { r.start(); } catch (e) { heard.textContent = '음성 인식을 시작하지 못했어요'; }
+  };
+  const bg = el('div', { class: 'sheet-bg' });
+  const close = () => { cancelAnimationFrame(raf); knockDebug = null; knockCb = keep; bg.remove(); };
+  bg.addEventListener('click', e => { if (e.target === bg) close(); });
+  bg.append(el('div', { class: 'sheet' }, el('h2', { text: '두드림 · 말소리 시험' }), st, cv, info,
+    el('div', { class: 'hint', style: 'text-align:left;margin-bottom:-4px', text: '두드림 감도' }),
+    el('div', { class: 'seg', style: 'flex-wrap:nowrap' }, ...[['low', '둔하게'], ['mid', '보통'], ['high', '예민하게']].map(([k, n]) => el('button', { style: 'flex:1 1 0', class: ls.get('knockSens', 'mid') === k ? 'on' : '', onclick: e => { ls.set('knockSens', k); e.currentTarget.parentNode.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === e.currentTarget)); } }, n))),
+    el('button', { class: 'big sec', onclick: speechTest }, '말소리 시험 (앱이 말하고, 내 말 듣기)'), heard,
+    el('div', { class: 'hint', style: 'text-align:left', text: '이 화면을 캡처해서 보내 주시면 원인을 찾을 수 있어요.' }),
+    el('button', { class: 'big pri', onclick: close }, '닫기')));
+  document.body.append(bg); allowMotion(); draw();
+}
 async function allowMotion() { try { if (typeof DeviceMotionEvent !== 'undefined' && DeviceMotionEvent.requestPermission) return (await DeviceMotionEvent.requestPermission()) === 'granted'; } catch { return false; } return true; }
 let gloveOn = false;
 async function gloveMode() {
