@@ -134,8 +134,9 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 .rv-bar button{flex:1;height:56px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.2);color:#fff;font-weight:600;font-size:15.5px;letter-spacing:.01em}
 .rv-bar button.pri{background:#F3EDE3;border-color:#F3EDE3;color:#1D1712;font-weight:700;flex:1.3}
 .cam .tools{display:flex;gap:6px;padding:8px 10px 0}
-.cam .tools button{flex:1 1 0;min-width:0;height:62px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.16);color:rgba(255,255,255,.9);font-size:12px;font-weight:600;letter-spacing:.01em;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;white-space:nowrap;letter-spacing:-.03em}
+.cam .tools button{flex:1 1 0;min-width:0;height:68px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.16);color:rgba(255,255,255,.9);font-size:12px;font-weight:600;letter-spacing:.01em;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;white-space:nowrap;letter-spacing:-.03em}
 .cam .tools button svg,.etools button svg{display:block}
+.cam .tools button small{font-size:10px;font-weight:500;opacity:.62;letter-spacing:-.02em;margin-top:-1px;white-space:nowrap}
 .cam .tools button.on{background:rgba(216,182,122,.14);border-color:#D8B67A;color:#E9CF9E}
 .cam .edits{position:absolute;right:12px;bottom:12px;display:flex;gap:8px}.cam .edits .edit{position:static}
 .cam .gear{position:absolute;right:12px;top:calc(12px + env(safe-area-inset-top,0px));width:44px;height:44px;border-radius:50%;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.22);color:#fff;display:flex;align-items:center;justify-content:center;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
@@ -169,7 +170,7 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = 'fire-2026-10-03e';
+const PHOTO_VER = 'fire-2026-10-03f';
 async function checkVer() {
   try {
     const t = await (await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' })).text();
@@ -852,16 +853,14 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     catch { toast('AI가 글을 쓰지 못했어요. 직접 적어 주세요'); }
     aiBusy--; drawAi(); p.aiDone = true; if (review && review.p === p) review.draw(); }); };
   drawAi();
-  // 똑똑똑 안내: 카메라를 열 때 6초 보여 줘요(장갑 낀 사람이 알 수 있게)
-  const knockTip = el('div', { class: 'knock-tip' }, ui('mic', 16), '휴대폰 뒤를 똑똑똑 두드려도 음성 입력이 시작돼요');
   camClose = stop;
   const wrap = el('div', { class: 'cam' },
-    el('div', { class: 'view' }, video, ov, knockTip,
+    el('div', { class: 'view' }, video, ov,
       el('button', { class: 'gear', 'aria-label': '설정', onclick: openSet }, ui('sliders', 20)),
       ),
     // 도구 줄(2026-10-02 사용자: 화면 정리 · 음성 입력, AI 자동 입력)
     el('div', { class: 'tools' },
-      el('button', { onclick: async () => { await allowMotion(); camVoice(); } }, ui('mic'), '음성 입력'),
+      el('button', { onclick: async () => { await allowMotion(); camVoice(); } }, ui('mic'), '음성 입력', el('small', { text: '똑똑똑으로도 시작' })),   // 2026-10-03 사용자: 똑똑똑 안내를 음성 입력 아이콘 아래에
       aiBtn,
       el('button', { onclick: openLook }, ui('layout'), '표 수정'),
       el('button', { onclick: editText }, ui('pen'), '글 수정')),
@@ -871,7 +870,6 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
       el('button', { class: 'side', onclick: () => { facing = facing === 'environment' ? 'user' : 'environment'; start(); } }, '앞/뒤 바꾸기')));
   document.body.append(wrap);
   await start(); tick();
-  setTimeout(() => knockTip.classList.add('hide'), 9000);   // 카메라 허락 창이 떠 있는 동안 지나가지 않게, 카메라가 켜진 뒤부터 9초
 }
 
 // ---------- 편집 화면 ----------
