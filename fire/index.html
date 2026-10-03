@@ -134,9 +134,9 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 .rv-bar button{flex:1;height:56px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.2);color:#fff;font-weight:600;font-size:15.5px;letter-spacing:.01em}
 .rv-bar button.pri{background:#F3EDE3;border-color:#F3EDE3;color:#1D1712;font-weight:700;flex:1.3}
 .cam .tools{display:flex;gap:6px;padding:8px 10px 0}
-.cam .tools button{flex:1 1 0;min-width:0;height:68px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.16);color:rgba(255,255,255,.9);font-size:12px;font-weight:600;letter-spacing:.01em;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;white-space:nowrap;letter-spacing:-.03em}
+.cam .tools button{flex:1 1 0;min-width:0;height:62px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.16);color:rgba(255,255,255,.9);font-size:12px;font-weight:600;letter-spacing:.01em;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;white-space:nowrap;letter-spacing:-.03em}
 .cam .tools button svg,.etools button svg{display:block}
-.cam .tools button small{font-size:10px;font-weight:500;opacity:.62;letter-spacing:-.02em;margin-top:-1px;white-space:nowrap}
+.cam .tools-hint{display:flex;align-items:center;gap:5px;padding:6px 14px 0;color:rgba(255,255,255,.62);font-size:12px;letter-spacing:-.01em}
 .cam .tools button.on{background:rgba(216,182,122,.14);border-color:#D8B67A;color:#E9CF9E}
 .cam .edits{position:absolute;right:12px;bottom:12px;display:flex;gap:8px}.cam .edits .edit{position:static}
 .cam .gear{position:absolute;right:12px;top:calc(12px + env(safe-area-inset-top,0px));width:44px;height:44px;border-radius:50%;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.22);color:#fff;display:flex;align-items:center;justify-content:center;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
@@ -170,7 +170,7 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = 'fire-2026-10-03f';
+const PHOTO_VER = 'fire-2026-10-03g';
 async function checkVer() {
   try {
     const t = await (await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' })).text();
@@ -860,10 +860,11 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
       ),
     // 도구 줄(2026-10-02 사용자: 화면 정리 · 음성 입력, AI 자동 입력)
     el('div', { class: 'tools' },
-      el('button', { onclick: async () => { await allowMotion(); camVoice(); } }, ui('mic'), '음성 입력', el('small', { text: '똑똑똑으로도 시작' })),   // 2026-10-03 사용자: 똑똑똑 안내를 음성 입력 아이콘 아래에
+      el('button', { onclick: async () => { await allowMotion(); camVoice(); } }, ui('mic'), '음성 입력'),
       aiBtn,
       el('button', { onclick: openLook }, ui('layout'), '표 수정'),
       el('button', { onclick: editText }, ui('pen'), '글 수정')),
+    el('div', { class: 'tools-hint' }, ui('mic', 14), '음성 입력은 버튼을 누르거나, 휴대폰을 똑똑똑 두드려서 시작'),   // 2026-10-03 사용자 문구
     el('div', { class: 'bar' },
       leftBtn,
       el('button', { class: 'shut', 'aria-label': '찍기', onclick: shoot }),
@@ -1128,30 +1129,42 @@ async function aiFillEditor() {
 // ---------- 똑똑똑: 휴대폰을 세 번 두드리면 장갑 모드 켜기·끄기 ----------
 // 장갑 낀 손은 화면이 눌리지 않아서, 화면 터치 대신 흔들림 센서로 '똑똑똑'(짧고 센 떨림 3번)을 알아채요
 let knockCb = null, knockDebug = null;   // knockDebug: 두드림 시험 화면이 센서 값을 받아 그려요   // 지금 똑똑똑을 받으면 할 일(첫 화면: 장갑 모드 켜기 / 장갑 모드: 끄기)
-const KNOCK_K = { low: 3, mid: 1.8, high: 1.1 };   // 떨림 '튀는 정도' 기준(예민할수록 작게). 2026-10-03 사용자: 약하게 두드리면 안 됨 → 세기 대신 바로 전 값과의 차이로 봐요
+const KNOCK_K = { low: 3.5, mid: 2.4, high: 1.5 };   // 떨림 '튀는 정도'(바로 전 값과의 차이) 기준, 예민할수록 작게
+// 2026-10-03 사용자: 약하게 두드리면 안 됨(→ 튀는 정도로 판정) / 그다음 걸어가도 켜짐 → 아래처럼 걸음과 구별해요
+//  · 똑똑똑은 빠르다: 세 번 사이 간격이 0.12~0.48초(걸음은 보통 0.5초 넘게, 그리고 계속 이어짐)
+//  · 똑똑똑 전에는 휴대폰이 가만히 있다: 첫 두드림 앞 0.8초 동안 작은 흔들림(기준의 45%)도 없어야 해요
+//  · 똑똑똑 뒤에도 0.35초 조용해야 해요. 그 앞 1초 안에 다른 큰 떨림이 있었으면(걷는 중) 무시
 (() => {
-  let peaks = [], lastPeak = 0, prev = null, timer = 0;
+  let peaks = [], bumps = [], lastPeak = 0, prev = null, timer = 0;
   addEventListener('devicemotion', e => {
     const a = e.acceleration && e.acceleration.x != null ? e.acceleration : null, g = e.accelerationIncludingGravity;
-    // 두드림은 아주 짧고 날카로운 떨림이라, 바로 전 값과의 차이(튀는 정도)를 봐요. 손을 천천히 움직이는 건 차이가 작아서 걸러져요
     const v = a ? a : (g && g.x != null ? g : null);
     if (!v) return;
     const cur = [v.x, v.y, v.z], m = prev ? Math.hypot(cur[0] - prev[0], cur[1] - prev[1], cur[2] - prev[2]) : 0; prev = cur;
-    const now = performance.now(), K = KNOCK_K[ls.get('knockSens', 'mid')] || 4;
+    const now = performance.now(), K = KNOCK_K[ls.get('knockSens', 'mid')] || 2.4;
     if (knockDebug) knockDebug('m', m, K);
+    if (m > K * 0.45) { bumps = bumps.filter(t => now - t < 3000); bumps.push(now); }
     if (m <= K || now - lastPeak < 180) return;   // 한 번 두드려도 떨림이 두세 번 튀어서, 0.18초 안은 한 번으로 셈
     if (knockDebug) knockDebug('peak');
     lastPeak = now;
     peaks = peaks.filter(t => now - t < 3000); peaks.push(now);
     clearTimeout(timer);
-    // 마지막 떨림 뒤 0.4초 조용하면 판단: 바로 앞 0.8초 동안 조용했고, 정확히 3번이 0.65초 안쪽 간격으로 왔으면 똑똑똑
     timer = setTimeout(() => {
-      const n = peaks.length, last3 = peaks.slice(-3);
-      const ok = n >= 3 && last3[1] - last3[0] < 650 && last3[2] - last3[1] < 650 && (n === 3 || last3[0] - peaks[n - 4] > 800);
-      if (knockDebug) knockDebug('end', ok, n);
+      const n = peaks.length, t = peaks.slice(-3), why = [];
+      if (n < 3) why.push(`${n}번만 느꼈어요`);
+      else {
+        const g1 = t[1] - t[0], g2 = t[2] - t[1];
+        if (g1 < 120 || g1 > 480 || g2 < 120 || g2 > 480) why.push('간격이 똑똑똑보다 느리거나 들쭉날쭉해요');
+        if (n > 3 && t[0] - peaks[n - 4] < 1000) why.push('그 앞에도 떨림이 있었어요(걷는 중)');
+        const near = x => t.some(k => Math.abs(x - k) < 150);   // 두드림 자체의 떨림은 빼고
+        if (bumps.some(x => x > t[0] - 800 && x < t[0] && !near(x))) why.push('두드리기 전에 휴대폰이 움직였어요(걷는 중)');
+        if (bumps.some(x => x > t[2] + 150 && !near(x))) why.push('두드린 뒤에도 흔들렸어요');
+      }
+      const ok = !why.length;
+      if (knockDebug) knockDebug('end', ok, n, why.join(' · '));
       peaks = [];
       if (ok && knockCb) { if (navigator.vibrate) navigator.vibrate([60, 60, 60]); knockCb(); }
-    }, 400);
+    }, 500);
   });
 })();
 // 아이폰은 흔들림 센서를 쓰려면 한 번 눌러서 허락받아야 해요
@@ -1162,10 +1175,10 @@ function knockTest() {
   const heard = el('div', { class: 'hint', style: 'text-align:left;min-height:20px' });
   let pts = [], taps = 0, events = 0, t0 = performance.now(), maxM = 0, K = 4;
   const keep = knockCb; knockCb = () => { st.textContent = '똑똑똑을 알아챘어요'; st.style.color = '#2E7D4F'; };
-  knockDebug = (k, a, b) => {
+  knockDebug = (k, a, b, c) => {
     if (k === 'm') { events++; K = b; pts.push([performance.now(), a]); if (a > maxM) maxM = a; }
     else if (k === 'peak') { taps++; st.style.color = ''; st.textContent = `두드림 ${taps}번 느꼈어요`; if (navigator.vibrate) navigator.vibrate(25); }
-    else if (k === 'end') { if (!a) { st.textContent = `${b}번 느꼈지만 똑똑똑으로는 못 알아챘어요(세 번, 일정하게)`; st.style.color = '#B4532A'; } taps = 0; }
+    else if (k === 'end') { if (!a) { st.textContent = `똑똑똑으로 안 봤어요: ${c || '세 번, 빠르고 일정하게'}`; st.style.color = '#B4532A'; } taps = 0; }
   };
   let raf = 0;
   const draw = () => {
