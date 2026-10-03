@@ -14,6 +14,7 @@
 - 인솔자 화면의 두 공유 버튼은 공유 카드 코드(`openBrag`, `bragView`, `shortLink`)를 쓴다. 모드·앨범·비밀코드 등 옛 여행 기록용 도우미 코드가 아직 조금 남아 있다(정리할 때 공유 카드와 받은 사람 화면이 쓰는지 확인).
 
 ## 배포
+- **(2026-10-03 사용자 결정) 사진 글상자·소방 사진대지 작업은 `text-box` 브랜치에서 한다.** 휴대폰 확인은 미리보기 주소로: https://raw.githack.com/GilbertGo/allhere/text-box/photo/index.html , https://raw.githack.com/GilbertGo/allhere/text-box/fire/index.html (githack, 반영이 몇 분 늦을 수 있음, 저장된 설정은 본 주소와 따로). 사용자가 합치라고 할 때만 main에 합친다(main = gilbertgo.github.io 실제 주소).
 - GitHub 저장소: `GilbertGo/allhere` (이 폴더), GitHub Pages로 배포
 - 주소: https://gilbertgo.github.io/allhere/
 - 배포 = `index.html` 수정 → commit → push. 1~2분 뒤 반영. 확인은 Ctrl+F5.
