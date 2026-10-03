@@ -56,8 +56,7 @@ body:has(.cam) .toast{bottom:auto;top:calc(70px + env(safe-area-inset-top,0px))}
 
 /* 아래 칸: 글 / 모양 / 항목 */
 .etools{display:flex;gap:8px;margin-bottom:10px}
-.etools button{flex:1 1 0;height:62px;border-radius:16px;background:var(--card);box-shadow:var(--shadow);font-size:14px;font-weight:800;color:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}
-.etools button b{font-size:21px;line-height:1}
+.etools button{flex:1 1 0;height:62px;border-radius:14px;background:var(--card);border:1px solid rgba(42,33,24,.12);box-shadow:none;font-size:13.5px;font-weight:600;letter-spacing:.01em;color:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}
 .panel.in-sheet{max-height:58vh}
 details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summary{font-weight:700;color:var(--muted);padding:6px 0;cursor:pointer}details.more[open]{display:flex;flex-direction:column;gap:8px}
 .tabs{display:flex;gap:4px;background:var(--soft);border-radius:12px;padding:3px;margin-bottom:8px}
@@ -109,7 +108,7 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 .vbar{position:fixed;left:0;right:0;bottom:0;z-index:60;background:#14100C;color:#fff;padding:14px 16px calc(16px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:8px;border-radius:22px 22px 0 0;box-shadow:0 -10px 30px rgba(0,0,0,.35)}
 .vbar .g-b{height:64px;font-size:19px}
 .add{height:42px;border-radius:12px;background:none;border:1.5px dashed var(--line);font-weight:700;color:var(--brown)}
-.tip{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);background:rgba(0,0,0,.55);color:#fff;font-size:12.5px;font-weight:600;border-radius:999px;padding:5px 11px;white-space:nowrap;pointer-events:none}
+.tip{position:absolute;left:50%;top:10px;transform:translateX(-50%);background:rgba(0,0,0,.55);color:#fff;font-size:12.5px;font-weight:600;border-radius:999px;padding:5px 11px;white-space:nowrap;pointer-events:none}
 .stage canvas.drag{cursor:grab;touch-action:none}
 /* 카메라 */
 .cam{position:fixed;inset:0;background:#000;z-index:50;display:flex;flex-direction:column}
@@ -125,18 +124,18 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 .cam .edit{position:absolute;right:12px;bottom:12px;height:40px;border-radius:999px;background:rgba(255,255,255,.92);color:#2A2118;font-weight:800;font-size:14.5px;padding:0 16px;box-shadow:0 2px 10px rgba(0,0,0,.3)}
 .cam .review{position:absolute;inset:0;z-index:5;background:#000;display:flex;flex-direction:column}
 .cam .review canvas{position:static;inset:auto;height:auto;flex:1;min-height:0;width:100%;object-fit:contain}
-.rv-msg{color:#FFD9B5;font-weight:800;font-size:18px;text-align:center;padding:10px 12px 4px}
+.rv-msg{color:rgba(255,255,255,.88);letter-spacing:.01em;font-weight:800;font-size:18px;text-align:center;padding:10px 12px 4px}
 .rv-bar{display:flex;gap:8px;padding:8px 12px calc(18px + env(safe-area-inset-bottom,0px))}
-.rv-bar button{flex:1;height:58px;border-radius:16px;background:rgba(255,255,255,.14);color:#fff;font-weight:800;font-size:16px}
-.rv-bar button.pri{background:#E8742A;flex:1.3}
+.rv-bar button{flex:1;height:56px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.2);color:#fff;font-weight:600;font-size:15.5px;letter-spacing:.01em}
+.rv-bar button.pri{background:#F3EDE3;border-color:#F3EDE3;color:#1D1712;font-weight:700;flex:1.3}
 .cam .tools{display:flex;gap:6px;padding:8px 10px 0}
-.cam .tools button{flex:1 1 0;min-width:0;height:60px;border-radius:14px;background:rgba(255,255,255,.12);color:#fff;font-size:12.5px;font-weight:700;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;white-space:nowrap;letter-spacing:-.03em}
-.cam .tools button b{font-size:21px;line-height:1}
-.cam .tools button.on{background:#FFD9B5;color:#2A2118}
+.cam .tools button{flex:1 1 0;min-width:0;height:62px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.16);color:rgba(255,255,255,.9);font-size:12px;font-weight:600;letter-spacing:.01em;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;white-space:nowrap;letter-spacing:-.03em}
+.cam .tools button svg,.etools button svg{display:block}
+.cam .tools button.on{background:rgba(216,182,122,.14);border-color:#D8B67A;color:#E9CF9E}
 .cam .edits{position:absolute;right:12px;bottom:12px;display:flex;gap:8px}.cam .edits .edit{position:static}
-.cam .gear{position:absolute;right:12px;top:calc(12px + env(safe-area-inset-top,0px));width:44px;height:44px;border-radius:50%;background:rgba(0,0,0,.45);color:#fff;font-size:20px}
+.cam .gear{position:absolute;right:12px;top:calc(12px + env(safe-area-inset-top,0px));width:44px;height:44px;border-radius:50%;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.22);color:#fff;display:flex;align-items:center;justify-content:center;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
 .cam .edit.gl{right:auto;left:12px;background:#2A2118;color:#FFD9B5}
-.cam .side{min-width:84px;width:auto!important;padding:0 10px}
+.cam .side{min-width:84px;width:auto!important;padding:0 12px;background-color:rgba(255,255,255,.04)!important;border:1px solid rgba(255,255,255,.18);font-weight:600!important;letter-spacing:.01em}
 .cam .shots{position:absolute;left:12px;bottom:12px;background:rgba(0,0,0,.55);color:#fff;border-radius:999px;font-size:13px;font-weight:700;padding:5px 11px}
 @media (max-height:700px){.panel{max-height:28vh}.home h1{font-size:26px}.big{height:56px}input[type=text]{height:40px}.acts .big{height:48px}label.f{font-size:12px}}
 </style>
@@ -150,7 +149,7 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = '2026-10-02f';
+const PHOTO_VER = '2026-10-03a';
 async function checkVer() {
   try {
     const t = await (await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' })).text();
@@ -604,9 +603,9 @@ function homeOld() {
       el('div', { class: 'sample' }, cv),
       el('button', { class: 'big pri', onclick: () => camera() }, '사진 찍기'),
       el('button', { class: 'big sec', onclick: () => pickIn.click() }, '앨범에서 고르기 (여러 장 가능)'),
-      el('button', { class: 'big glove', onclick: async () => { await allowMotion(); gloveMode(); } }, '🧤 장갑 모드 · 말로만 찍고 적기'),
+      el('button', { class: 'big glove', onclick: async () => { await allowMotion(); gloveMode(); } }, '장갑 모드 · 말로만 찍고 적기'),
       el('div', { class: 'hint', style: 'margin-top:-6px', text: '장갑을 낀 채 휴대폰을 똑똑똑 세 번 두드려도 켜지고, 다시 똑똑똑 하면 꺼져요.' }),
-      el('button', { class: 'lnk', style: 'align-self:center', onclick: openAiSettings }, aiReady() ? '🤖 AI로 채우기: 켜짐 (설정)' : '🤖 AI로 채우기 설정'),
+      el('button', { class: 'lnk', style: 'align-self:center', onclick: openAiSettings }, aiReady() ? 'AI로 채우기: 켜짐 (설정)' : 'AI로 채우기 설정'),
       el('div', { class: 'seg', style: 'justify-content:center' }, el('span', { class: 'hint', text: '두드림 감도' }),
         ...[['low', '둔하게'], ['mid', '보통'], ['high', '예민하게']].map(([k, n]) => el('button', { class: ls.get('knockSens', 'mid') === k ? 'on' : '', onclick: e => { ls.set('knockSens', k); e.currentTarget.parentNode.querySelectorAll('button').forEach(b => b.classList.remove('on')); e.currentTarget.classList.add('on'); } }, n))),
       el('div', { class: 'hint', text: '찍을 때 글상자 자리가 흐릿하게 보여요. 사진은 휴대폰 안에서만 만들어져요.' })));
@@ -690,7 +689,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     if (W && H) { if (ov.width !== W || ov.height !== H) { ov.width = W; ov.height = H; } box = drawNote(ov.getContext('2d'), null, W, H, noteFor(ghostP()), true); }
     loop = requestAnimationFrame(tick);
   };
-    // 글상자를 누르거나 '✏️ 글 고치기' → 찍기 전에 글을 고쳐요(고치는 대로 화면 글상자도 바로 바뀜)
+    // 글상자를 누르거나 '글 고치기' → 찍기 전에 글을 고쳐요(고치는 대로 화면 글상자도 바로 바뀜)
   let sheetIn = {};   // 열린 고치기 창의 칸(말로 채우면 같이 바뀌게)
   const camGet = f => (f.per ? ghostP()[f.id] : vals[f.id]) || '';
   const camSet = (f, t) => { if (f.per) camVals[f.id] = t; else { vals[f.id] = t; saveCfg(); } if (f.per) rememberPer(camVals); };
@@ -717,7 +716,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
         onfocus: () => { if (i.value && i.value === EX[f.id]) setTimeout(() => i.select(), 0); },
         oninput: () => camSet(f, i.value) }); sheetIn[f.id] = i;
       return el('label', { class: 'f', for: 'c-' + f.id }, f.label, el('div', { class: 'inrow' }, i, micBtn(i, f))); };
-    bg.append(el('div', { class: 'sheet' }, el('h2', { text: '글상자 고치기' }), SR ? el('button', { class: 'vbtn', onclick: camVoice }, '🧤 말로 모두 채우고 찍기 (똑똑똑으로도)') : null, el('div', { class: 'hint', style: 'text-align:left', text: '고친 글은 이제부터 찍는 사진에 들어가요.' }),
+    bg.append(el('div', { class: 'sheet' }, el('h2', { text: '글상자 고치기' }), SR ? el('button', { class: 'vbtn', onclick: camVoice }, '말로 모두 채우고 찍기 (똑똑똑으로도)') : null, el('div', { class: 'hint', style: 'text-align:left', text: '고친 글은 이제부터 찍는 사진에 들어가요.' }),
       ...on.map(row), el('button', { class: 'big pri', onclick: () => bg.remove() }, '다 고쳤어요')));
     document.body.append(bg);
   };
@@ -735,10 +734,10 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   let review = null;
   const showReview = p => {
     const rc = el('canvas'), msg = el('div', { class: 'rv-msg' });
-    const draw = () => { rc.width = p.W; rc.height = p.H; drawNote(rc.getContext('2d'), p.bmp, p.W, p.H, noteFor(p)); msg.textContent = p.aiP && !p.aiDone ? '🤖 AI가 글을 쓰는 중이에요…' : '이 사진을 저장할까요?'; };
+    const draw = () => { rc.width = p.W; rc.height = p.H; drawNote(rc.getContext('2d'), p.bmp, p.W, p.H, noteFor(p)); msg.textContent = p.aiP && !p.aiDone ? 'AI가 글을 쓰는 중이에요…' : '이 사진을 저장할까요?'; };
     const close = () => { if (review) { review.el.remove(); review = null; } };
     const keep = async () => {   // 저장: 휴대폰에 내려받고, 찍은 사진 목록(보내기·사진대지용)에도 넣어요
-      if (p.aiP && !p.aiDone) { msg.textContent = '🤖 AI가 다 쓰면 저장할게요…'; await p.aiP; }
+      if (p.aiP && !p.aiDone) { msg.textContent = 'AI가 다 쓰면 저장할게요…'; await p.aiP; }
       saveCfg(); rememberPer(p); p.saved = true; shots.push(p); thumb = null; drawLeft();
       const [f] = await render([p]); if (f) { const url = URL.createObjectURL(f), a = el('a', { href: url, download: f.name }); document.body.append(a); a.click(); setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 30000); }
       close(); toast(`저장했어요 (사진첩 > 다운로드) · 찍은 사진 ${shots.length}장`);
@@ -753,7 +752,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
       document.body.append(bg);
     };
     const box = el('div', { class: 'review' }, rc, msg, el('div', { class: 'rv-bar' },
-      el('button', { onclick: drop }, '다시 찍기'), el('button', { onclick: editIt }, '✏️ 글 수정'), el('button', { class: 'pri', onclick: keep }, '저장')));
+      el('button', { onclick: drop }, '다시 찍기'), el('button', { onclick: editIt }, '글 수정'), el('button', { class: 'pri', onclick: keep }, '저장')));
     close(); review = { el: box, p, keep, drop, draw }; wrap.append(box); draw();
     if (p.aiP) p.aiP.then(() => { p.aiDone = true; if (review && review.p === p) draw(); });
   };
@@ -768,10 +767,10 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   const openSet = () => {
     const bg = el('div', { class: 'sheet-bg', onclick: e => { if (e.target === bg) bg.remove(); } });
     bg.append(el('div', { class: 'sheet' }, el('h2', { text: '설정' }),
-      el('button', { class: 'big sec', onclick: () => { bg.remove(); openAiSettings(); } }, aiReady() ? '🤖 AI로 채우기: 켜짐 (설정)' : '🤖 AI로 채우기 설정'),
+      el('button', { class: 'big sec', onclick: () => { bg.remove(); openAiSettings(); } }, aiReady() ? 'AI로 채우기: 켜짐 (설정)' : 'AI로 채우기 설정'),
       el('div', { class: 'hint', style: 'text-align:left;margin-bottom:-4px', text: '두드림(똑똑똑) 감도' }), el('div', { class: 'seg', style: 'flex-wrap:nowrap' },
         ...[['low', '둔하게'], ['mid', '보통'], ['high', '예민하게']].map(([k, n]) => el('button', { style: 'flex:1 1 0', class: ls.get('knockSens', 'mid') === k ? 'on' : '', onclick: e => { ls.set('knockSens', k); e.currentTarget.parentNode.querySelectorAll('button').forEach(b => b.classList.remove('on')); e.currentTarget.classList.add('on'); } }, n))),
-      el('div', { class: 'hint', style: 'text-align:left', text: '🎤 음성 입력: 장갑을 낀 채 휴대폰을 똑똑똑 세 번 두드려도 켜져요(말로 글을 채우고 "찍어"로 찍기). 다시 똑똑똑 하면 꺼져요. 🤖 AI 자동 입력: 켜 두면 찍을 때마다 AI가 그 사진의 글을 써요. 사진은 휴대폰 안에서만 만들어져요.' }),
+      el('div', { class: 'hint', style: 'text-align:left', text: '음성 입력: 장갑을 낀 채 휴대폰을 똑똑똑 세 번 두드려도 켜져요(말로 글을 채우고 "찍어"로 찍기). 다시 똑똑똑 하면 꺼져요. AI 자동 입력: 켜 두면 찍을 때마다 AI가 그 사진의 글을 써요. 사진은 휴대폰 안에서만 만들어져요.' }),
       el('button', { class: 'big pri', onclick: () => bg.remove() }, '닫기')));
     document.body.append(bg);
   };
@@ -795,7 +794,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     if (!aiReady()) { toast('먼저 AI 서버를 연결해 주세요'); return openAiSettings(); }
     aiAuto = !aiAuto; ls.set('aiAuto', aiAuto); drawAi(); toast(aiAuto ? '이제 찍을 때마다 AI가 글을 써요' : 'AI 자동 입력을 껐어요');
   } });
-  const drawAi = () => { aiBtn.classList.toggle('on', aiAuto); aiBtn.replaceChildren(el('b', { text: '🤖' }), aiBusy ? `AI 쓰는 중 ${aiBusy}` : aiAuto ? 'AI 자동 입력 켬' : 'AI 자동 입력'); };
+  const drawAi = () => { aiBtn.classList.toggle('on', aiAuto); aiBtn.replaceChildren(ui('ai'), aiBusy ? `AI 쓰는 중 ${aiBusy}` : aiAuto ? 'AI 자동 입력 켬' : 'AI 자동 입력'); };
   const aiQueue = p => { aiBusy++; drawAi(); return aiChain = aiChain.then(async () => {
     try { const out = await aiDescribe(p, askSheet); applyAi(p, out); redraw(); if (photos[cur] === p && refreshInputs) refreshInputs(); }
     catch { toast('AI가 글을 쓰지 못했어요. 직접 적어 주세요'); }
@@ -804,14 +803,14 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   camClose = stop;
   const wrap = el('div', { class: 'cam' },
     el('div', { class: 'view' }, video, ov,
-      el('button', { class: 'gear', 'aria-label': '설정', onclick: openSet }, '⚙️'),
+      el('button', { class: 'gear', 'aria-label': '설정', onclick: openSet }, ui('sliders', 20)),
       ),
     // 도구 줄(2026-10-02 사용자: 화면 정리 · 음성 입력, AI 자동 입력)
     el('div', { class: 'tools' },
-      el('button', { onclick: async () => { await allowMotion(); camVoice(); } }, el('b', { text: '🎤' }), '음성 입력'),
+      el('button', { onclick: async () => { await allowMotion(); camVoice(); } }, ui('mic'), '음성 입력'),
       aiBtn,
-      el('button', { onclick: openLook }, el('b', { text: '🎨' }), '표 수정'),
-      el('button', { onclick: editText }, el('b', { text: '✏️' }), '글 수정')),
+      el('button', { onclick: openLook }, ui('layout'), '표 수정'),
+      el('button', { onclick: editText }, ui('pen'), '글 수정')),
     el('div', { class: 'bar' },
       leftBtn,
       el('button', { class: 'shut', 'aria-label': '찍기', onclick: shoot }),
@@ -827,6 +826,16 @@ function redraw() {
   cancelAnimationFrame(raf);
   raf = requestAnimationFrame(() => { const p = photos[cur]; if (!p || !cv) return; p.look = lookOf(); if (cv.width !== p.W || cv.height !== p.H) { cv.width = p.W; cv.height = p.H; } lastBox = drawNote(cv.getContext('2d'), p.bmp, p.W, p.H, noteFor(p)); });
 }
+const UI = {
+  mic: ['M12 3.5a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0v-5a3 3 0 0 0-3-3z', 'M5.5 11a6.5 6.5 0 0 0 13 0', 'M12 17.5V21', 'M9 21h6'],
+  ai: ['M11 3.5l1.7 4.8 4.8 1.7-4.8 1.7L11 16.5l-1.7-4.8L4.5 10l4.8-1.7z', 'M18 14.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z'],
+  layout: ['M4 5h16v14H4z', 'M4 9.5h16', 'M9.5 9.5V19'],
+  pen: ['M14.5 5.5l4 4L8 20H4v-4z', 'M12.5 7.5l4 4'],
+  sliders: ['M4 7h9', 'M17 7h3', 'M15 5v4', 'M4 17h3', 'M11 17h9', 'M9 15v4'],
+  doc: ['M7 3.5h7l4 4v13H7z', 'M14 3.5v4h4', 'M9.5 12h6', 'M9.5 15.5h6']
+};
+const ui = (k, n = 22) => { const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('width', n); s.setAttribute('height', n); s.setAttribute('aria-hidden', 'true');
+  s.innerHTML = UI[k].map(d => `<path d="${d}" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>`).join(''); return s; };
 const svgIco = k => { const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('width', 18); s.setAttribute('height', 18);
   s.innerHTML = (ICO[k] || ICO.tag).map(d => `<path d="${d}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`).join(''); return s; };
 // 말로 입력: 칸 옆 마이크를 누르고 말하면 글자로 바뀌어요(휴대폰 브라우저의 음성 인식, 한국어). 키보드로도 그대로 적을 수 있어요
@@ -948,12 +957,12 @@ function editor() {
       many ? el('button', { class: 'nav l', 'aria-label': '이전 사진', onclick: () => go(-1) }, '‹') : null,
       many ? el('button', { class: 'nav r', 'aria-label': '다음 사진', onclick: () => go(1) }, '›') : null, countEl),
     el('div', { class: 'etools' },
-      el('button', { onclick: () => openSheet('text') }, el('b', { text: '✏️' }), '글 수정'),
-      el('button', { onclick: () => openSheet('look') }, el('b', { text: '🎨' }), '표 수정'),
-      aiReady() ? el('button', { onclick: () => aiFillEditor() }, el('b', { text: '🤖' }), 'AI로 채우기') : null),
+      el('button', { onclick: () => openSheet('text') }, ui('pen'), '글 수정'),
+      el('button', { onclick: () => openSheet('look') }, ui('layout'), '표 수정'),
+      aiReady() ? el('button', { onclick: () => aiFillEditor() }, ui('ai'), 'AI로 채우기') : null),
     el('div', { class: 'acts' },
       el('button', { class: 'big sec', onclick: share }, '보내기'),
-      el('button', { class: 'big pri', onclick: save }, photos.every(x => x.saved) ? '✓ 저장됨 · 다시 저장' : many ? `${photos.length}장 저장` : '사진첩에 저장')));
+      el('button', { class: 'big pri', onclick: save }, photos.every(x => x.saved) ? '저장됨 · 다시 저장' : many ? `${photos.length}장 저장` : '사진첩에 저장')));
   onPhotoChange(); redraw();
   if (document.fonts) document.fonts.ready.then(redraw);
 }
@@ -1018,7 +1027,7 @@ function openAiSettings() {
   const key = el('input', { type: 'text', id: 'ai-key', value: a.key, placeholder: '서버에 정해 둔 앱 암호' });
   const bg = el('div', { class: 'sheet-bg', onclick: e => { if (e.target === bg) bg.remove(); } });
   bg.append(el('div', { class: 'sheet' },
-    el('h2', { text: '🤖 AI로 채우기 설정' }),
+    el('h2', { text: 'AI로 채우기 설정' }),
     el('p', { class: 'hint', style: 'text-align:left;margin:0', text: '켜면 찍은 사진을 AI 서버로 보내 제목·내용을 받아 써요. 확실하지 않은 건 물어봐요. 사진 1장에 약 3~5원(Anthropic 요금).' }),
     el('label', { class: 'frow' }, on, el('span', { class: 'ttl', text: 'AI로 채우기 쓰기' })),
     el('label', { class: 'f', for: 'ai-url' }, 'AI 서버 주소', url),
@@ -1031,12 +1040,12 @@ function openAiSettings() {
 // 편집 화면: AI 질문은 화면 창으로(보기 단추 + 직접 적기·말하기)
 function askSheet(q, choices) {
   return new Promise(res => {
-    const inp = el('input', { type: 'text', id: 'ai-ans', placeholder: '직접 적거나 🎤로 말하기' });
+    const inp = el('input', { type: 'text', id: 'ai-ans', placeholder: '직접 적거나 로 말하기' });
     document.querySelectorAll('.toast').forEach(t => t.remove());
     const bg = el('div', { class: 'sheet-bg' });
     const done = v => { bg.remove(); res(v && v.trim() ? v.trim() : null); };
     bg.append(el('div', { class: 'sheet' },
-      el('div', { class: 'hint', style: 'text-align:left', text: '🤖 AI가 확인하고 싶어 해요' }),
+      el('div', { class: 'hint', style: 'text-align:left', text: 'AI가 확인하고 싶어 해요' }),
       el('h2', { style: 'margin:0', text: q }),
       el('div', { class: 'seg' }, choices.map(c => el('button', { style: 'height:52px;font-size:16px', onclick: () => done(c) }, c))),
       el('div', { class: 'inrow' }, inp, micBtn(inp, { id: 'ai', label: '대답' })),
@@ -1048,7 +1057,7 @@ function askSheet(q, choices) {
 }
 async function aiFillEditor() {
   const p = photos[cur]; if (!p) return;
-  toast('🤖 AI가 사진을 보고 있어요…');
+  toast('AI가 사진을 보고 있어요…');
   try {
     const out = await aiDescribe(p, askSheet);
     if (photos.length > 1) applyAi(p, out); else { if (out.title) vals.title = out.title; if (out.memo) vals.memo = out.memo; saveCfg(); }   // 여러 장이면 그 사진에만
@@ -1142,7 +1151,7 @@ async function gloveMode() {
   // AI로 채우기: AI가 쓰고, 확실하지 않은 건 소리로 묻고, 읽어 준 뒤 3초 안에 "다시"·"버려"가 없으면 저장
   let aiAnswer = null;
   async function aiShot() {
-    state = 'ai'; stopRec(); setState('🤖 AI가 사진을 보고 있어요', true); heard.textContent = '';
+    state = 'ai'; stopRec(); setState('AI가 사진을 보고 있어요', true); heard.textContent = '';
     try {
       const out = await aiDescribe(cur, (q, ch) => new Promise(res => { aiAnswer = res; state = 'aiq'; ask(q.replace(/[?？.]+$/, '') + '? ' + (ch.length ? ch.join(', ') + ' 중에 말씀하세요' : ''), true); }));
       state = 'ai'; stopRec();
@@ -1162,7 +1171,7 @@ async function gloveMode() {
     const n = norm(t);
     if (SAY.quit.test(n) && state !== 'ask') return finish();
     if (state === 'wait') { if (SAY.shoot.test(n)) return shoot(); return listen(); }
-    if (state === 'aiq') { const r = aiAnswer; aiAnswer = null; state = 'ai'; stopRec(); setState('🤖 다시 쓰는 중이에요', true); return r && r(/^(몰라|모름|넘어가|패스|다음|없음)$/.test(n) ? null : t); }
+    if (state === 'aiq') { const r = aiAnswer; aiAnswer = null; state = 'ai'; stopRec(); setState('다시 쓰는 중이에요', true); return r && r(/^(몰라|모름|넘어가|패스|다음|없음)$/.test(n) ? null : t); }
     if (state === 'aiconfirm') {
       if (SAY.drop.test(n)) { cur = null; state = 'wait'; await speak('사진을 버렸어요'); setState('"찍어"라고 말하면 찍어요', true); return listen(); }
       if (SAY.redo.test(n)) { state = 'ask'; qi = 0; asking = pickFields(); return askNext(); }
@@ -1193,7 +1202,7 @@ async function gloveMode() {
   const wrap = el('div', { class: 'cam glove-cam' },
     el('div', { class: 'view' }, video, ov, cnt),
     el('div', { class: 'g-panel' }, stEl, heard,
-      el('div', { class: 'g-help', text: aiReady() ? '말: "찍어" → 🤖 AI가 쓰고 확인할 것만 물어요 → 3초 뒤 저장("다시" / "버려") · 끝: "그만" 또는 똑똑똑' : '말: "찍어" · 묻는 칸 대답("같음"=그대로) · "저장" / "다시" / "버려" · 끝낼 때 "그만" 또는 휴대폰을 똑똑똑' }),
+      el('div', { class: 'g-help', text: aiReady() ? '말: "찍어" → AI가 쓰고 확인할 것만 물어요 → 3초 뒤 저장("다시" / "버려") · 끝: "그만" 또는 똑똑똑' : '말: "찍어" · 묻는 칸 대답("같음"=그대로) · "저장" / "다시" / "버려" · 끝낼 때 "그만" 또는 휴대폰을 똑똑똑' }),
       el('div', { class: 'g-btns' },
         el('button', { class: 'g-b', onclick: () => { if (state === 'wait') shoot(); } }, '찍기'),
         el('button', { class: 'g-b x', onclick: finish }, '끝내기'))));
