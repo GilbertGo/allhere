@@ -166,7 +166,7 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = '2026-10-04c';
+const PHOTO_VER = '2026-10-04d';
 async function checkVer() {
   try {
     const t = await (await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' })).text();
@@ -679,6 +679,9 @@ function dragBox(canvas, getBox, size, onMove, onTap) {
 
 // ---------- 카메라: 글상자 자리를 흐릿하게 보며 찍어요 ----------
 let camStream = null, facing = 'environment', camClose = null;
+const RATIOS = [['4:3', 4 / 3], ['16:9', 16 / 9], ['1:1', 1]];   // 찍는 사진 비율 — 4:3 이 기본(2026-10-04 사용자)
+const ratioKey = () => RATIOS.some(r => r[0] === ls.get('ratio', '4:3')) ? ls.get('ratio', '4:3') : '4:3';
+const ratioOf = () => RATIOS.find(r => r[0] === ratioKey())[1];
 async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않고) 연 촬영 화면
   if (camClose) camClose();
   appendNext = photos.length > 0;   // 편집 중에 더 찍으면 지금 사진들에 더해요
@@ -709,10 +712,18 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   const zoomEl = el('div', { class: 'zoom' });
   const drawZoom = () => { const pre = [1, 2, 4].filter(v => v <= zMax() + 0.01), near = pre.filter(v => v <= zoom + 0.05).pop() || 1;
     zoomEl.replaceChildren(...pre.map(v => el('button', { class: v === near ? 'on' : '', onclick: () => setZoom(v) }, v === near && Math.abs(zoom - v) > 0.05 ? zoom.toFixed(1) + '×' : v + '×'))); };
-  const clipVideo = () => {   // 디지털 줌: 화면은 영상을 키우고 테두리 밖은 잘라서, 찍힐 부분만 보여요
-    const W = video.videoWidth, H = video.videoHeight, w = video.clientWidth, h = video.clientHeight;
+  // 사진 비율(2026-10-04 사용자: 4:3 기본, 설정에서 바꾸기): 영상 가운데를 그 비율로 잘라 찍어요. 휴대폰을 세로로 들면 3:4 · 9:16 처럼 세로로
+  const crop = () => {   // 찍힐 부분 = 비율로 자른 가운데 ÷ 디지털 줌
+    const W = video.videoWidth, H = video.videoHeight; if (!W || !H) return null;
+    const r = ratioOf(), a = W >= H ? r : 1 / r, z = hw ? 1 : zoom;
+    let cw = W, ch = H; if (W / H > a) cw = H * a; else ch = W / a;
+    cw = Math.round(cw / z); ch = Math.round(ch / z);
+    return { x: Math.round((W - cw) / 2), y: Math.round((H - ch) / 2), w: cw, h: ch, W, H };
+  };
+  const clipVideo = () => {   // 화면도 찍힐 부분만: 영상을 키우고 테두리 밖은 잘라요(글상자 캔버스는 찍힐 부분 크기라 그대로 겹쳐요)
+    const q = crop(), w = video.clientWidth, h = video.clientHeight;
     let s = '';
-    if (!hw && zoom > 1.001 && W && w) { const k = Math.min(w / W, h / H), cw = W * k / zoom, ch = H * k / zoom; s = `inset(${(h - ch) / 2}px ${(w - cw) / 2}px)|scale(${zoom})`; }
+    if (q && w && h && (q.w < q.W - 1 || q.h < q.H - 1)) { const k = Math.min(w / q.W, h / q.H), S = Math.min(w / q.w, h / q.h) / k, cw = q.w * k, ch = q.h * k; s = `inset(${(h - ch) / 2}px ${(w - cw) / 2}px)|scale(${S})`; }
     if (s === clipNow) return; clipNow = s; const [cl, tf] = s ? s.split('|') : ['', '']; video.style.clipPath = cl; video.style.transform = tf;
   };
   const setZoom = z => {
@@ -726,8 +737,8 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   const onPt = e => { pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); };
   let loop = 0;
   const tick = () => {
-    const W = video.videoWidth, H = video.videoHeight;
-    if (W && H) { if (ov.width !== W || ov.height !== H) { ov.width = W; ov.height = H; } box = drawNote(ov.getContext('2d'), null, W, H, noteFor(ghostP()), true); clipVideo(); }
+    const q = crop();
+    if (q) { if (ov.width !== q.w || ov.height !== q.h) { ov.width = q.w; ov.height = q.h; } box = drawNote(ov.getContext('2d'), null, q.w, q.h, noteFor(ghostP()), true); clipVideo(); }
     loop = requestAnimationFrame(tick);
   };
     // 글상자를 누르거나 '글 고치기' → 찍기 전에 글을 고쳐요(고치는 대로 화면 글상자도 바로 바뀜)
@@ -761,11 +772,10 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
       ...on.map(row), el('button', { class: 'big pri', onclick: () => bg.remove() }, '다 고쳤어요')));
     document.body.append(bg);
   };
-  dragBox(ov, () => box, () => [video.videoWidth || 1, video.videoHeight || 1], () => {}, editText);
+  dragBox(ov, () => box, () => { const q = crop(); return q ? [q.w, q.h] : [1, 1]; }, () => {}, editText);
   const shoot = async () => {
-    const W = video.videoWidth, H = video.videoHeight; if (!W) return;
-    const z = hw ? 1 : zoom, sw = Math.round(W / z), sh = Math.round(H / z);   // 디지털 줌이면 화면에 보이던 가운데만
-    const c = document.createElement('canvas'); c.width = sw; c.height = sh; c.getContext('2d').drawImage(video, (W - sw) / 2, (H - sh) / 2, sw, sh, 0, 0, sw, sh);
+    const q = crop(); if (!q) return;   // 사진 비율 · 디지털 줌대로 화면에 보이던 부분만
+    const c = document.createElement('canvas'); c.width = q.w; c.height = q.h; c.getContext('2d').drawImage(video, q.x, q.y, q.w, q.h, 0, 0, q.w, q.h);
     const h = await Promise.race([here, new Promise(r => setTimeout(() => r(null), 50))]);
     const p = photoOf(await createImageBitmap(c), new Date(), h?.lat, h?.lng); if (placeNow && cfg.mode !== 'fire') p.place = placeNow; Object.assign(p, camVals);
     if (aiAuto) p.aiP = aiQueue(p);
@@ -809,6 +819,8 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   const openSet = () => {
     const bg = el('div', { class: 'sheet-bg', onclick: e => { if (e.target === bg) bg.remove(); } });
     bg.append(el('div', { class: 'sheet' }, el('h2', { text: '설정' }),
+      el('div', { class: 'hint', style: 'text-align:left;margin-bottom:-4px', text: '사진 비율' }),
+      el('div', { class: 'seg', style: 'flex-wrap:nowrap' }, ...RATIOS.map(([k]) => el('button', { style: 'flex:1 1 0', class: ratioKey() === k ? 'on' : '', onclick: e => { ls.set('ratio', k); e.currentTarget.parentNode.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === e.currentTarget)); } }, k === '4:3' ? '4:3 (기본)' : k))),
       el('button', { class: 'big sec', onclick: () => { bg.remove(); openAiSettings(); } }, aiReady() ? 'AI로 채우기: 켜짐 (설정)' : 'AI로 채우기 설정'),
       el('button', { class: 'big sec', onclick: () => { bg.remove(); knockTest(); } }, '두드림 · 말소리 시험 (감도 맞추기)'),
       el('div', { class: 'hint', style: 'text-align:left', text: '음성 입력: 장갑을 낀 채 휴대폰을 똑똑똑 세 번 두드려도 켜져요(말로 글을 채우고 "찍어"로 찍기). 다시 똑똑똑 하면 꺼져요. AI 자동 입력: 켜 두면 찍을 때마다 AI가 그 사진의 글을 써요. 사진은 휴대폰 안에서만 만들어져요.' }),
