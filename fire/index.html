@@ -133,11 +133,6 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 .rv-bar{display:flex;gap:8px;padding:8px 12px calc(18px + env(safe-area-inset-bottom,0px))}
 .rv-bar button{flex:1;height:56px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.2);color:#fff;font-weight:600;font-size:15.5px;letter-spacing:.01em}
 .rv-bar button.pri{background:#F3EDE3;border-color:#F3EDE3;color:#1D1712;font-weight:700;flex:1.3}
-.cam .view{overflow:hidden}
-.cam video{transform-origin:center center;transition:transform .12s}
-.cam .zooms{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);display:flex;gap:6px;padding:4px;border-radius:999px;background:rgba(0,0,0,.35);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);z-index:2}
-.cam .zooms button{min-width:38px;height:38px;border-radius:999px;background:transparent;box-shadow:none;color:#fff;font-size:12.5px;font-weight:700;padding:0 6px}
-.cam .zooms button.on{background:rgba(255,255,255,.92);color:#1D1712}
 .cam .tools{display:flex;gap:6px;padding:8px 10px 0}
 .cam .tools button{flex:1 1 0;min-width:0;height:62px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.16);color:rgba(255,255,255,.9);font-size:12px;font-weight:600;letter-spacing:.01em;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;white-space:nowrap;letter-spacing:-.03em}
 .cam .tools button svg,.etools button svg{display:block}
@@ -175,7 +170,7 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = 'fire-2026-10-04a';
+const PHOTO_VER = 'fire-2026-10-03g';
 async function checkVer() {
   try {
     const t = await (await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' })).text();
@@ -740,27 +735,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     try { camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facing, width: { ideal: 1920 }, height: { ideal: 1440 } }, audio: false }); }
     catch { stop(); if (auto) { if (!photos.length) homeOld(); toast('카메라를 열 수 없어요. 카메라 사용을 허락하거나 아래 버튼으로 찍어 주세요'); return; } toast('카메라를 열 수 없어 휴대폰 카메라로 찍어요'); return camIn.click(); }
     video.srcObject = camStream;
-    // 줌: 휴대폰 카메라가 줌을 지원하면 그걸 쓰고(선명), 아니면 화면 가운데를 키워서 찍어요(디지털 줌)
-    try { const tr = camStream.getVideoTracks()[0], cp = tr.getCapabilities ? tr.getCapabilities() : {}; hwZoom = cp.zoom && cp.zoom.max > 1 ? { tr, min: cp.zoom.min || 1, max: Math.min(cp.zoom.max, 10) } : null; } catch { hwZoom = null; }
-    setZoom(1);
   };
-  // ---- 줌 (2026-10-04 사용자: 사진 찍기에 카메라 줌) : 1×·2×·3× 단추, 두 손가락 벌리기·오므리기 ----
-  let zoom = 1, hwZoom = null;
-  const zmax = () => hwZoom ? hwZoom.max : 4;
-  const zoomBtns = el('div', { class: 'zooms' });
-  const drawZoom = () => {
-    const opts = [1, 2, 3, 5].filter(z => z <= zmax() + 0.01);
-    const nearest = opts.reduce((a, b) => Math.abs(b - zoom) < Math.abs(a - zoom) ? b : a, 1);
-    zoomBtns.replaceChildren(...opts.map(z => el('button', { class: z === nearest ? 'on' : '', onclick: () => setZoom(z) }, z === nearest && Math.abs(zoom - z) > 0.05 ? zoom.toFixed(1) + '×' : z + '×')));
-  };
-  const setZoom = z => {
-    zoom = Math.max(1, Math.min(zmax(), z));
-    if (hwZoom) { video.style.transform = ''; hwZoom.tr.applyConstraints({ advanced: [{ zoom: Math.max(hwZoom.min, zoom) }] }).catch(() => { hwZoom = null; setZoom(zoom); }); }
-    else video.style.transform = zoom > 1 ? `scale(${zoom})` : '';
-    drawZoom();
-  };
-  let pinch = null;
-  const tdist = e => Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
   let loop = 0;
   const tick = () => {
     const W = video.videoWidth, H = video.videoHeight;
@@ -801,9 +776,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   dragBox(ov, () => box, () => [video.videoWidth || 1, video.videoHeight || 1], () => {}, editText);
   const shoot = async () => {
     const W = video.videoWidth, H = video.videoHeight; if (!W) return;
-    const c = document.createElement('canvas'); c.width = W; c.height = H;
-    if (!hwZoom && zoom > 1) { const sw = W / zoom, sh = H / zoom; c.getContext('2d').drawImage(video, (W - sw) / 2, (H - sh) / 2, sw, sh, 0, 0, W, H); }   // 디지털 줌: 보이는 가운데만
-    else c.getContext('2d').drawImage(video, 0, 0);
+    const c = document.createElement('canvas'); c.width = W; c.height = H; c.getContext('2d').drawImage(video, 0, 0);
     const h = await Promise.race([here, new Promise(r => setTimeout(() => r(null), 50))]);
     const p = photoOf(await createImageBitmap(c), new Date(), h?.lat, h?.lng); if (placeNow && cfg.mode !== 'fire') p.place = placeNow; Object.assign(p, camVals);
     if (aiAuto) p.aiP = aiQueue(p);
@@ -882,12 +855,9 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   drawAi();
   camClose = stop;
   const wrap = el('div', { class: 'cam' },
-    el('div', { class: 'view',
-        ontouchstart: e => { if (e.touches.length === 2) pinch = { d: tdist(e), z: zoom }; },
-        ontouchmove: e => { if (pinch && e.touches.length === 2) { e.preventDefault(); setZoom(pinch.z * tdist(e) / pinch.d); } },
-        ontouchend: e => { if (e.touches.length < 2) pinch = null; } }, video, ov,
+    el('div', { class: 'view' }, video, ov,
       el('button', { class: 'gear', 'aria-label': '설정', onclick: openSet }, ui('sliders', 20)),
-      zoomBtns),
+      ),
     // 도구 줄(2026-10-02 사용자: 화면 정리 · 음성 입력, AI 자동 입력)
     el('div', { class: 'tools' },
       el('button', { onclick: async () => { await allowMotion(); camVoice(); } }, ui('mic'), '음성 입력'),
