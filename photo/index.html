@@ -153,6 +153,10 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 .cam .zoom{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);display:flex;gap:4px;background:rgba(0,0,0,.4);border-radius:999px;padding:4px;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
 .cam .zoom button{min-width:40px;height:36px;border-radius:999px;background:transparent;color:#fff;font-size:13px;font-weight:700;padding:0 8px}
 .cam .zoom button.on{background:rgba(255,255,255,.92);color:#2A2118}
+.cam .steps{position:absolute;left:12px;right:64px;top:calc(12px + env(safe-area-inset-top,0px));display:flex;gap:6px;flex-wrap:wrap;pointer-events:none}
+.cam .steps span{background:rgba(0,0,0,.5);color:rgba(255,255,255,.75);border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:6px 11px;font-size:13px;font-weight:600}
+.cam .steps span.now{background:#2563EB;border-color:#2563EB;color:#fff}
+.cam .steps span.done{background:rgba(255,255,255,.92);color:#1D1712;border-color:transparent}
 .cam .shots{position:absolute;left:12px;bottom:12px;background:rgba(0,0,0,.55);color:#fff;border-radius:999px;font-size:13px;font-weight:700;padding:5px 11px}
 @media (max-height:700px){.panel{max-height:28vh}.home h1{font-size:26px}.big{height:56px}input[type=text]{height:40px}.acts .big{height:48px}label.f{font-size:12px}}
 </style>
@@ -166,7 +170,7 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = '2026-10-04d';
+const PHOTO_VER = '2026-10-05a';
 async function checkVer() {
   try {
     const t = await (await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' })).text();
@@ -581,7 +585,14 @@ if ((cfg.tVer || 0) < 7) { Object.assign(cfg, { tVer: 7, layout: 'card', theme: 
 const EX = { title: '점심 삼대째손두부', place: '서구 공촌동', memo: '콩물, 두부김치 무료', who: '장남덕' };
 const vals = Object.assign({ title: EX.title, memo: EX.memo, who: ls.get('who', '') }, ls.get('vals', {}));   // 2026-10-02 사용자: 직전에 쓴 글을 기본으로 → 제목·내용도 기억(처음만 예시)
 if (!vals.who) vals.who = EX.who;
-const saveCfg = () => { ls.set('cfg', cfg); const keep = {}; cfg.fields.forEach(f => { if (!f.per) keep[f.id] = vals[f.id] || ''; }); ls.set('vals', keep); };
+// 작업 모드(2026-10-05 사진통 '공사·작업 기록'): 앱이 window.__job 을 넣고 열면 —
+//   공사명 · 공종(단계) · 업체가 글상자에 미리 들어가고, 위에 찍을 차례(수리 전 → 중 → 후)가 보이고,
+//   저장한 사진은 앱으로 넘겨서(job-shot) 다 찍으면(job-done) 앱이 그 양식의 사진대지로 연다.
+//   { name, kind, who, steps:[...], labels:{title,memo,who,...} }. 평소 글(vals)은 건드리지 않는다
+const JOB = window.__job && Array.isArray(window.__job.steps) ? window.__job : null;
+const jobPost = m => { try { window.ReactNativeWebView.postMessage(JSON.stringify(m)); } catch {} };
+const labOf = f => (JOB && JOB.labels && JOB.labels[f.id]) || f.label;
+const saveCfg = () => { ls.set('cfg', cfg); if (JOB) return; const keep = {}; cfg.fields.forEach(f => { if (!f.per) keep[f.id] = vals[f.id] || ''; }); ls.set('vals', keep); };
 // 사진 한 장에만 쓴 글(AI 자동 입력이 그 사진에 쓴 제목·내용 등, p.ov). 없으면 모든 사진 공통 글(vals)
 const valOf = (p, f) => ((f.per ? p?.[f.id] : (p?.ov && p.ov[f.id] != null ? p.ov[f.id] : vals[f.id])) || '');
 const putVal = (p, f, v) => { if (f.per) p[f.id] = v; else if (p?.ov && p.ov[f.id] != null) p.ov[f.id] = v; else vals[f.id] = v; };
@@ -597,8 +608,8 @@ const useLook = p => { if (p && p.look) Object.assign(cfg, JSON.parse(JSON.strin
 function noteFor(p) {
   const D = (p && p.look) || cfg;
   const v = id => { const f = cfg.fields.find(x => x.id === id); return f ? valOf(p, f) : ''; };
-  const on = cfg.fields.filter(f => f.on);
-  return { titleOn: on.some(f => f.id === 'title'), title: on.some(f => f.id === 'title') ? v('title').trim() : '', rows: on.filter(f => f.id !== 'title').map(f => ({ id: f.id, icon: f.icon || 'tag', label: f.label || '항목', value: v(f.id).trim() })),   // 빈 칸도 넘겨요(표는 빈 칸도 그리고, 나머지 모양은 뺌)
+  const on = cfg.fields.filter(f => f.on || (JOB && JOB.labels && JOB.labels[f.id]));
+  return { titleOn: on.some(f => f.id === 'title'), title: on.some(f => f.id === 'title') ? v('title').trim() : '', rows: on.filter(f => f.id !== 'title').map(f => ({ id: f.id, icon: f.icon || 'tag', label: labOf(f) || '항목', value: v(f.id).trim() })),   // 빈 칸도 넘겨요(표는 빈 칸도 그리고, 나머지 모양은 뺌)
     layout: D.layout, theme: D.theme, size: D.size, color: D.color, tRound: D.tRound, tBg: D.tBg, tLine: D.tLine, tStyle: D.tStyle, tEdge: D.tEdge, tIn: D.tIn, tInW: D.tInW, at: (D.at || {})[D.layout] || null };
 }
 
@@ -692,6 +703,12 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   const ghostP = () => Object.assign({ date: fmtDate(new Date()), place: cfg.mode === 'fire' ? lastOr('place') : (placeNow || EX.place) }, typeof perDefaults === 'function' ? perDefaults() : {}, camVals);
   here.then(h => h && placeName(h.lat, h.lng).then(n => { if (n) placeNow = n; }));
   const shotsEl = el('div', { class: 'shots', style: 'display:none' });
+  let jobAt = 0;   // 작업 모드: 지금 찍을 차례(JOB.steps 번호)
+  const stepsEl = el('div', { class: 'steps' });
+  const jobMemo = i => [JOB.kind, JOB.steps[i] || ('추가 ' + (i - JOB.steps.length + 1))].filter(Boolean).join(' — ');
+  const drawSteps = () => { if (!JOB) return; vals.memo = jobMemo(jobAt);
+    stepsEl.replaceChildren(...JOB.steps.map((t, i) => el('span', { class: i < jobAt ? 'done' : i === jobAt ? 'now' : '' }, (i + 1) + ' ' + t + (i < jobAt ? ' ✓' : '')))); };
+  if (JOB) { vals.title = JOB.name || ''; vals.who = JOB.who || ''; drawSteps(); }
   const chips = el('div', { class: 'chips' });
   let setBtn = null;
   const drawChips = () => { chips.replaceChildren(...LAYOUTS.map(([k, n]) => el('button', { class: cfg.layout === k ? 'on' : '', onclick: () => { cfg.layout = k; saveCfg(); drawChips(); } }, n))); if (setBtn) chips.append(setBtn); };
@@ -767,7 +784,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     const row = f => { const i = el('input', { type: 'text', id: 'c-' + f.id, maxlength: f.id === 'memo' ? 60 : 30, placeholder: PH[f.id] || '', value: (f.per ? g[f.id] : vals[f.id]) || '',
         onfocus: () => { if (i.value && i.value === EX[f.id]) setTimeout(() => i.select(), 0); },
         oninput: () => camSet(f, i.value) }); sheetIn[f.id] = i;
-      return el('label', { class: 'f', for: 'c-' + f.id }, f.label, el('div', { class: 'inrow' }, i, micBtn(i, f))); };
+      return el('label', { class: 'f', for: 'c-' + f.id }, labOf(f), el('div', { class: 'inrow' }, i, micBtn(i, f))); };
     bg.append(el('div', { class: 'sheet' }, el('h2', { text: '글상자 고치기' }), SR ? el('button', { class: 'vbtn', onclick: camVoice }, '말로 모두 채우고 찍기 (똑똑똑으로도)') : null, el('div', { class: 'hint', style: 'text-align:left', text: '고친 글은 이제부터 찍는 사진에 들어가요.' }),
       ...on.map(row), el('button', { class: 'big pri', onclick: () => bg.remove() }, '다 고쳤어요')));
     document.body.append(bg);
@@ -793,13 +810,19 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
       saveCfg(); rememberPer(p); p.saved = true; shots.push(p); thumb = null; drawLeft();
       const [f] = await render([p]); if (f) { const url = URL.createObjectURL(f), a = el('a', { href: url, download: f.name }); document.body.append(a); a.click(); setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 30000); }
       close(); toast(`저장했어요 (사진첩 > 다운로드) · 찍은 사진 ${shots.length}장`);
+      if (JOB && f) {
+        const data = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(f); });
+        jobPost({ t: 'job-shot', step: jobAt, cap: JOB.steps[jobAt] || '', name: f.name, data });
+        jobAt++; drawSteps(); drawLeft();
+        if (jobAt === JOB.steps.length) { toast('모두 찍었어요 — 사진대지로 갑니다'); setTimeout(() => jobPost({ t: 'job-done' }), 1200); }
+      }
     };
     const drop = () => { close(); toast('지웠어요. 다시 찍어 주세요'); };
     const editIt = () => {
       const bg = el('div', { class: 'sheet-bg', onclick: e => { if (e.target === bg) bg.remove(); } });
       const row = f => { const i = el('input', { type: 'text', id: 'r-' + f.id, maxlength: f.id === 'memo' ? 60 : 30, placeholder: PH[f.id] || '', value: valOf(p, f),
           oninput: () => { putVal(p, f, i.value); if (!f.per) saveCfg(); draw(); } });
-        return el('label', { class: 'f', for: 'r-' + f.id }, f.label, el('div', { class: 'inrow' }, i, micBtn(i, f))); };
+        return el('label', { class: 'f', for: 'r-' + f.id }, labOf(f), el('div', { class: 'inrow' }, i, micBtn(i, f))); };
       bg.append(el('div', { class: 'sheet' }, el('h2', { text: '이 사진 글 수정' }), ...cfg.fields.filter(f => f.on).map(row), el('button', { class: 'big pri', onclick: () => bg.remove() }, '다 고쳤어요')));
       document.body.append(bg);
     };
@@ -813,7 +836,8 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   const leftBtn = el('button', { class: 'side' });
   let thumb = null;
   const drawLeft = () => { if (shots.length) { const q = shots[shots.length - 1]; if (!thumb) { const c = document.createElement('canvas'), k = 120 / Math.max(q.W, q.H); c.width = Math.round(q.W * k); c.height = Math.round(q.H * k); drawNote(c.getContext('2d'), q.bmp, c.width, c.height, { ...noteFor(q), at: null }); thumb = c.toDataURL('image/jpeg', .7); } leftBtn.style.cssText = `background:#222 url(${thumb}) center/cover;padding-left:52px;background-size:44px 44px;background-position:6px center;background-repeat:no-repeat`; } else leftBtn.style.cssText = '';
-    leftBtn.textContent = shots.length ? `찍은 사진 · ${shots.length}장` : photos.length ? '돌아가기' : '앨범에서\n사진 불러오기'; leftBtn.onclick = shots.length || photos.length ? done : () => pickIn.click(); };
+    leftBtn.textContent = shots.length ? `찍은 사진 · ${shots.length}장` : photos.length ? '돌아가기' : '앨범에서\n사진 불러오기'; leftBtn.onclick = shots.length || photos.length ? done : () => pickIn.click();
+    if (JOB) { leftBtn.textContent = shots.length ? `다 찍음\n사진대지 (${shots.length}장)` : '처음으로'; leftBtn.onclick = () => jobPost({ t: shots.length ? 'job-done' : 'job-back' }); } };
   drawLeft();
   // 설정(예전 첫 화면에 있던 것): AI로 채우기 설정 · 두드림 감도
   const openSet = () => {
@@ -860,7 +884,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   camClose = stop;
   const view = el('div', { class: 'view' }, video, ov,
       el('button', { class: 'gear', 'aria-label': '설정', onclick: openSet }, ui('sliders', 20)),
-      zoomEl);
+      zoomEl, JOB ? stepsEl : null);
   view.addEventListener('pointerdown', e => { onPt(e); if (pts.size === 2) pinch = { d: pdist(), z: zoom }; });
   view.addEventListener('pointermove', e => { if (!pts.has(e.pointerId)) return; onPt(e); if (pinch && pts.size === 2) setZoom(pinch.z * pdist() / pinch.d); });
   const ptUp = e => { pts.delete(e.pointerId); if (pts.size < 2) pinch = null; };
