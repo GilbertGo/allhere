@@ -104,6 +104,16 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 .sheet{background:var(--bg);width:100%;max-width:560px;border-radius:24px 24px 0 0;padding:20px 16px calc(18px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:10px;max-height:88vh;overflow:auto}
 .sheet h2{font-size:20px;margin:0}
 .sheet .seg button{flex:1 1 40%}
+.sheet-bg.peek{background:none;pointer-events:none}
+.sheet.peek{pointer-events:auto;gap:8px;padding:12px 12px calc(12px + env(safe-area-inset-bottom,0px));background:rgba(250,246,240,.97);box-shadow:0 -8px 24px rgba(0,0,0,.25)}
+.sheet.peek h2{font-size:16px;display:flex;align-items:baseline;gap:8px}
+.sheet.peek h2 small{font-size:12px;font-weight:600;color:var(--sub,#8a7a6a)}
+.sheet.peek .seg{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding:2px 2px 4px;margin:0 -2px}
+.sheet.peek .seg::-webkit-scrollbar{display:none}
+.sheet.peek .seg button{flex:0 0 auto;height:38px}
+.sheet.peek .seg.fit button{flex:1 1 0}
+.sheet.peek .row2{display:flex;gap:8px}
+.sheet.peek .row2 .big{flex:1;height:46px;font-size:16px;border-radius:14px}
 .vbtn.ai{background:#3B5BDB;color:#fff}
 .vbar{position:fixed;left:0;right:0;bottom:0;z-index:60;background:#14100C;color:#fff;padding:14px 16px calc(16px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:8px;border-radius:22px 22px 0 0;box-shadow:0 -10px 30px rgba(0,0,0,.35)}
 .vbar .g-b{height:64px;font-size:19px}
@@ -139,6 +149,10 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 .cam .gear{position:absolute;right:12px;top:calc(12px + env(safe-area-inset-top,0px));width:44px;height:44px;border-radius:50%;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.22);color:#fff;display:flex;align-items:center;justify-content:center;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
 .cam .edit.gl{right:auto;left:12px;background:#2A2118;color:#FFD9B5}
 .cam .side{min-width:84px;width:auto!important;padding:0 12px;background-color:rgba(255,255,255,.04)!important;border:1px solid rgba(255,255,255,.18);font-weight:600!important;letter-spacing:.01em}
+.cam .bar .side{flex:1 1 0;min-width:0;white-space:pre-line;line-height:1.2;min-height:44px;height:auto!important;padding:6px 10px}   /* 두 줄 글 · 셔터는 가운데 그대로 */
+.cam .zoom{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);display:flex;gap:4px;background:rgba(0,0,0,.4);border-radius:999px;padding:4px;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.cam .zoom button{min-width:40px;height:36px;border-radius:999px;background:transparent;color:#fff;font-size:13px;font-weight:700;padding:0 8px}
+.cam .zoom button.on{background:rgba(255,255,255,.92);color:#2A2118}
 .cam .shots{position:absolute;left:12px;bottom:12px;background:rgba(0,0,0,.55);color:#fff;border-radius:999px;font-size:13px;font-weight:700;padding:5px 11px}
 @media (max-height:700px){.panel{max-height:28vh}.home h1{font-size:26px}.big{height:56px}input[type=text]{height:40px}.acts .big{height:48px}label.f{font-size:12px}}
 </style>
@@ -152,7 +166,7 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = '2026-10-03g';
+const PHOTO_VER = '2026-10-04d';
 async function checkVer() {
   try {
     const t = await (await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' })).text();
@@ -665,6 +679,9 @@ function dragBox(canvas, getBox, size, onMove, onTap) {
 
 // ---------- 카메라: 글상자 자리를 흐릿하게 보며 찍어요 ----------
 let camStream = null, facing = 'environment', camClose = null;
+const RATIOS = [['4:3', 4 / 3], ['16:9', 16 / 9], ['1:1', 1]];   // 찍는 사진 비율 — 4:3 이 기본(2026-10-04 사용자)
+const ratioKey = () => RATIOS.some(r => r[0] === ls.get('ratio', '4:3')) ? ls.get('ratio', '4:3') : '4:3';
+const ratioOf = () => RATIOS.find(r => r[0] === ratioKey())[1];
 async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않고) 연 촬영 화면
   if (camClose) camClose();
   appendNext = photos.length > 0;   // 편집 중에 더 찍으면 지금 사진들에 더해요
@@ -685,11 +702,43 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     try { camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facing, width: { ideal: 1920 }, height: { ideal: 1440 } }, audio: false }); }
     catch { stop(); if (auto) { if (!photos.length) homeOld(); toast('카메라를 열 수 없어요. 카메라 사용을 허락하거나 아래 버튼으로 찍어 주세요'); return; } toast('카메라를 열 수 없어 휴대폰 카메라로 찍어요'); return camIn.click(); }
     video.srcObject = camStream;
+    const tr = camStream.getVideoTracks()[0], cp = tr && tr.getCapabilities ? tr.getCapabilities() : {};
+    hw = cp.zoom && cp.zoom.max > 1 ? cp.zoom : null; setZoom(1);   // 앞/뒤를 바꾸면 1× 부터
   };
+  // 줌(2026-10-04 사용자: 찍기 화면에서 줌 되게): 두 손가락으로 벌리고 오므리기 · 1× 2× 4× 버튼.
+  // 카메라가 줌을 알려 주면 카메라 줌(화질 그대로), 아니면 가운데를 잘라 키우는 디지털 줌(찍은 사진도 화면에 보이던 부분만)
+  let zoom = 1, hw = null, clipNow = '';
+  const zMin = () => hw ? Math.max(hw.min, 1) : 1, zMax = () => hw ? Math.min(hw.max, 10) : 4;
+  const zoomEl = el('div', { class: 'zoom' });
+  const drawZoom = () => { const pre = [1, 2, 4].filter(v => v <= zMax() + 0.01), near = pre.filter(v => v <= zoom + 0.05).pop() || 1;
+    zoomEl.replaceChildren(...pre.map(v => el('button', { class: v === near ? 'on' : '', onclick: () => setZoom(v) }, v === near && Math.abs(zoom - v) > 0.05 ? zoom.toFixed(1) + '×' : v + '×'))); };
+  // 사진 비율(2026-10-04 사용자: 4:3 기본, 설정에서 바꾸기): 영상 가운데를 그 비율로 잘라 찍어요. 휴대폰을 세로로 들면 3:4 · 9:16 처럼 세로로
+  const crop = () => {   // 찍힐 부분 = 비율로 자른 가운데 ÷ 디지털 줌
+    const W = video.videoWidth, H = video.videoHeight; if (!W || !H) return null;
+    const r = ratioOf(), a = W >= H ? r : 1 / r, z = hw ? 1 : zoom;
+    let cw = W, ch = H; if (W / H > a) cw = H * a; else ch = W / a;
+    cw = Math.round(cw / z); ch = Math.round(ch / z);
+    return { x: Math.round((W - cw) / 2), y: Math.round((H - ch) / 2), w: cw, h: ch, W, H };
+  };
+  const clipVideo = () => {   // 화면도 찍힐 부분만: 영상을 키우고 테두리 밖은 잘라요(글상자 캔버스는 찍힐 부분 크기라 그대로 겹쳐요)
+    const q = crop(), w = video.clientWidth, h = video.clientHeight;
+    let s = '';
+    if (q && w && h && (q.w < q.W - 1 || q.h < q.H - 1)) { const k = Math.min(w / q.W, h / q.H), S = Math.min(w / q.w, h / q.h) / k, cw = q.w * k, ch = q.h * k; s = `inset(${(h - ch) / 2}px ${(w - cw) / 2}px)|scale(${S})`; }
+    if (s === clipNow) return; clipNow = s; const [cl, tf] = s ? s.split('|') : ['', '']; video.style.clipPath = cl; video.style.transform = tf;
+  };
+  const setZoom = z => {
+    zoom = Math.min(zMax(), Math.max(zMin(), z));
+    if (hw) { const t = camStream && camStream.getVideoTracks()[0]; if (t) t.applyConstraints({ advanced: [{ zoom }] }).catch(() => { hw = null; setZoom(zoom); }); }   // 카메라 줌을 막으면 디지털 줌으로
+    clipVideo(); drawZoom();
+  };
+  // 두 손가락 벌리기/오므리기 — 화면(글상자 끌기 캔버스 포함) 어디서나
+  const pts = new Map(); let pinch = null;
+  const pdist = () => { const [a, b] = [...pts.values()]; return Math.hypot(a.x - b.x, a.y - b.y) || 1; };
+  const onPt = e => { pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); };
   let loop = 0;
   const tick = () => {
-    const W = video.videoWidth, H = video.videoHeight;
-    if (W && H) { if (ov.width !== W || ov.height !== H) { ov.width = W; ov.height = H; } box = drawNote(ov.getContext('2d'), null, W, H, noteFor(ghostP()), true); }
+    const q = crop();
+    if (q) { if (ov.width !== q.w || ov.height !== q.h) { ov.width = q.w; ov.height = q.h; } box = drawNote(ov.getContext('2d'), null, q.w, q.h, noteFor(ghostP()), true); clipVideo(); }
     loop = requestAnimationFrame(tick);
   };
     // 글상자를 누르거나 '글 고치기' → 찍기 전에 글을 고쳐요(고치는 대로 화면 글상자도 바로 바뀜)
@@ -723,10 +772,10 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
       ...on.map(row), el('button', { class: 'big pri', onclick: () => bg.remove() }, '다 고쳤어요')));
     document.body.append(bg);
   };
-  dragBox(ov, () => box, () => [video.videoWidth || 1, video.videoHeight || 1], () => {}, editText);
+  dragBox(ov, () => box, () => { const q = crop(); return q ? [q.w, q.h] : [1, 1]; }, () => {}, editText);
   const shoot = async () => {
-    const W = video.videoWidth, H = video.videoHeight; if (!W) return;
-    const c = document.createElement('canvas'); c.width = W; c.height = H; c.getContext('2d').drawImage(video, 0, 0);
+    const q = crop(); if (!q) return;   // 사진 비율 · 디지털 줌대로 화면에 보이던 부분만
+    const c = document.createElement('canvas'); c.width = q.w; c.height = q.h; c.getContext('2d').drawImage(video, q.x, q.y, q.w, q.h, 0, 0, q.w, q.h);
     const h = await Promise.race([here, new Promise(r => setTimeout(() => r(null), 50))]);
     const p = photoOf(await createImageBitmap(c), new Date(), h?.lat, h?.lng); if (placeNow && cfg.mode !== 'fire') p.place = placeNow; Object.assign(p, camVals);
     if (aiAuto) p.aiP = aiQueue(p);
@@ -760,16 +809,18 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     if (p.aiP) p.aiP.then(() => { p.aiDone = true; if (review && review.p === p) draw(); });
   };
   const done = () => { if (!shots.length && !photos.length) return; stop(); if (!shots.length) return editor(); photos = photos.concat(shots); cur = photos.length - shots.length; editor(); fillPlaces(shots, here); };
-  // 왼쪽 아래 버튼: 찍기 전 = 앨범에서 고르기, 찍은 뒤 = 다 찍음(장 수)
+  // 왼쪽 아래 버튼: 찍기 전 = 앨범에서 고르기, 찍은 뒤 = 다 찍음(장 수). 2026-10-04 사용자: '앨범' → '앨범에서 사진 불러오기'(두 줄)
   const leftBtn = el('button', { class: 'side' });
   let thumb = null;
   const drawLeft = () => { if (shots.length) { const q = shots[shots.length - 1]; if (!thumb) { const c = document.createElement('canvas'), k = 120 / Math.max(q.W, q.H); c.width = Math.round(q.W * k); c.height = Math.round(q.H * k); drawNote(c.getContext('2d'), q.bmp, c.width, c.height, { ...noteFor(q), at: null }); thumb = c.toDataURL('image/jpeg', .7); } leftBtn.style.cssText = `background:#222 url(${thumb}) center/cover;padding-left:52px;background-size:44px 44px;background-position:6px center;background-repeat:no-repeat`; } else leftBtn.style.cssText = '';
-    leftBtn.textContent = shots.length ? `찍은 사진 · ${shots.length}장` : photos.length ? '돌아가기' : '앨범'; leftBtn.onclick = shots.length || photos.length ? done : () => pickIn.click(); };
+    leftBtn.textContent = shots.length ? `찍은 사진 · ${shots.length}장` : photos.length ? '돌아가기' : '앨범에서\n사진 불러오기'; leftBtn.onclick = shots.length || photos.length ? done : () => pickIn.click(); };
   drawLeft();
   // 설정(예전 첫 화면에 있던 것): AI로 채우기 설정 · 두드림 감도
   const openSet = () => {
     const bg = el('div', { class: 'sheet-bg', onclick: e => { if (e.target === bg) bg.remove(); } });
     bg.append(el('div', { class: 'sheet' }, el('h2', { text: '설정' }),
+      el('div', { class: 'hint', style: 'text-align:left;margin-bottom:-4px', text: '사진 비율' }),
+      el('div', { class: 'seg', style: 'flex-wrap:nowrap' }, ...RATIOS.map(([k]) => el('button', { style: 'flex:1 1 0', class: ratioKey() === k ? 'on' : '', onclick: e => { ls.set('ratio', k); e.currentTarget.parentNode.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === e.currentTarget)); } }, k === '4:3' ? '4:3 (기본)' : k))),
       el('button', { class: 'big sec', onclick: () => { bg.remove(); openAiSettings(); } }, aiReady() ? 'AI로 채우기: 켜짐 (설정)' : 'AI로 채우기 설정'),
       el('button', { class: 'big sec', onclick: () => { bg.remove(); knockTest(); } }, '두드림 · 말소리 시험 (감도 맞추기)'),
       el('div', { class: 'hint', style: 'text-align:left', text: '음성 입력: 장갑을 낀 채 휴대폰을 똑똑똑 세 번 두드려도 켜져요(말로 글을 채우고 "찍어"로 찍기). 다시 똑똑똑 하면 꺼져요. AI 자동 입력: 켜 두면 찍을 때마다 AI가 그 사진의 글을 써요. 사진은 휴대폰 안에서만 만들어져요.' }),
@@ -778,18 +829,21 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     document.body.append(bg);
   };
   // 표 수정: 글상자 모양·크기·자리 (2026-10-02 사용자: 위 모양 단추 줄을 '표 수정'으로, '글 수정'과 나눠서)
+  // 2026-10-04 사용자: 고르면서 사진에 어떻게 보이는지 보이게 — 창을 낮게, 뒤를 가리지 않고(카메라 위 글상자가 바로 바뀌어 보임),
+  // 창 밖은 손가락이 카메라 화면에 닿아서 글상자를 끌어 옮길 수 있어요. 모양은 한 줄로 옆으로 밀어서
   const openLook = () => {
-    const bg = el('div', { class: 'sheet-bg', onclick: e => { if (e.target === bg) bg.remove(); } });
-    const draw = () => box2.replaceChildren(el('h2', { text: '표 수정 (글상자 모양)' }),
-      el('div', { class: 'hint', style: 'text-align:left;margin-bottom:-4px', text: '모양' }),
+    const bg = el('div', { class: 'sheet-bg peek' });
+    const keepScroll = () => { const s = box2.querySelector('.seg'); return s ? s.scrollLeft : 0; };
+    const draw = () => { const sl = keepScroll(); box2.replaceChildren(el('h2', {}, '표 수정', el('small', { text: '고르면 바로 보여요 · 글상자는 끌어 옮겨요' })),
       el('div', { class: 'seg' }, LAYOUTS.map(([k, n]) => el('button', { class: cfg.layout === k ? 'on' : '', onclick: () => { cfg.layout = k; saveCfg(); draw(); } }, shapeIco(k), n))),
-      el('div', { class: 'hint', style: 'text-align:left;margin-bottom:-4px', text: '크기' }),
-      el('div', { class: 'seg', style: 'flex-wrap:nowrap' }, [[0.6, '아주 작게'], [0.8, '작게'], [1, '보통'], [1.2, '크게']].map(([k, n]) => el('button', { style: 'flex:1 1 0', class: cfg.size === k ? 'on' : '', onclick: () => { cfg.size = k; saveCfg(); draw(); } }, n))),
-      el('button', { class: 'big sec', onclick: () => { delete cfg.at[cfg.layout]; saveCfg(); toast('글상자를 처음 자리로 옮겼어요'); } }, '글상자 처음 자리로'),
-      el('div', { class: 'hint', style: 'text-align:left', text: '글상자는 화면에서 손가락으로 끌어 옮길 수 있어요. 더 자세한 꾸미기(바탕·선 등)는 찍은 뒤 편집 화면 "모양"에서.' }),
-      el('button', { class: 'big pri', onclick: () => bg.remove() }, '다 골랐어요'));
-    const box2 = el('div', { class: 'sheet' }); bg.append(box2); draw();
+      el('div', { class: 'seg fit' }, [[0.6, '아주 작게'], [0.8, '작게'], [1, '보통'], [1.2, '크게']].map(([k, n]) => el('button', { class: cfg.size === k ? 'on' : '', onclick: () => { cfg.size = k; saveCfg(); draw(); } }, n))),
+      el('div', { class: 'row2' },
+        el('button', { class: 'big sec', onclick: () => { delete cfg.at[cfg.layout]; saveCfg(); toast('글상자를 처음 자리로 옮겼어요'); } }, '처음 자리로'),
+        el('button', { class: 'big pri', onclick: () => bg.remove() }, '다 골랐어요')));
+      const s = box2.querySelector('.seg'); if (s) s.scrollLeft = sl; };
+    const box2 = el('div', { class: 'sheet peek' }); bg.append(box2); draw();
     document.body.append(bg);
+    const on = box2.querySelector('.seg button.on'); if (on) on.scrollIntoView({ inline: 'center', block: 'nearest' });
   };
   // AI 자동 입력: 켜 두면 찍을 때마다 AI가 그 사진의 글을 써요(한 장씩 차례로, 모르면 물어봄)
   let aiAuto = !!ls.get('aiAuto', false) && aiReady(), aiBusy = 0, aiChain = Promise.resolve();
@@ -804,16 +858,21 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     aiBusy--; drawAi(); p.aiDone = true; if (review && review.p === p) review.draw(); }); };
   drawAi();
   camClose = stop;
-  const wrap = el('div', { class: 'cam' },
-    el('div', { class: 'view' }, video, ov,
+  const view = el('div', { class: 'view' }, video, ov,
       el('button', { class: 'gear', 'aria-label': '설정', onclick: openSet }, ui('sliders', 20)),
-      ),
-    // 도구 줄(2026-10-02 사용자: 화면 정리 · 음성 입력, AI 자동 입력)
+      zoomEl);
+  view.addEventListener('pointerdown', e => { onPt(e); if (pts.size === 2) pinch = { d: pdist(), z: zoom }; });
+  view.addEventListener('pointermove', e => { if (!pts.has(e.pointerId)) return; onPt(e); if (pinch && pts.size === 2) setZoom(pinch.z * pdist() / pinch.d); });
+  const ptUp = e => { pts.delete(e.pointerId); if (pts.size < 2) pinch = null; };
+  view.addEventListener('pointerup', ptUp); view.addEventListener('pointercancel', ptUp);
+  const wrap = el('div', { class: 'cam' },
+    view,
+    // 도구 줄(2026-10-02 사용자: 화면 정리 · 음성 입력, AI 자동 입력 / 2026-10-04 사용자: 표 수정 · 글 수정 · 음성 입력 순서로)
     el('div', { class: 'tools' },
-      el('button', { onclick: async () => { await allowMotion(); camVoice(); } }, ui('mic'), '음성 입력'),
-      aiBtn,
       el('button', { onclick: openLook }, ui('layout'), '표 수정'),
-      el('button', { onclick: editText }, ui('pen'), '글 수정')),
+      el('button', { onclick: editText }, ui('pen'), '글 수정'),
+      el('button', { onclick: async () => { await allowMotion(); camVoice(); } }, ui('mic'), '음성 입력'),
+      aiBtn),
     el('div', { class: 'tools-hint' }, ui('mic', 14), '음성 입력은 버튼을 누르거나, 휴대폰을 똑똑똑 두드려서 시작'),   // 2026-10-03 사용자 문구
     el('div', { class: 'bar' },
       leftBtn,
