@@ -44,6 +44,7 @@
 - 주소 https://gilbertgo.github.io/allhere/fire/ . 사용자: 소방점검 사진대지 수천 장 → "대표적인 것으로 추려서" 만들다가 **"소방 사진대지 AI 작성은 별개의 앱으로"** 해서 사진 글상자(`photo/`)에서 갈라 냄. 사진 글상자에는 소방 양식이 없다(잠깐 켰던 `cfg.mode`는 지우고 기본 항목으로).
 - `fire/index.html`은 `photo/index.html`을 복사해 시작(카메라·장갑 모드·말로 채우기·모양 등 같음). 다른 점: 늘 `cfg.mode='fire'`, 항목 `FIRE_FIELDS`(설비명·위치·불량내용·조치사항·점검일 = 사진마다, 점검자 = 공통), 표 모양 기본, 자주 쓰는 말 단추(`FIRE` 설비별 불량내용, `FIRE_FIX` 조치), 위치는 건물 안 위치라 동네 이름으로 안 채움, 아래 '📄 사진대지'(`photoSheet`: A4 한 장에 2개, 사진 + 번호·설비명·위치·불량내용·조치사항·점검일 표, 건물명 `fireSheet:bldg`, 인쇄 · PDF로 저장). localStorage 앞붙임 `fireSheet:`, 버전 `PHOTO_VER`('fire-…', sessionStorage `fireVerTried`). 자기 manifest·아이콘(빨간 바탕 사진대지).
 - AI 서버 `fire/ai-worker/worker.js`(소방 전용 SYSTEM/SCHEMA: title·place·memo·fix·question·choices), 안내 `fire/ai-worker/README.md`(워커 이름 `fire-sheet-ai`). 사진 글상자 워커와 따로.
+- (2026-10-04) 사진 글상자의 찍기 화면 **줌**(PC 대화에서 만든 것: 1×·2×·4× 단추, 두 손가락 벌리기·오므리기, 카메라 줌 지원 시 진짜 줌·아니면 디지털 줌 `clipVideo`)을 소방 사진대지에도 그대로 옮김. 사진 비율(4:3/16:9/1:1)·도구 줄 순서 변경은 아직 소방에 없음.
 - 사진 글상자에서 고친 것을 소방 앱에도 넣을지는 그때그때 판단(두 파일이 따로 감). 사용자의 실제 보고서 양식은 아직 못 봄(샘플 받으면 맞추기).
 
 ## 안드로이드 앱 (`app/` 폴더, 2026-09-29 시작)
