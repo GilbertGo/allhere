@@ -171,9 +171,10 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 .review .ck3{display:flex;gap:6px;padding:4px 14px 6px}
 .review .ck3 button{flex:1;height:46px;border-radius:12px;font-size:15px;font-weight:800;border:2px solid transparent}
 .review .ck3 .ok{background:#DCFCE7;color:#15803D}.review .ck3 .ng{background:#FEE2E2;color:#B91C1C}.review .ck3 .fx{background:#DBEAFE;color:#1D4ED8}
+.review .ck3 .na{background:#EEF2F6;color:#475569}.review .ck3 .na.on{border-color:#64748B}
 .review .ck3 .ok.on{border-color:#16A34A}.review .ck3 .ng.on{border-color:#EF4444}.review .ck3 .fx.on{border-color:#2563EB}
 .review .cknote{padding:0 14px 8px}.review .cknote .inrow{display:flex;gap:6px}.review .cknote input{flex:1;height:42px;border-radius:10px;border:1px solid #374151;background:#1F2937;color:#fff;padding:0 10px;font-size:14px}
-.cam .steps button .rk{font-weight:900;margin-left:4px}.cam .steps button .rk.ng{color:#EF4444}.cam .steps button .rk.ok{color:#16A34A}.cam .steps button .rk.fx{color:#60A5FA}
+.cam .steps button .rk{font-weight:900;margin-left:4px}.cam .steps button .rk.ng{color:#EF4444}.cam .steps button .rk.ok{color:#16A34A}.cam .steps button .rk.fx{color:#60A5FA}.cam .steps button .rk.na{color:#94A3B8}
 .cam .shots{position:absolute;left:12px;bottom:12px;background:rgba(0,0,0,.55);color:#fff;border-radius:999px;font-size:13px;font-weight:700;padding:5px 11px}
 @media (max-height:700px){.panel{max-height:28vh}.home h1{font-size:26px}.big{height:56px}input[type=text]{height:40px}.acts .big{height:48px}label.f{font-size:12px}}
 </style>
@@ -187,7 +188,7 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = '2026-10-06c';
+const PHOTO_VER = '2026-10-06d';
 async function checkVer() {
   try {
     const t = await (await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' })).text();
@@ -737,9 +738,13 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   let jobPh = PAIR && pairCnt[jobAt] && pairCnt[jobAt].b && !pairCnt[jobAt].a ? 'a' : 'b';
   // 점검 사진첩(2026-10-06 2단계): 칸 = 점검 항목. 찍은 뒤 [양호 | 불량 | 조치 완료] + 불량 내용. 칸 단추에 결과 표시(✓ · ✕ · ↺)
   const CHECK = !!(JOB && JOB.format === 'check');
-  const CK = Object.assign({ ok: '양호', ng: '불량', fx: '조치 완료' }, (JOB && JOB.ck) || {});
+  const CK = Object.assign({ ok: '양호', ng: '불량', fx: '조치 완료', na: '해당없음' }, (JOB && JOB.ck) || {});
+  // 2026-10-06 사진통 1차 개선: 결과는 [양호 | 불량 | 해당없음] — '조치 완료'는 점검결과가 아니라 조치상태라 앱(점검 사진첩 · [조치하기])에서.
+  // 이 페이지는 옛 앱도 같이 쓴다. 'na'를 모르는 옛 앱(2.44 이하)이 깨지지 않게, 새 앱이 window.__ckv 를 줄 때만 새 버튼
+  const RES3 = window.__ckv >= 2 ? ['ok', 'ng', 'na'] : ['ok', 'ng', 'fx'];
   const ckRes = CHECK ? JOB.steps.map((_, i) => (JOB.rs && JOB.rs[i]) || '') : [];
-  const worse = (a, b) => [a, b].includes('ng') ? 'ng' : [a, b].includes('fx') ? 'fx' : (a || b);
+  const RANK = { ng: 3, fx: 2, ok: 1, na: 0 };
+  const worse = (a, b) => !a ? b : !b ? a : (RANK[a] || 0) >= (RANK[b] || 0) ? a : b;
   const jobCnt = JOB ? JOB.steps.map((_, i) => (JOB.counts && JOB.counts[i]) || 0) : [];   // 차례마다 찍은 장 수(지난번에 찍은 것 포함)
   const jobTotal = () => jobCnt.reduce((a, b) => a + b, 0);
   const stepsEl = el('div', { class: 'steps' });
@@ -759,7 +764,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
       return;
     }
     stepsEl.replaceChildren(...JOB.steps.map((t, i) => el('button', { class: i === jobAt ? 'now' : jobCnt[i] ? 'done' : '', onclick: () => { jobAt = i; drawSteps(); } }, t + (jobCnt[i] ? ' · ' + jobCnt[i] : ''),
-        CHECK && ckRes[i] ? el('span', { class: 'rk ' + ckRes[i] }, ckRes[i] === 'ng' ? '✕' : ckRes[i] === 'fx' ? '↺' : '✓') : null)),
+        CHECK && ckRes[i] ? el('span', { class: 'rk ' + ckRes[i] }, ckRes[i] === 'ng' ? '✕' : ckRes[i] === 'fx' ? '↺' : ckRes[i] === 'na' ? '–' : '✓') : null)),
       el('button', { class: 'next', onclick: addStep }, CHECK ? '+ 항목' : '+ 칸')); };
   const addStep = () => {
     const inp = el('input', { type: 'text', maxlength: PAIR ? 60 : 12, placeholder: PAIR ? PL.ex : '예: 승강장 버튼' });
@@ -934,13 +939,13 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
       document.body.append(bg);
     };
     let ckEl = null;
-    if (CHECK) {   // 결과 고르기 — 기본 양호. 불량 · 조치 완료면 내용 한 줄(말로도)
+    if (CHECK) {   // 결과 고르기 — 기본 양호. 불량(옛 앱은 조치 완료도)이면 내용 한 줄(말로도)
       p.res = p.res || 'ok';
       const noteIn = el('input', { type: 'text', maxlength: 60, placeholder: '불량 내용 (예: 2번 밸브 미세 누수)', value: p.note || '', oninput: () => { p.note = noteIn.value; } });
       const noteRow = el('div', { class: 'cknote' }, el('div', { class: 'inrow' }, noteIn, SR ? micBtn(noteIn, { label: '불량 내용' }) : null));
       const btns = el('div', { class: 'ck3' });
-      const drawCk = () => { btns.replaceChildren(...['ok', 'ng', 'fx'].map(k => el('button', { class: k + (p.res === k ? ' on' : ''), onclick: () => { p.res = k; drawCk(); } }, CK[k])));
-        noteRow.style.display = p.res === 'ok' ? 'none' : ''; noteIn.placeholder = p.res === 'fx' ? '조치 내용 (예: 3번 회로 차단기 교체)' : '불량 내용 (예: 2번 밸브 미세 누수)'; };
+      const drawCk = () => { btns.replaceChildren(...RES3.map(k => el('button', { class: k + (p.res === k ? ' on' : ''), onclick: () => { p.res = k; drawCk(); } }, CK[k])));
+        noteRow.style.display = p.res === 'ng' || p.res === 'fx' ? '' : 'none'; noteIn.placeholder = p.res === 'fx' ? '조치 내용 (예: 3번 회로 차단기 교체)' : '불량 내용 (예: 2번 밸브 미세 누수)'; };
       drawCk(); ckEl = el('div', {}, btns, noteRow);
       setTimeout(() => { msg.textContent = (JOB.steps[jobAt] || '이 항목') + ' — 결과는?'; }, 0);
     }
