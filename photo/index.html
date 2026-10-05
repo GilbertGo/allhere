@@ -171,7 +171,7 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = '2026-10-05d';
+const PHOTO_VER = '2026-10-05e';
 async function checkVer() {
   try {
     const t = await (await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' })).text();
@@ -658,13 +658,20 @@ async function fillPlaces(list, here) {
   if (here) { const h = await here; if (h) list.forEach(p => { if (p.lat == null) { p.lat = h.lat; p.lng = h.lng; } }); }
   for (const p of list) if (p.lat != null && (!p.place || p.place === EX.place)) { const n = await placeName(p.lat, p.lng); if (n && (!p.place || p.place === EX.place)) { p.place = n; if (photos[cur] === p && onPhotoChange) onPhotoChange(); redraw(); } }
 }
+// 앨범에서 가져온 사진도 같은 비율(가로 4 : 세로 3 기본)로 가운데를 잘라요 — 2026-10-05 사용자: 사진 비율 통일
+async function toRatio(b) {
+  const r = ratioOf(), W = b.width, H = b.height; let cw = W, ch = H;
+  if (W / H > r) cw = Math.round(H * r); else ch = Math.round(W / r);
+  if (cw === W && ch === H) return b;
+  return createImageBitmap(b, Math.round((W - cw) / 2), Math.round((H - ch) / 2), cw, ch);
+}
 async function load(files, fresh) {
   if (!files.length) return;
   if (camClose) camClose();   // 촬영 화면에서 앨범을 골랐으면 카메라를 닫아요
   toast('사진을 여는 중이에요…');
   const here = fresh ? hereNow() : null, list = [];
   for (const file of files.slice(0, 20)) {
-    try { const bmp = await createImageBitmap(file), ex = await readExif(file); list.push(photoOf(bmp, ex.date || new Date(file.lastModified || Date.now()), ex.lat, ex.lng)); } catch {}
+    try { const bmp = await toRatio(await createImageBitmap(file)), ex = await readExif(file); list.push(photoOf(bmp, ex.date || new Date(file.lastModified || Date.now()), ex.lat, ex.lng)); } catch {}
   }
   if (!list.length) return toast('사진을 열지 못했어요');
   document.querySelectorAll('.toast').forEach(t => t.remove());
@@ -743,10 +750,10 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   const zoomEl = el('div', { class: 'zoom' });
   const drawZoom = () => { const pre = [1, 2, 4].filter(v => v <= zMax() + 0.01), near = pre.filter(v => v <= zoom + 0.05).pop() || 1;
     zoomEl.replaceChildren(...pre.map(v => el('button', { class: v === near ? 'on' : '', onclick: () => setZoom(v) }, v === near && Math.abs(zoom - v) > 0.05 ? zoom.toFixed(1) + '×' : v + '×'))); };
-  // 사진 비율(2026-10-04 사용자: 4:3 기본, 설정에서 바꾸기): 영상 가운데를 그 비율로 잘라 찍어요. 휴대폰을 세로로 들면 3:4 · 9:16 처럼 세로로
+  // 사진 비율(2026-10-04 사용자: 4:3 기본, 설정에서 바꾸기): 영상 가운데를 그 비율로 잘라 찍어요. (2026-10-05 부터 휴대폰을 세로로 들어도 늘 가로 사진)
   const crop = () => {   // 찍힐 부분 = 비율로 자른 가운데 ÷ 디지털 줌
     const W = video.videoWidth, H = video.videoHeight; if (!W || !H) return null;
-    const r = ratioOf(), a = W >= H ? r : 1 / r, z = hw ? 1 : zoom;
+    const r = ratioOf(), a = r, z = hw ? 1 : zoom;   // 2026-10-05 사용자: 사진은 가로 4 : 세로 3 으로 통일 — 휴대폰을 세로로 들어도 가로 사진
     let cw = W, ch = H; if (W / H > a) cw = H * a; else ch = W / a;
     cw = Math.round(cw / z); ch = Math.round(ch / z);
     return { x: Math.round((W - cw) / 2), y: Math.round((H - ch) / 2), w: cw, h: ch, W, H };
