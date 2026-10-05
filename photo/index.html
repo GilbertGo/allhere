@@ -153,6 +153,7 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 .cam .zoom{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);display:flex;gap:4px;background:rgba(0,0,0,.4);border-radius:999px;padding:4px;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
 .cam .zoom button{min-width:40px;height:36px;border-radius:999px;background:transparent;color:#fff;font-size:13px;font-weight:700;padding:0 8px}
 .cam .zoom button.on{background:rgba(255,255,255,.92);color:#2A2118}
+.cam .ncam{position:absolute;right:10px;bottom:12px;display:flex;align-items:center;gap:5px;background:rgba(0,0,0,.45);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:14px;padding:5px 9px;font-size:11px;font-weight:700;line-height:1.25;text-align:left;white-space:pre-line;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
 .cam .steps{position:absolute;left:12px;right:64px;top:calc(12px + env(safe-area-inset-top,0px));display:flex;gap:6px;flex-wrap:wrap}
 .cam .steps button.next{background:#fff;color:#1D4ED8;border-color:#fff;font-weight:800}
 .cam .steps button{background:rgba(0,0,0,.5);color:rgba(255,255,255,.75);border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:6px 11px;font-size:13px;font-weight:600}
@@ -171,7 +172,7 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = '2026-10-05e';
+const PHOTO_VER = '2026-10-05f';
 async function checkVer() {
   try {
     const t = await (await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' })).text();
@@ -820,6 +821,30 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     wrap.animate([{ opacity: 0.3 }, { opacity: 1 }], 180); if (navigator.vibrate) navigator.vibrate(40);
     showReview(p);
   };
+  // 기본 카메라(2026-10-05 사용자: 광학 줌 — 이 화면의 카메라는 기본 렌즈 하나와 센서 확대뿐이라 망원 렌즈를 못 쓴다).
+  // 휴대폰 카메라 앱을 열어(0.6× · 1× · 3× 렌즈, 최고 화질) 찍고 돌아오면 같은 '저장할까요?' 확인으로 — 글상자 · 칸 · 위치 · 날짜는 그대로 들어가요.
+  // 사진통 앱 안에서는 앱이 카메라를 열어 주고(native-cam), 휴대폰 브라우저에서는 파일 고르기의 카메라로
+  const nIn = el('input', { type: 'file', accept: 'image/*', capture: 'environment', style: 'display:none' });
+  const nativeShot = async () => {
+    if (camStream) camStream.getTracks().forEach(t => t.stop());   // 카메라를 기본 카메라 앱에 넘겨요
+    let blob = null;
+    try {
+      if (window.ReactNativeWebView) {
+        const url = await new Promise(r => { window.__nativeShot = r; window.ReactNativeWebView.postMessage(JSON.stringify({ t: 'native-cam' })); });
+        if (url) blob = await (await fetch(url)).blob();
+      } else {
+        blob = await new Promise(r => { nIn.onchange = () => { r(nIn.files[0] || null); nIn.value = ''; }; nIn.click(); });
+      }
+    } catch {}
+    await start();   // 이 화면 카메라 다시 켜기
+    if (!blob) return;
+    try {
+      const h = await Promise.race([here, new Promise(r => setTimeout(() => r(null), 50))]);
+      const p = photoOf(await toRatio(await createImageBitmap(blob)), new Date(), h?.lat, h?.lng); if (placeNow && cfg.mode !== 'fire') p.place = placeNow; Object.assign(p, camVals);
+      if (aiAuto) p.aiP = aiQueue(p);
+      showReview(p);
+    } catch { toast('사진을 열지 못했어요'); }
+  };
   // 찍은 사진 확인(2026-10-02 사용자: 찍고 나서 찍은 사진 보여주고 저장할지 물어봐): 다시 찍기 / 글 수정 / 저장
   let review = null;
   const showReview = p => {
@@ -907,7 +932,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   camClose = stop;
   const view = el('div', { class: 'view' }, video, ov,
       el('button', { class: 'gear', 'aria-label': '설정', onclick: openSet }, ui('sliders', 20)),
-      zoomEl, JOB ? stepsEl : null);
+      zoomEl, el('button', { class: 'ncam', onclick: nativeShot }, ui('camera', 16), '기본 카메라\n광학줌 · 고화질'), nIn, JOB ? stepsEl : null);
   view.addEventListener('pointerdown', e => { onPt(e); if (pts.size === 2) pinch = { d: pdist(), z: zoom }; });
   view.addEventListener('pointermove', e => { if (!pts.has(e.pointerId)) return; onPt(e); if (pinch && pts.size === 2) setZoom(pinch.z * pdist() / pinch.d); });
   const ptUp = e => { pts.delete(e.pointerId); if (pts.size < 2) pinch = null; };
@@ -942,7 +967,8 @@ const UI = {
   layout: ['M4 5h16v14H4z', 'M4 9.5h16', 'M9.5 9.5V19'],
   pen: ['M14.5 5.5l4 4L8 20H4v-4z', 'M12.5 7.5l4 4'],
   sliders: ['M4 7h9', 'M17 7h3', 'M15 5v4', 'M4 17h3', 'M11 17h9', 'M9 15v4'],
-  doc: ['M7 3.5h7l4 4v13H7z', 'M14 3.5v4h4', 'M9.5 12h6', 'M9.5 15.5h6']
+  doc: ['M7 3.5h7l4 4v13H7z', 'M14 3.5v4h4', 'M9.5 12h6', 'M9.5 15.5h6'],
+  camera: ['M4 8h3l2-2.5h6L17 8h3v11H4z', 'M12 16.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z']
 };
 const ui = (k, n = 22) => { const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('width', n); s.setAttribute('height', n); s.setAttribute('aria-hidden', 'true');
   s.innerHTML = UI[k].map(d => `<path d="${d}" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>`).join(''); return s; };
