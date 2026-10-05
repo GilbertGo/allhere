@@ -1,7 +1,7 @@
 # 사진통 — 시험판 설명서 (UX · 기능 구조 검토용)
 
 - **시험판 주소:** https://gilbertgo.github.io/allhere/sajintong-try/
-- **이 설명서:** https://gilbertgo.github.io/allhere/sajintong-try/guide.md
+- **이 설명서:** https://gilbertgo.github.io/allhere/sajintong-try/guide.html (같은 내용 Markdown: guide.md)
 - **기준 버전:** 안드로이드 앱 2.44 (2026-10-06)
 - **검토 목적:** 앱 전체의 UX와 기능 구조를 보고 보완점을 찾는 것
 
@@ -10,6 +10,7 @@
 ## 0. 시험판에 대해
 
 시험판은 **실제 앱 코드를 그대로 웹으로 내보낸 것**입니다. 그래서 화면, 화면 이동, 버튼, 문구가 안드로이드 앱과 같습니다.
+- 아래 **화면별 바로 가기 링크**로 원하는 화면을 바로 열 수 있습니다.
 - 휴대폰 크기 창(폭 360~420px)으로 보면 실제와 가장 비슷합니다.
 - 처음 열면 **예시 기록**이 들어 있습니다(공사 보수, 소방 점검, 시설 점검, 일상 앨범 등).
 - 시험판에서 만든 기록은 **그 브라우저 안에만** 저장됩니다. 서버로는 아무것도 보내지 않습니다.
@@ -25,6 +26,49 @@
 | 로그인 · 팀(현장) 기능 · QR 이력 조회 · 소통실 | 됨 | 서버에 연결하지 않아서 안 됨 |
 | 음성 입력 · 똑똑똑(두드려 켜기) | 휴대폰 음성 인식 · 흔들림 감지 | 브라우저가 지원하면 일부만 |
 | 앨범에서 고르기 | 앱의 사진 격자(여러 장) | 브라우저 파일 선택 창 |
+
+---
+
+## 화면별 바로 가기 링크
+
+아래 링크를 누르면 그 화면이 바로 열립니다. ← 버튼이나 아래 탭으로 다른 화면으로 옮겨 갈 수 있습니다. 예시 기록 링크는 처음 열 때 예시 기록을 넣은 뒤 엽니다(1~2초).
+
+B = `https://gilbertgo.github.io/allhere/sajintong-try/`
+
+### 탭 · 시작 화면
+| 화면 | 링크 |
+|---|---|
+| 홈 | [B](https://gilbertgo.github.io/allhere/sajintong-try/) |
+| 작업함 | [B?screen=workbox](https://gilbertgo.github.io/allhere/sajintong-try/?screen=workbox) |
+| 보고서(빈 사진대지, 칸별) | [B?screen=report](https://gilbertgo.github.io/allhere/sajintong-try/?screen=report) |
+| 친구 초대 | [B?screen=invite](https://gilbertgo.github.io/allhere/sajintong-try/?screen=invite) |
+| 내 정보 | [B?screen=me](https://gilbertgo.github.io/allhere/sajintong-try/?screen=me) |
+| 찍기 / 불러오기(간편 모드 찍기 화면) | [B?screen=camera](https://gilbertgo.github.io/allhere/sajintong-try/?screen=camera) |
+| QR 코드 판독 | [B?screen=qr](https://gilbertgo.github.io/allhere/sajintong-try/?screen=qr) |
+
+### 용도별 기록 화면
+| 화면 | 링크 |
+|---|---|
+| 공사·작업 기록 | [B?screen=job-site](https://gilbertgo.github.io/allhere/sajintong-try/?screen=job-site) |
+| 시설·점검 기록 | [B?screen=job-building](https://gilbertgo.github.io/allhere/sajintong-try/?screen=job-building) |
+| 일상·앨범 만들기 | [B?screen=job-life](https://gilbertgo.github.io/allhere/sajintong-try/?screen=job-life) |
+
+### 예시 기록(결과물 화면)
+| 화면 | 예시 | 링크 |
+|---|---|---|
+| 조치 전·후 사진대지 | 햇살아파트 10월 정기 보수(6건) | [B?record=ex-pair-2](https://gilbertgo.github.io/allhere/sajintong-try/?record=ex-pair-2) |
+| 점검 사진첩 | B2 펌프실 · 전기실(7항목) | [B?record=ex-check-1](https://gilbertgo.github.io/allhere/sajintong-try/?record=ex-check-1) |
+| 칸별 사진대지(공사) | 103동 세대 욕실 바닥 수평 보수 | [B?record=ex2610-8](https://gilbertgo.github.io/allhere/sajintong-try/?record=ex2610-8) |
+| 칸별 사진대지(공사) | 어린이집 외벽 도장 | [B?record=ex2610-6](https://gilbertgo.github.io/allhere/sajintong-try/?record=ex2610-6) |
+| 칸별 사진대지(시설) | 지하 1층 전기실 분전반 점검 | [B?record=ex2610-1](https://gilbertgo.github.io/allhere/sajintong-try/?record=ex2610-1) |
+| 일상 앨범 | 연남동 맛집 투어 | [B?record=ex-album-4](https://gilbertgo.github.io/allhere/sajintong-try/?record=ex-album-4) |
+| 일상 앨범 | 콩이와 가을 산책 | [B?record=ex-album-3](https://gilbertgo.github.io/allhere/sajintong-try/?record=ex-album-3) |
+
+**링크로 바로 열 수 없는 화면:** 작업 모드 찍기 화면, 찍은 직후 확인 화면, 앨범 틀 고르기.
+- 작업 모드 찍기 화면: 공사·작업 기록 → [카메라 열기]
+- 찍은 직후 확인 화면: 셔터
+- 앨범 틀 고르기: 일상 → [앨범에서 불러오기]
+- 각 화면은 위 링크에서 한두 번 눌러 들어가면 됩니다.
 
 ---
 

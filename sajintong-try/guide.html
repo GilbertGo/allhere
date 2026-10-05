@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>사진통 시험판 설명서</title>
+<meta name="description" content="사진통 앱 시험판 설명서 — 화면 구조, 흐름, 버튼 동작, 시험판 한계, 검토 포인트 (UX · 기능 구조 검토용)">
+<style>
+:root{--bg:#F5F8FC;--card:#fff;--ink:#111827;--sub:#4B5563;--line:#E3E9F2;--blue:#2563EB}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Pretendard,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;line-height:1.65;font-size:16px}
+main{max-width:860px;margin:0 auto;padding:24px 16px 64px;background:var(--card)}
+h1{font-size:26px;margin:.2em 0 .6em}
+h2{font-size:21px;margin:1.8em 0 .6em;padding-top:.6em;border-top:1px solid var(--line)}
+h3{font-size:17px;margin:1.4em 0 .4em}
+a{color:var(--blue)}
+table{border-collapse:collapse;width:100%;margin:.8em 0;font-size:14.5px;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:6px 10px;text-align:left;vertical-align:top}
+th{background:#EEF3FA}
+pre{background:#0F172A;color:#E2E8F0;padding:14px;border-radius:10px;overflow-x:auto;font-size:13px;line-height:1.5}
+code{font-family:ui-monospace,Consolas,monospace;font-size:.92em}
+:not(pre)>code{background:#EEF3FA;padding:1px 5px;border-radius:5px}
+hr{border:0;border-top:1px solid var(--line);margin:1.6em 0}
+li{margin:.2em 0}
+</style>
+</head>
+<body>
+<main>
+<h1>사진통 — 시험판 설명서 (UX · 기능 구조 검토용)</h1>
+<ul>
+<li><strong>시험판 주소:</strong> <a href="https://gilbertgo.github.io/allhere/sajintong-try/">https://gilbertgo.github.io/allhere/sajintong-try/</a></li>
+<li><strong>이 설명서:</strong> <a href="https://gilbertgo.github.io/allhere/sajintong-try/guide.html">https://gilbertgo.github.io/allhere/sajintong-try/guide.html</a> (같은 내용 Markdown: guide.md)</li>
+<li><strong>기준 버전:</strong> 안드로이드 앱 2.44 (2026-10-06)</li>
+<li><strong>검토 목적:</strong> 앱 전체의 UX와 기능 구조를 보고 보완점을 찾는 것</li>
+</ul>
+<hr>
+<h2>0. 시험판에 대해</h2>
+<p>시험판은 <strong>실제 앱 코드를 그대로 웹으로 내보낸 것</strong>입니다. 그래서 화면, 화면 이동, 버튼, 문구가 안드로이드 앱과 같습니다.</p>
+<ul>
+<li>아래 <strong>화면별 바로 가기 링크</strong>로 원하는 화면을 바로 열 수 있습니다.</li>
+<li>휴대폰 크기 창(폭 360~420px)으로 보면 실제와 가장 비슷합니다.</li>
+<li>처음 열면 <strong>예시 기록</strong>이 들어 있습니다(공사 보수, 소방 점검, 시설 점검, 일상 앨범 등).</li>
+<li>시험판에서 만든 기록은 <strong>그 브라우저 안에만</strong> 저장됩니다. 서버로는 아무것도 보내지 않습니다.</li>
+<li>처음 상태로 돌리려면 사이트 데이터를 지우세요(localStorage).</li>
+</ul>
+<h3>휴대폰과 다른 점(시험판의 한계)</h3>
+<table>
+<thead>
+<tr>
+<th>기능</th>
+<th>휴대폰 앱</th>
+<th>시험판</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>카메라</td>
+<td>실제 카메라, <a href="%EA%B4%91%ED%95%99%EC%A4%8C">기본 카메라</a> 버튼</td>
+<td>카메라가 있으면 그것을 쓰고, 없으면 <strong>가상 카메라</strong>(그린 현장 화면). [기본 카메라] 버튼은 숨김</td>
+</tr>
+<tr>
+<td>확인 창</td>
+<td>안드로이드 기본 대화상자</td>
+<td>같은 문구·버튼을 웹 창으로 띄움</td>
+</tr>
+<tr>
+<td>PDF 보내기 · 사진으로 보내기</td>
+<td>카톡 등 공유 창으로 보냄, PDF + 사진 여러 장 한 번에</td>
+<td>브라우저 인쇄/내려받기로 대신하거나 동작하지 않을 수 있음</td>
+</tr>
+<tr>
+<td>갤러리 저장</td>
+<td>휴대폰 사진첩 &#39;Download&#39; 앨범</td>
+<td>파일 내려받기</td>
+</tr>
+<tr>
+<td>로그인 · 팀(현장) 기능 · QR 이력 조회 · 소통실</td>
+<td>됨</td>
+<td>서버에 연결하지 않아서 안 됨</td>
+</tr>
+<tr>
+<td>음성 입력 · 똑똑똑(두드려 켜기)</td>
+<td>휴대폰 음성 인식 · 흔들림 감지</td>
+<td>브라우저가 지원하면 일부만</td>
+</tr>
+<tr>
+<td>앨범에서 고르기</td>
+<td>앱의 사진 격자(여러 장)</td>
+<td>브라우저 파일 선택 창</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>화면별 바로 가기 링크</h2>
+<p>아래 링크를 누르면 그 화면이 바로 열립니다. ← 버튼이나 아래 탭으로 다른 화면으로 옮겨 갈 수 있습니다. 예시 기록 링크는 처음 열 때 예시 기록을 넣은 뒤 엽니다(1~2초).</p>
+<p>B = <code>https://gilbertgo.github.io/allhere/sajintong-try/</code></p>
+<h3>탭 · 시작 화면</h3>
+<table>
+<thead>
+<tr>
+<th>화면</th>
+<th>링크</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>홈</td>
+<td><a href="https://gilbertgo.github.io/allhere/sajintong-try/">B</a></td>
+</tr>
+<tr>
+<td>작업함</td>
+<td><a href="https://gilbertgo.github.io/allhere/sajintong-try/?screen=workbox">B?screen=workbox</a></td>
+</tr>
+<tr>
+<td>보고서(빈 사진대지, 칸별)</td>
+<td><a href="https://gilbertgo.github.io/allhere/sajintong-try/?screen=report">B?screen=report</a></td>
+</tr>
+<tr>
+<td>친구 초대</td>
+<td><a href="https://gilbertgo.github.io/allhere/sajintong-try/?screen=invite">B?screen=invite</a></td>
+</tr>
+<tr>
+<td>내 정보</td>
+<td><a href="https://gilbertgo.github.io/allhere/sajintong-try/?screen=me">B?screen=me</a></td>
+</tr>
+<tr>
+<td>찍기 / 불러오기(간편 모드 찍기 화면)</td>
+<td><a href="https://gilbertgo.github.io/allhere/sajintong-try/?screen=camera">B?screen=camera</a></td>
+</tr>
+<tr>
+<td>QR 코드 판독</td>
+<td><a href="https://gilbertgo.github.io/allhere/sajintong-try/?screen=qr">B?screen=qr</a></td>
+</tr>
+</tbody></table>
+<h3>용도별 기록 화면</h3>
+<table>
+<thead>
+<tr>
+<th>화면</th>
+<th>링크</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>공사·작업 기록</td>
+<td><a href="https://gilbertgo.github.io/allhere/sajintong-try/?screen=job-site">B?screen=job-site</a></td>
+</tr>
+<tr>
+<td>시설·점검 기록</td>
+<td><a href="https://gilbertgo.github.io/allhere/sajintong-try/?screen=job-building">B?screen=job-building</a></td>
+</tr>
+<tr>
+<td>일상·앨범 만들기</td>
+<td><a href="https://gilbertgo.github.io/allhere/sajintong-try/?screen=job-life">B?screen=job-life</a></td>
+</tr>
+</tbody></table>
+<h3>예시 기록(결과물 화면)</h3>
+<table>
+<thead>
+<tr>
+<th>화면</th>
+<th>예시</th>
+<th>링크</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>조치 전·후 사진대지</td>
+<td>햇살아파트 10월 정기 보수(6건)</td>
+<td><a href="https://gilbertgo.github.io/allhere/sajintong-try/?record=ex-pair-2">B?record=ex-pair-2</a></td>
+</tr>
+<tr>
+<td>점검 사진첩</td>
+<td>B2 펌프실 · 전기실(7항목)</td>
+<td><a href="https://gilbertgo.github.io/allhere/sajintong-try/?record=ex-check-1">B?record=ex-check-1</a></td>
+</tr>
+<tr>
+<td>칸별 사진대지(공사)</td>
+<td>103동 세대 욕실 바닥 수평 보수</td>
+<td><a href="https://gilbertgo.github.io/allhere/sajintong-try/?record=ex2610-8">B?record=ex2610-8</a></td>
+</tr>
+<tr>
+<td>칸별 사진대지(공사)</td>
+<td>어린이집 외벽 도장</td>
+<td><a href="https://gilbertgo.github.io/allhere/sajintong-try/?record=ex2610-6">B?record=ex2610-6</a></td>
+</tr>
+<tr>
+<td>칸별 사진대지(시설)</td>
+<td>지하 1층 전기실 분전반 점검</td>
+<td><a href="https://gilbertgo.github.io/allhere/sajintong-try/?record=ex2610-1">B?record=ex2610-1</a></td>
+</tr>
+<tr>
+<td>일상 앨범</td>
+<td>연남동 맛집 투어</td>
+<td><a href="https://gilbertgo.github.io/allhere/sajintong-try/?record=ex-album-4">B?record=ex-album-4</a></td>
+</tr>
+<tr>
+<td>일상 앨범</td>
+<td>콩이와 가을 산책</td>
+<td><a href="https://gilbertgo.github.io/allhere/sajintong-try/?record=ex-album-3">B?record=ex-album-3</a></td>
+</tr>
+</tbody></table>
+<p><strong>링크로 바로 열 수 없는 화면:</strong> 작업 모드 찍기 화면, 찍은 직후 확인 화면, 앨범 틀 고르기.</p>
+<ul>
+<li>작업 모드 찍기 화면: 공사·작업 기록 → [카메라 열기]</li>
+<li>찍은 직후 확인 화면: 셔터</li>
+<li>앨범 틀 고르기: 일상 → [앨범에서 불러오기]</li>
+<li>각 화면은 위 링크에서 한두 번 눌러 들어가면 됩니다.</li>
+</ul>
+<hr>
+<h2>1. 앱 개요</h2>
+<p><strong>사진통</strong>은 현장 사진을 찍어서 바로 **보고서(사진대지)**로 만드는 앱입니다.</p>
+<ul>
+<li><strong>주 사용자:</strong> 아파트·건물 관리사무소 시설 담당, 소규모 보수·설비 업체 작업자. 혼자 찍고 정리하는 사람.</li>
+<li><strong>최종 결과물:</strong> A4 사진대지 PDF. 관리사무소 월간 업무 보고, 소방 지적사항 조치 보고(조치 전·후), 시설 정기 점검 사진첩 등.</li>
+<li><strong>핵심 차별점:</strong><ul>
+<li>찍을 때 사진 위에 <strong>보드판</strong>(공사명·일자·위치·공종·업체 표)이 들어갑니다.</li>
+<li>작업 종류에 맞는 <strong>사진대지 형식</strong>이 바로 나옵니다.</li>
+</ul>
+</li>
+<li><strong>로그인 없이</strong> 쓸 수 있습니다. 로그인은 팀 기록(현장 공유)에서만 필요합니다.</li>
+<li>같은 코드에서 &#39;작업통&#39;(팀용, 로그인 중심)도 나옵니다. 이 시험판은 <strong>사진통</strong>입니다.</li>
+</ul>
+<h3>용어</h3>
+<table>
+<thead>
+<tr>
+<th>용어</th>
+<th>뜻</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>보드판</td>
+<td>사진 위에 얹는 정보 표(제목·일자·위치·내용·담당). 공사 현장의 &#39;보드판&#39;을 화면으로 옮긴 것. 모양은 카드·가로 띠·세로 기둥·글씨만·표·표+제목띠·표 두 칸 중에서 고르고, &#39;보드판 없음&#39;도 있음</td>
+</tr>
+<tr>
+<td>사진대지</td>
+<td>사진을 A4에 정리한 보고서</td>
+</tr>
+<tr>
+<td>작업(기록)</td>
+<td>공사·작업 하나. 찍은 사진, 항목, 표지 정보, 형식을 한 묶음으로 저장</td>
+</tr>
+<tr>
+<td>작업함</td>
+<td>내가 만든 기록 목록</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>2. 화면 구조 (지도)</h2>
+<pre><code>[아래 탭 5개] 홈 · 작업함 · 보고서 · 친구 초대 · 내 정보
+
+홈
+├─ 간편 모드
+│   ├─ [찍기 / 불러오기] ─────────→ 사진 글상자(찍기 화면, 보드판) → 사진첩에 저장 · 보내기
+│   └─ [사진대지 / 앨범] ─────────→ 빈 사진대지(칸별) → [저장] → 작업함
+├─ 용도별 전문 기록 모드
+│   ├─ 공사·작업 ─→ 공사·작업 기록 화면
+│   ├─ 시설·점검 ─→ 시설·점검 기록 화면(① 승강기·소방·전기·기계·급배수·조경·외곽·기타 ② 시설명 ③ 형식: 칸별 | 점검 사진첩 | 조치 전·후)
+│   └─ 일상·생활 ─→ 일상 기록 화면(앨범 만들기)
+└─ QR 코드
+    ├─ [QR 코드 판독] (시설물 라벨 → 이력, 링크 QR)
+    └─ [QR 바로 만들기]
+
+공사·작업 기록 화면
+├─ 진행 중 카드(찍다 만 작업) ─ [이어서 찍기] · [마치기 · 사진대지]
+├─ [작성하던 사진대지 불러오기] ─ 목록 ─ [보기] · [새로](같은 항목) · [이어서](찍기)
+├─ — 사진대지 새로 작성하기 —
+│   ① 무슨 작업인가요? (보수·수리 · 제초 · 청소 · 도장 · 방역·소독 · 제설 · 기타)
+│   ② 공사명 (안 적으면 예시대로, 최근 이름 추천)
+│   ③ 사진대지 형식 (칸별 사진대지 | 조치 전·후 | [건물] 점검 사진첩) — 작업 종류별로 기억
+│   업체·담당 (선택, 접힌 한 줄)
+├─ 지난 작업 n건 (사진 한 줄, 모두 보기)
+└─ [카메라 열기] (아래 고정)
+        ↓
+    찍기 화면(작업 모드)
+    · 위: 지금 찍을 칸·항목 단추 줄, [+ 보수 항목(말로도)]
+    · 조치 전·후 형식: [보수 전 | 보수 후] 전환
+    · 점검 형식: 찍은 뒤 [양호 | 불량 | 조치 완료] + 내용(말로도)
+    · 보드판 수정 · 글 수정 · 음성 입력 · 1×/2×/4× · 앞/뒤 바꾸기
+    · 찍기 → &quot;이 사진을 저장할까요?&quot; [다시 찍기 | 글 수정 | 저장]
+    · 왼쪽 아래 [다 찍음 · 사진대지 (n장)] / ← 나가기: [계속 찍기 | 잠시 멈춤 | 사진대지로 마치기]
+        ↓
+    사진대지 (형식별 화면, 아래 3장)
+</code></pre>
+<hr>
+<h2>3. 화면별 설명</h2>
+<h3>3-1. 홈</h3>
+<ul>
+<li><strong>맨 위:</strong> 배경 그림, 앱 이름, &quot;찍은 사진을 바로 정리하고, 보고서까지&quot;, ☰ 메뉴(내 정보·친구 초대·설정·소통실).</li>
+<li><strong>간편 모드:</strong> [찍기 / 불러오기]와 [사진대지 / 앨범] 두 카드. 설정 없이 바로 시작합니다.</li>
+<li><strong>용도별 전문 기록 모드:</strong> 공사·작업, 시설·점검, 일상·생활 세 칸.</li>
+<li><strong>QR 코드:</strong> 판독, 만들기.</li>
+</ul>
+<h3>3-2. 찍기 화면(사진 글상자)</h3>
+<ul>
+<li>카메라 화면 위에 보드판이 흐릿하게 보이고, 찍으면 보드판이 사진에 들어갑니다.</li>
+<li><strong>[보드판 수정]:</strong><ul>
+<li>모양(보드판 없음·카드·가로 띠·세로 기둥·글씨만·표·표+제목띠·표 두 칸)</li>
+<li>크기(아주 작게~크게)</li>
+<li>[처음 자리로]</li>
+<li>보드판은 끌어서 옮길 수 있습니다.</li>
+</ul>
+</li>
+<li><strong>[글 수정]:</strong> 제목·일자·위치·내용·담당. 일자와 위치는 저절로 채워집니다.</li>
+<li><strong>음성 입력:</strong> 말로 칸을 채우고 &quot;찍어&quot;라고 하면 찍힙니다. 장갑 모드 = 휴대폰을 똑똑똑 두드려 켜기.</li>
+<li><strong>간편 모드에서 찍은 뒤의 편집 화면:</strong><ul>
+<li>[글 수정], [보드판 수정], [보내기]</li>
+<li>저장 버튼 이름이 상태에 따라 바뀝니다: [사진첩에 저장] / [저장됨 ✓] / [고친 사진 저장]</li>
+</ul>
+</li>
+</ul>
+<h3>3-3. 사진대지 형식 3가지</h3>
+<ol>
+<li><strong>칸별 사진대지:</strong> A4 한 장에 2·4·6·9·12·16칸.<ul>
+<li>사진은 자르지 않고 칸에 맞춥니다.</li>
+<li>칸 이름표는 눌러서 고칩니다.</li>
+<li>사진을 꾹 누른 뒤 다른 칸을 누르면 자리가 바뀝니다.</li>
+<li>위쪽에 [저장]과 ⋯가 있습니다. ⋯ 안: 인쇄, 새 사진대지, 앨범에서 한꺼번에 넣기, 사용설명서 등.</li>
+</ul>
+</li>
+<li><strong>조치 전·후</strong>(소방·보수·수리·하자이면 기본으로 골라짐):<ul>
+<li>표지: 네모 제목, 내용 요약, 년월, 현장 표. 눌러서 고칩니다.</li>
+<li>항목마다 [조치 전 | 조치 후] 사진 두 장과 설명.</li>
+<li>&#39;조치 후 남음&#39; 표시, [조치 후 n건 찍기].</li>
+<li>사진 칸을 누르면: 설명 고치기, 앨범 사진으로 바꾸기, 이 사진 빼기, 또는 빈 칸이면 카메라로 찍기/앨범에서 넣기.</li>
+<li>PDF: 표지 + 한 쪽에 3건.</li>
+</ul>
+</li>
+<li><strong>점검 사진첩</strong>(시설·점검 모드):<ul>
+<li>결과 요약(항목·양호·불량·조치 완료·미점검).</li>
+<li>2열 칸: 사진, 항목, 결과, 내용.</li>
+<li>결과를 누르면 양호 → 불량 → 조치 완료 순으로 바뀝니다.</li>
+<li>불량 칸은 [조치 전·후로] 만들 수 있습니다.</li>
+<li>PDF: 표지 + 요약 표 + 한 쪽 6칸.</li>
+</ul>
+</li>
+</ol>
+<p><strong>세 형식 공통 버튼(아래쪽):</strong></p>
+<ul>
+<li><strong>[사진대지 작성 완료]:</strong><ul>
+<li>누르면 [완료](작업함으로 나가기) 또는 [완료하고 보내기]를 고릅니다.</li>
+<li>완료하면 작업함에 &#39;작성 완료&#39; 표시가 붙습니다.</li>
+<li>다시 누르면 작성 중으로 되돌릴 수 있습니다.</li>
+</ul>
+</li>
+<li><strong>[PDF 보내기]:</strong> [PDF만] 또는 [PDF + 사진 n장](원본 사진도 함께 보냄).</li>
+<li><strong>[사진으로 보내기]:</strong> 사진대지 전체를 긴 사진 한 장으로 보냅니다.</li>
+<li>고친 내용은 <strong>저절로 저장</strong>됩니다.</li>
+</ul>
+<h3>3-4. 작업함</h3>
+<ul>
+<li>내 작업 목록. 작업별·날짜별·공종별·장소별로 볼 수 있습니다.</li>
+<li>표시 배지: 진행 중, 작성 완료, 예시.</li>
+<li>누르면 그 사진대지가 열립니다.</li>
+<li>위쪽은 &#39;최근 사진&#39;(휴대폰 사진 권한이 있을 때).</li>
+</ul>
+<h3>3-5. 일상·생활 → 앨범</h3>
+<ul>
+<li><strong>일상·앨범 만들기 화면:</strong><ul>
+<li>[작성하던 앨범 불러오기]</li>
+<li>① 무슨 앨범(여행·음식/맛집·가족/모임·반려동물·기념일·취미·기타)</li>
+<li>② 제목, 함께한 사람(선택)</li>
+<li>지난 앨범</li>
+<li>아래에 [앨범에서 불러오기] · [찍기]</li>
+</ul>
+</li>
+<li>사진 고르기(그날 찍은 사진 제안 포함) → 틀 고르기(여행 이야기·폴라로이드·모자이크) → 앨범.</li>
+<li>앨범은 표지와 쪽을 옆으로 넘겨 봅니다.</li>
+<li>제목·글은 눌러서 고치고, 사진은 빼거나 바꿀 수 있습니다. 전체 공유는 긴 한 장으로 보냅니다.</li>
+</ul>
+<h3>3-6. 내 정보</h3>
+<ul>
+<li>로그인 상태, 친구 초대, 설정, 소통실, 앱 정보.</li>
+<li>[예시 기록 보이기] 스위치.</li>
+</ul>
+<hr>
+<h2>4. 직접 해 볼 만한 흐름(시나리오)</h2>
+<ol>
+<li><strong>보수 작업 조치 전·후</strong><ul>
+<li>홈 → 공사·작업 → ① 보수·수리 → ② 공사명 → ③ 조치 전·후 → [카메라 열기]</li>
+<li>&#39;보수 전&#39; 찍기 → 저장 → [보수 후]로 바꿔 찍기 → 저장 → [다 찍음]</li>
+<li>사진대지 → 설명 고치기 → [사진대지 작성 완료]</li>
+</ul>
+</li>
+<li><strong>찍다가 멈추고 이어 하기</strong><ul>
+<li>찍는 중에 ← → [잠시 멈춤]</li>
+<li>공사·작업 화면 맨 위 &#39;진행 중&#39; → [이어서 찍기]</li>
+</ul>
+</li>
+<li><strong>지난 사진대지 다시 열기</strong><ul>
+<li>공사·작업 화면 [작성하던 사진대지 불러오기] → [보기] / [이어서] / [새로]</li>
+</ul>
+</li>
+<li><strong>시설 점검</strong><ul>
+<li>홈 → 시설·점검 → ① 승강기 등 → ③ 점검 사진첩 → [카메라 열기]</li>
+<li>찍고 결과(양호·불량) 고르기 → 점검 사진첩</li>
+<li>불량 → [조치 전·후로]</li>
+</ul>
+</li>
+<li><strong>빠른 사진대지</strong><ul>
+<li>홈 → [사진대지 / 앨범] → 칸에 사진 넣기 → [저장] → ⋯ [새 사진대지 만들기]</li>
+</ul>
+</li>
+<li><strong>일상 앨범</strong><ul>
+<li>홈 → 일상·생활 → ① 여행 → ② 제목 → [앨범에서 불러오기] → 틀 → 앨범 → 제목 고치기</li>
+</ul>
+</li>
+</ol>
+<hr>
+<h2>5. 지금까지 정한 원칙(검토할 때 참고)</h2>
+<ul>
+<li>현장 작업자는 장갑을 끼고 바쁩니다. 그래서 <strong>누르는 횟수를 줄이고</strong>, 버튼은 크게, 글은 쉬운 말(존댓말 &#39;~해요&#39;)로 씁니다.</li>
+<li>기존 기능은 지우지 않고 ⋯ 안으로 옮겨서 정리합니다.</li>
+<li>저장은 저절로 되게 하고, 사용자가 확인할 수 있는 버튼([저장], [작성 완료])도 따로 둡니다.</li>
+<li>형식은 실제 업체·관공서 양식을 따랐습니다(소방 이행완료 보고서의 건별 전·후 사진, 업체 사진대지, Excel 조치 사진첩).</li>
+</ul>
+<h2>6. 아직 안 된 것 · 다음 단계</h2>
+<ul>
+<li>공사 공정 사진대지(공종·위치·내용·일자 표 형식)</li>
+<li>마감 알림(소방 지적사항 조치 기한 10일·20일)</li>
+<li>표지 로고, 서명란</li>
+<li>일상 앨범 음악 슬라이드쇼</li>
+<li>시설·점검의 팀 기능(현장 공유)은 &#39;작업통&#39;에 있습니다.</li>
+</ul>
+<h2>7. 검토 부탁 포인트(예시)</h2>
+<ul>
+<li>처음 쓰는 사람이 홈에서 무엇을 눌러야 할지 바로 아는가? (간편 모드 vs 전문 기록 모드)</li>
+<li>작업 기록 화면의 ①②③ 단계와 [카메라 열기] 위치</li>
+<li>찍기 화면의 버튼 밀도(보드판 수정·글 수정·음성 입력·줌·칸 단추)</li>
+<li>사진대지 형식 3가지의 이름과 고르는 방법이 이해되는가?</li>
+<li>저장, 작성 완료, 보내기의 관계가 헷갈리지 않는가?</li>
+<li>작업함에서 찾기, 다시 열기, 이어 하기 흐름</li>
+<li>빠진 기능, 겹치는 기능, 용어(보드판·사진대지·작업함)가 적절한가?</li>
+</ul>
+</main>
+</body>
+</html>
