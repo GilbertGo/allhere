@@ -172,7 +172,7 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = '2026-10-05g';
+const PHOTO_VER = '2026-10-05h';
 async function checkVer() {
   try {
     const t = await (await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' })).text();
@@ -896,7 +896,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
       el('div', { class: 'seg', style: 'flex-wrap:nowrap' }, ...RATIOS.map(([k]) => el('button', { style: 'flex:1 1 0', class: ratioKey() === k ? 'on' : '', onclick: e => { ls.set('ratio', k); e.currentTarget.parentNode.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === e.currentTarget)); } }, k === '4:3' ? '4:3 (기본)' : k))),
       el('button', { class: 'big sec', onclick: () => { bg.remove(); openAiSettings(); } }, aiReady() ? 'AI로 채우기: 켜짐 (설정)' : 'AI로 채우기 설정'),
       el('button', { class: 'big sec', onclick: () => { bg.remove(); knockTest(); } }, '두드림 · 말소리 시험 (감도 맞추기)'),
-      el('div', { class: 'hint', style: 'text-align:left', text: '음성 입력: 장갑을 낀 채 휴대폰을 똑똑똑 세 번 두드려도 켜져요(말로 글을 채우고 "찍어"로 찍기). 다시 똑똑똑 하면 꺼져요. AI 자동 입력: 켜 두면 찍을 때마다 AI가 그 사진의 글을 써요. 사진은 휴대폰 안에서만 만들어져요.' }),
+      el('div', { class: 'hint', style: 'text-align:left', text: '음성 입력: 장갑을 낀 채 휴대폰을 똑똑똑 세 번 두드려도 켜져요(말로 글을 채우고 "찍어"로 찍기). 다시 똑똑똑 하면 꺼져요. 사진은 휴대폰 안에서만 만들어져요.' }),
       el('div', { class: 'hint', style: 'text-align:center;opacity:.7', text: `버전 ${PHOTO_VER}${location.host.includes('githack') ? ' · 미리 보기(text-box)' : ''}` }),
       el('button', { class: 'big pri', onclick: () => bg.remove() }, '닫기')));
     document.body.append(bg);
@@ -919,7 +919,8 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     const on = box2.querySelector('.seg button.on'); if (on) on.scrollIntoView({ inline: 'center', block: 'nearest' });
   };
   // AI 자동 입력: 켜 두면 찍을 때마다 AI가 그 사진의 글을 써요(한 장씩 차례로, 모르면 물어봄)
-  let aiAuto = !!ls.get('aiAuto', false) && aiReady(), aiBusy = 0, aiChain = Promise.resolve();
+  // 2026-10-05 사용자: 'AI 자동 입력은 일단 제거' — 촬영 화면 도구 줄의 버튼을 빼고 늘 꺼 둔다(켜 두었던 사람도). 코드는 다시 쓸 때를 위해 남김
+  let aiAuto = false, aiBusy = 0, aiChain = Promise.resolve();
   const aiBtn = el('button', { onclick: () => {
     if (!aiReady()) { toast('먼저 AI 서버를 연결해 주세요'); return openAiSettings(); }
     aiAuto = !aiAuto; ls.set('aiAuto', aiAuto); drawAi(); toast(aiAuto ? '이제 찍을 때마다 AI가 글을 써요' : 'AI 자동 입력을 껐어요');
@@ -944,8 +945,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     el('div', { class: 'tools' },
       el('button', { onclick: openLook }, ui('layout'), '표 수정'),
       el('button', { onclick: editText }, ui('pen'), '글 수정'),
-      el('button', { onclick: async () => { await allowMotion(); camVoice(); } }, ui('mic'), '음성 입력'),
-      aiBtn),
+      el('button', { onclick: async () => { await allowMotion(); camVoice(); } }, ui('mic'), '음성 입력')),
     el('div', { class: 'tools-hint' }, ui('mic', 14), '음성 입력은 버튼을 누르거나, 휴대폰을 똑똑똑 두드려서 시작'),   // 2026-10-03 사용자 문구
     el('div', { class: 'bar' },
       leftBtn,
