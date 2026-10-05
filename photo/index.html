@@ -187,7 +187,7 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = '2026-10-06b';
+const PHOTO_VER = '2026-10-06c';
 async function checkVer() {
   try {
     const t = await (await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' })).text();
@@ -315,7 +315,8 @@ function lines(g, text, maxW, maxLines) {
 // 모양: 카드(넓은 상자) · 띠(가로로 얇게) · 세로(세로로 길게) · 글씨만(상자 없이 그림자 글씨)
 // note = { title, rows:[{id,icon,label,value}], layout, theme('light'|'dark'), size, color, at:{x,y}|null }
 const COLORS = [['갈색', '#6B3F1F', '#FFD9B5'], ['초록', '#1E4D36', '#C9F0D8'], ['남색', '#1D3F6E', '#CFE2FF'], ['빨강', '#9E2A1E', '#FFD0C8'], ['검정', '#1F1F1F', '#FFFFFF']];
-const LAYOUTS = [['card', '카드'], ['strip', '가로 띠'], ['column', '세로 기둥'], ['plain', '글씨만'], ['table', '표'], ['tableH', '표·제목띠'], ['table2', '표·두 칸']];
+// 2026-10-06 사용자: 표 수정에 '보드판 없음'도 — 사진만 남김(글은 그대로 두어 다시 고르면 돌아와요)
+const LAYOUTS = [['none', '보드판 없음'], ['card', '카드'], ['strip', '가로 띠'], ['column', '세로 기둥'], ['plain', '글씨만'], ['table', '표'], ['tableH', '표·제목띠'], ['table2', '표·두 칸']];
 const FONT = "'Pretendard Variable',Pretendard,'Apple SD Gothic Neo','Malgun Gothic',sans-serif";
 function themeOf(note) {
   const dark = note.theme === 'dark' || note.layout === 'plain';
@@ -545,6 +546,7 @@ function measureNote(g, note, W, H) {
 // 사진(img, 없으면 투명) 위에 글상자를 그리고, 그린 자리 {x,y,w,h}를 돌려줘요. ghost면 흐릿하게(찍기 전 미리보기)
 function drawNote(g, img, W, H, note, ghost) {
   if (img) g.drawImage(img, 0, 0, W, H); else g.clearRect(0, 0, W, H);
+  if (note.layout === 'none') return null;   // 표 없음: 사진만
   if (!note.title && !note.rows.some(r => r.value) && !['table', 'tableH', 'table2'].includes(note.layout)) return null;
   if (!note.title && !note.rows.length) return null;
   const L = measureNote(g, note, W, H), T = themeOf(note);
@@ -653,7 +655,7 @@ function homeOld() {
       el('button', { class: 'lnk', style: 'align-self:center', onclick: openAiSettings }, aiReady() ? 'AI로 채우기: 켜짐 (설정)' : 'AI로 채우기 설정'),
       el('div', { class: 'seg', style: 'justify-content:center' }, el('span', { class: 'hint', text: '두드림 감도' }),
         ...[['low', '둔하게'], ['mid', '보통'], ['high', '예민하게']].map(([k, n]) => el('button', { class: ls.get('knockSens', 'mid') === k ? 'on' : '', onclick: e => { ls.set('knockSens', k); e.currentTarget.parentNode.querySelectorAll('button').forEach(b => b.classList.remove('on')); e.currentTarget.classList.add('on'); } }, n))),
-      el('div', { class: 'hint', text: '찍을 때 글상자 자리가 흐릿하게 보여요. 사진은 휴대폰 안에서만 만들어져요.' })));
+      el('div', { class: 'hint', text: '찍을 때 보드판 자리가 흐릿하게 보여요. 사진은 휴대폰 안에서만 만들어져요.' })));
   const g = cv.getContext('2d'), bgc = document.createElement('canvas'); bgc.width = 900; bgc.height = 560;
   const b = bgc.getContext('2d'), gr = b.createLinearGradient(0, 0, 900, 560);
   gr.addColorStop(0, '#C9A27A'); gr.addColorStop(.55, '#8C5A35'); gr.addColorStop(1, '#3B2A1E'); b.fillStyle = gr; b.fillRect(0, 0, 900, 560);
@@ -846,7 +848,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
         onfocus: () => { if (i.value && i.value === EX[f.id]) setTimeout(() => i.select(), 0); },
         oninput: () => camSet(f, i.value) }); sheetIn[f.id] = i;
       return el('label', { class: 'f', for: 'c-' + f.id }, labOf(f), el('div', { class: 'inrow' }, i, micBtn(i, f))); };
-    bg.append(el('div', { class: 'sheet' }, el('h2', { text: '글상자 고치기' }), SR ? el('button', { class: 'vbtn', onclick: camVoice }, '말로 모두 채우고 찍기 (똑똑똑으로도)') : null, el('div', { class: 'hint', style: 'text-align:left', text: '고친 글은 이제부터 찍는 사진에 들어가요.' }),
+    bg.append(el('div', { class: 'sheet' }, el('h2', { text: '보드판 고치기' }), SR ? el('button', { class: 'vbtn', onclick: camVoice }, '말로 모두 채우고 찍기 (똑똑똑으로도)') : null, el('div', { class: 'hint', style: 'text-align:left', text: '고친 글은 이제부터 찍는 사진에 들어가요.' }),
       ...on.map(row), el('button', { class: 'big pri', onclick: () => bg.remove() }, '다 고쳤어요')));
     document.body.append(bg);
   };
@@ -893,7 +895,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     const close = () => { if (review) { review.el.remove(); review = null; } };
     const keep = async () => {   // 저장: 휴대폰에 내려받고, 찍은 사진 목록(보내기·사진대지용)에도 넣어요
       if (p.aiP && !p.aiDone) { msg.textContent = 'AI가 다 쓰면 저장할게요…'; await p.aiP; }
-      saveCfg(); rememberPer(p); p.saved = true; shots.push(p); thumb = null; drawLeft();
+      saveCfg(); rememberPer(p); p.saved = true; p.sig = sigOf(p); shots.push(p); thumb = null; drawLeft();
       const [f] = await render([p]); if (f) { const url = URL.createObjectURL(f), a = el('a', { href: url, download: f.name }); document.body.append(a); a.click(); setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 30000); }
       close(); toast(`저장했어요 (사진첩 > 다운로드) · 찍은 사진 ${shots.length}장`);
       if (JOB && f) {
@@ -968,17 +970,18 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
       el('button', { class: 'big pri', onclick: () => bg.remove() }, '닫기')));
     document.body.append(bg);
   };
-  // 표 수정: 글상자 모양·크기·자리 (2026-10-02 사용자: 위 모양 단추 줄을 '표 수정'으로, '글 수정'과 나눠서)
+  // 표 수정: 글상자 모양·크기·자리 (2026-10-02 사용자: 위 모양 단추 줄을 '보드판 수정'으로, '글 수정'과 나눠서)
   // 2026-10-04 사용자: 고르면서 사진에 어떻게 보이는지 보이게 — 창을 낮게, 뒤를 가리지 않고(카메라 위 글상자가 바로 바뀌어 보임),
   // 창 밖은 손가락이 카메라 화면에 닿아서 글상자를 끌어 옮길 수 있어요. 모양은 한 줄로 옆으로 밀어서
   const openLook = () => {
     const bg = el('div', { class: 'sheet-bg peek' });
     const keepScroll = () => { const s = box2.querySelector('.seg'); return s ? s.scrollLeft : 0; };
-    const draw = () => { const sl = keepScroll(); box2.replaceChildren(el('h2', {}, '표 수정', el('small', { text: '고르면 바로 보여요 · 글상자는 끌어 옮겨요' })),
+    const draw = () => { const sl = keepScroll(); box2.replaceChildren(el('h2', {}, '보드판 수정', el('small', { text: '고르면 바로 보여요 · 보드판은 끌어 옮겨요' })),
       el('div', { class: 'seg' }, LAYOUTS.map(([k, n]) => el('button', { class: cfg.layout === k ? 'on' : '', onclick: () => { cfg.layout = k; saveCfg(); draw(); } }, shapeIco(k), n))),
+      cfg.layout === 'none' ? el('div', { class: 'hint', style: 'text-align:left', text: '사진만 저장돼요 · 다른 모양을 고르면 보드판이 다시 나와요' }) :
       el('div', { class: 'seg fit' }, [[0.6, '아주 작게'], [0.8, '작게'], [1, '보통'], [1.2, '크게']].map(([k, n]) => el('button', { class: cfg.size === k ? 'on' : '', onclick: () => { cfg.size = k; saveCfg(); draw(); } }, n))),
       el('div', { class: 'row2' },
-        el('button', { class: 'big sec', onclick: () => { delete cfg.at[cfg.layout]; saveCfg(); toast('글상자를 처음 자리로 옮겼어요'); } }, '처음 자리로'),
+        cfg.layout === 'none' ? null : el('button', { class: 'big sec', onclick: () => { delete cfg.at[cfg.layout]; saveCfg(); toast('보드판을 처음 자리로 옮겼어요'); } }, '처음 자리로'),
         el('button', { class: 'big pri', onclick: () => bg.remove() }, '다 골랐어요')));
       const s = box2.querySelector('.seg'); if (s) s.scrollLeft = sl; };
     const box2 = el('div', { class: 'sheet peek' }); bg.append(box2); draw();
@@ -1010,7 +1013,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     view,
     // 도구 줄(2026-10-02 사용자: 화면 정리 · 음성 입력, AI 자동 입력 / 2026-10-04 사용자: 표 수정 · 글 수정 · 음성 입력 순서로)
     el('div', { class: 'tools' },
-      el('button', { onclick: openLook }, ui('layout'), '표 수정'),
+      el('button', { onclick: openLook }, ui('layout'), '보드판 수정'),
       el('button', { onclick: editText }, ui('pen'), '글 수정'),
       el('button', { onclick: async () => { await allowMotion(); camVoice(); } }, ui('mic'), '음성 입력')),
     el('div', { class: 'tools-hint' }, ui('mic', 14), '음성 입력은 버튼을 누르거나, 휴대폰을 똑똑똑 두드려서 시작'),   // 2026-10-03 사용자 문구
@@ -1024,10 +1027,16 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
 
 // ---------- 편집 화면 ----------
 let cv = null, countEl = null, tab = ls.get('tab', 'text'), lastBox = null, onPhotoChange = null;
-let raf = 0;
+let raf = 0, saveBtn = null;
+// 저장 버튼 이름(2026-10-06 사용자: '저장됨 · 다시 저장'은 헷갈린다) — 저장한 뒤 그대로면 [저장됨 ✓], 저장한 뒤 글·모양을 고쳤으면 [고친 사진 저장]
+const sigOf = p => JSON.stringify(noteFor(p));
+function saveState() { const done = photos.length && photos.every(x => x.saved); return !done ? 'new' : photos.some(x => x.sig && x.sig !== sigOf(x)) ? 'changed' : 'done'; }
+function paintSave() { if (!saveBtn) return; const st = saveState(), many = photos.length > 1;
+  saveBtn.textContent = st === 'done' ? '저장됨 ✓' : st === 'changed' ? '고친 사진 저장' : many ? photos.length + '장 저장' : '사진첩에 저장';
+  saveBtn.className = 'big ' + (st === 'done' ? 'sec' : 'pri'); }
 function redraw() {
   cancelAnimationFrame(raf);
-  raf = requestAnimationFrame(() => { const p = photos[cur]; if (!p || !cv) return; p.look = lookOf(); if (cv.width !== p.W || cv.height !== p.H) { cv.width = p.W; cv.height = p.H; } lastBox = drawNote(cv.getContext('2d'), p.bmp, p.W, p.H, noteFor(p)); });
+  raf = requestAnimationFrame(() => { const p = photos[cur]; if (!p || !cv) return; p.look = lookOf(); if (cv.width !== p.W || cv.height !== p.H) { cv.width = p.W; cv.height = p.H; } lastBox = drawNote(cv.getContext('2d'), p.bmp, p.W, p.H, noteFor(p)); paintSave(); });
 }
 const UI = {
   mic: ['M12 3.5a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0v-5a3 3 0 0 0-3-3z', 'M5.5 11a6.5 6.5 0 0 0 13 0', 'M12 17.5V21', 'M9 21h6'],
@@ -1067,12 +1076,12 @@ function editor() {
   cv = el('canvas', { class: 'drag' });
   const many = photos.length > 1;
   countEl = many ? el('div', { class: 'count' }) : null;
-  const tip = el('div', { class: 'tip', text: '글상자는 끌어서 옮기고, 똑똑똑 두드리면 음성 입력' });
+  const tip = el('div', { class: 'tip', text: '보드판은 끌어서 옮기고, 똑똑똑 두드리면 음성 입력' });
   setTimeout(() => tip.remove(), 3500);
   dragBox(cv, () => lastBox, () => [photos[cur].W, photos[cur].H], redraw);
   const panel = el('div', { class: 'panel' });
   const setTab = t => { tab = t; if (sheetTitle) sheetTitle.textContent = TITLES[t]; drawPanel(); };
-  const TITLES = { text: '글 수정', look: '표 수정 (글상자 모양)', fields: '항목 고르기' };
+  const TITLES = { text: '글 수정', look: '보드판 수정', fields: '항목 고르기' };
   let sheetTitle = null;
   // 2026-10-02 사용자: 편집 화면이 복잡 → 탭·입력칸을 화면에서 빼고, 아래 버튼을 누르면 창으로
   const openSheet = t => {
@@ -1113,7 +1122,7 @@ function editor() {
     return [
       el('div', { class: 'optrow', style: 'align-items:flex-start' }, el('span', { text: '빠른 선택', style: 'padding-top:6px' }), quick),
       el('div', { class: 'optrow' }, el('span', { text: '모양' }), seg(LAYOUTS.map(([k, n]) => [k, n, k]), cfg.layout, v => { cfg.layout = v; })),
-      ['plain', 'table', 'tableH', 'table2'].includes(cfg.layout) ? null : el('div', { class: 'optrow' }, el('span', { text: '바탕' }), seg([['light', '밝게'], ['dark', '어둡게']], cfg.theme, v => { cfg.theme = v; })),
+      ['none', 'plain', 'table', 'tableH', 'table2'].includes(cfg.layout) ? null : el('div', { class: 'optrow' }, el('span', { text: '바탕' }), seg([['light', '밝게'], ['dark', '어둡게']], cfg.theme, v => { cfg.theme = v; })),
       ...(['table', 'tableH', 'table2'].includes(cfg.layout) ? [
         el('div', { class: 'optrow' }, el('span', { text: '스타일' }), seg([['basic', '기본'], ['mini', '미니멀'], ['tint', '색 포인트'], ['doc', '문서형']], cfg.tStyle, v => { cfg.tStyle = v; })),
         el('div', { class: 'optrow' }, el('span', { text: '바탕' }), seg([['white', '흰색'], ['glass', '반투명'], ['clear', '투명']], cfg.tBg, v => { cfg.tBg = v; })),
@@ -1162,18 +1171,19 @@ function editor() {
       many ? el('button', { class: 'nav r', 'aria-label': '다음 사진', onclick: () => go(1) }, '›') : null, countEl),
     el('div', { class: 'etools' },
       el('button', { onclick: () => openSheet('text') }, ui('pen'), '글 수정'),
-      el('button', { onclick: () => openSheet('look') }, ui('layout'), '표 수정'),
+      el('button', { onclick: () => openSheet('look') }, ui('layout'), '보드판 수정'),
       aiReady() ? el('button', { onclick: () => aiFillEditor() }, ui('ai'), 'AI로 채우기') : null),
     el('div', { class: 'acts' },
       el('button', { class: 'big sec', onclick: share }, '보내기'),
-      el('button', { class: 'big pri', onclick: save }, photos.every(x => x.saved) ? '저장됨 · 다시 저장' : many ? `${photos.length}장 저장` : '사진첩에 저장')));
+      saveBtn = el('button', { class: 'big pri', onclick: () => { if (saveState() === 'done') return toast('이미 사진첩에 저장돼 있어요 · 글이나 보드판을 고치면 다시 저장할 수 있어요'); save().then(paintSave); } })));
+  paintSave();
   onPhotoChange(); redraw();
   if (document.fonts) document.fonts.ready.then(redraw);
 }
 // 모양 고르기 버튼의 작은 그림
 function shapeIco(k) {
   const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('width', 18); s.setAttribute('height', 18);
-  const R = { card: '<rect x="3" y="4" width="18" height="10" rx="2"/>', strip: '<rect x="3" y="15" width="18" height="5" rx="1.5"/>', column: '<rect x="3" y="3" width="8" height="18" rx="2"/>', plain: '<path d="M4 17h12M4 20h8"/>', table: '<rect x="3" y="4" width="13" height="10" fill="none"/><path d="M3 7.5h13M3 11h13M7.5 7.5V14" fill="none" stroke-width="1.4"/>', tableH: '<rect x="3" y="4" width="13" height="3.5" stroke="none"/><rect x="3" y="4" width="13" height="10" fill="none"/><path d="M3 11h13M7.5 7.5V14" fill="none" stroke-width="1.4"/>', table2: '<rect x="3" y="4" width="18" height="7" fill="none"/><path d="M3 7.5h18M6.5 7.5V11M12 7.5V11M15 7.5V11" fill="none" stroke-width="1.4"/>' }[k];
+  const R = { none: '<path d="M5 5l14 14"/>', card: '<rect x="3" y="4" width="18" height="10" rx="2"/>', strip: '<rect x="3" y="15" width="18" height="5" rx="1.5"/>', column: '<rect x="3" y="3" width="8" height="18" rx="2"/>', plain: '<path d="M4 17h12M4 20h8"/>', table: '<rect x="3" y="4" width="13" height="10" fill="none"/><path d="M3 7.5h13M3 11h13M7.5 7.5V14" fill="none" stroke-width="1.4"/>', tableH: '<rect x="3" y="4" width="13" height="3.5" stroke="none"/><rect x="3" y="4" width="13" height="10" fill="none"/><path d="M3 11h13M7.5 7.5V14" fill="none" stroke-width="1.4"/>', table2: '<rect x="3" y="4" width="18" height="7" fill="none"/><path d="M3 7.5h18M6.5 7.5V11M12 7.5V11M15 7.5V11" fill="none" stroke-width="1.4"/>' }[k];
   s.innerHTML = `<rect x="2" y="2" width="20" height="20" rx="3" fill="none" stroke="currentColor" stroke-opacity=".35" stroke-width="1.5"/><g fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round">${R}</g>`;
   return s;
 }
@@ -1543,7 +1553,7 @@ async function render(list = photos) {
   return out;
 }
 async function save() {
-  photos.forEach(x => x.saved = true);
+  photos.forEach(x => { x.saved = true; x.sig = sigOf(x); });
   saveCfg(); rememberPer(photos[photos.length - 1]);   // 저장할 때의 글·디자인을 다음 기본으로
   const files = await render();
   for (const f of files) {
