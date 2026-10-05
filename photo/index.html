@@ -168,6 +168,12 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 .cam .ph2{position:absolute;left:50%;bottom:58px;transform:translateX(-50%);display:flex;background:rgba(0,0,0,.5);border-radius:999px;padding:3px;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
 .cam .ph2 button{white-space:nowrap;padding:8px 16px;border-radius:999px;font-size:14px;font-weight:800;color:rgba(255,255,255,.8);background:transparent}
 .cam .ph2 button.on.b{background:#DC2626;color:#fff}.cam .ph2 button.on.a{background:#2563EB;color:#fff}
+.review .ck3{display:flex;gap:6px;padding:4px 14px 6px}
+.review .ck3 button{flex:1;height:46px;border-radius:12px;font-size:15px;font-weight:800;border:2px solid transparent}
+.review .ck3 .ok{background:#DCFCE7;color:#15803D}.review .ck3 .ng{background:#FEE2E2;color:#B91C1C}.review .ck3 .fx{background:#DBEAFE;color:#1D4ED8}
+.review .ck3 .ok.on{border-color:#16A34A}.review .ck3 .ng.on{border-color:#EF4444}.review .ck3 .fx.on{border-color:#2563EB}
+.review .cknote{padding:0 14px 8px}.review .cknote .inrow{display:flex;gap:6px}.review .cknote input{flex:1;height:42px;border-radius:10px;border:1px solid #374151;background:#1F2937;color:#fff;padding:0 10px;font-size:14px}
+.cam .steps button .rk{font-weight:900;margin-left:4px}.cam .steps button .rk.ng{color:#EF4444}.cam .steps button .rk.ok{color:#16A34A}.cam .steps button .rk.fx{color:#60A5FA}
 .cam .shots{position:absolute;left:12px;bottom:12px;background:rgba(0,0,0,.55);color:#fff;border-radius:999px;font-size:13px;font-weight:700;padding:5px 11px}
 @media (max-height:700px){.panel{max-height:28vh}.home h1{font-size:26px}.big{height:56px}input[type=text]{height:40px}.acts .big{height:48px}label.f{font-size:12px}}
 </style>
@@ -181,7 +187,7 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = '2026-10-06a';
+const PHOTO_VER = '2026-10-06b';
 async function checkVer() {
   try {
     const t = await (await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' })).text();
@@ -727,6 +733,11 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   const PL = Object.assign({ b: '조치 전', a: '조치 후', item: '지적사항', ex: '예: B1 방재실 감지기 탈락' }, (JOB && JOB.pl) || {});
   const pairCnt = PAIR ? JOB.steps.map((_, i) => Object.assign({ b: 0, a: 0 }, (JOB.pc && JOB.pc[i]) || {})) : [];
   let jobPh = PAIR && pairCnt[jobAt] && pairCnt[jobAt].b && !pairCnt[jobAt].a ? 'a' : 'b';
+  // 점검 사진첩(2026-10-06 2단계): 칸 = 점검 항목. 찍은 뒤 [양호 | 불량 | 조치 완료] + 불량 내용. 칸 단추에 결과 표시(✓ · ✕ · ↺)
+  const CHECK = !!(JOB && JOB.format === 'check');
+  const CK = Object.assign({ ok: '양호', ng: '불량', fx: '조치 완료' }, (JOB && JOB.ck) || {});
+  const ckRes = CHECK ? JOB.steps.map((_, i) => (JOB.rs && JOB.rs[i]) || '') : [];
+  const worse = (a, b) => [a, b].includes('ng') ? 'ng' : [a, b].includes('fx') ? 'fx' : (a || b);
   const jobCnt = JOB ? JOB.steps.map((_, i) => (JOB.counts && JOB.counts[i]) || 0) : [];   // 차례마다 찍은 장 수(지난번에 찍은 것 포함)
   const jobTotal = () => jobCnt.reduce((a, b) => a + b, 0);
   const stepsEl = el('div', { class: 'steps' });
@@ -745,12 +756,13 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
         el('button', { class: 'next', onclick: addStep }, '+ ' + PL.item + (SR ? ' (말로도)' : '')));
       return;
     }
-    stepsEl.replaceChildren(...JOB.steps.map((t, i) => el('button', { class: i === jobAt ? 'now' : jobCnt[i] ? 'done' : '', onclick: () => { jobAt = i; drawSteps(); } }, t + (jobCnt[i] ? ' · ' + jobCnt[i] : ''))),
-      el('button', { class: 'next', onclick: addStep }, '+ 칸')); };
+    stepsEl.replaceChildren(...JOB.steps.map((t, i) => el('button', { class: i === jobAt ? 'now' : jobCnt[i] ? 'done' : '', onclick: () => { jobAt = i; drawSteps(); } }, t + (jobCnt[i] ? ' · ' + jobCnt[i] : ''),
+        CHECK && ckRes[i] ? el('span', { class: 'rk ' + ckRes[i] }, ckRes[i] === 'ng' ? '✕' : ckRes[i] === 'fx' ? '↺' : '✓') : null)),
+      el('button', { class: 'next', onclick: addStep }, CHECK ? '+ 항목' : '+ 칸')); };
   const addStep = () => {
     const inp = el('input', { type: 'text', maxlength: PAIR ? 60 : 12, placeholder: PAIR ? PL.ex : '예: 승강장 버튼' });
     const bg = el('div', { class: 'sheet-bg', onclick: e => { if (e.target === bg) bg.remove(); } });
-    const ok = () => { const t = inp.value.trim(); bg.remove(); if (!t) return; JOB.steps.push(t); jobCnt.push(0); if (PAIR) { pairCnt.push({ b: 0, a: 0 }); jobPh = 'b'; } jobAt = JOB.steps.length - 1; drawSteps(); jobPost({ t: 'job-steps', steps: JOB.steps }); };
+    const ok = () => { const t = inp.value.trim(); bg.remove(); if (!t) return; JOB.steps.push(t); jobCnt.push(0); if (CHECK) ckRes.push(''); if (PAIR) { pairCnt.push({ b: 0, a: 0 }); jobPh = 'b'; } jobAt = JOB.steps.length - 1; drawSteps(); jobPost({ t: 'job-steps', steps: JOB.steps }); };
     inp.onkeydown = e => { if (e.key === 'Enter') ok(); };
     bg.append(el('div', { class: 'sheet' }, el('h2', { text: PAIR ? PL.item + ' 더하기' : '칸 더하기' }),
       PAIR ? el('div', { class: 'hint', style: 'text-align:left', text: '어디의 무엇이 어떤지 한 줄로 — 사진대지의 ' + PL.item + ' 줄이 돼요' }) : null,
@@ -896,6 +908,13 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
           drawSteps(); drawLeft();
           return;
         }
+        if (CHECK) {
+          jobPost({ t: 'job-shot', step: jobAt, res: p.res || 'ok', note: p.note || '', cap: JOB.steps[jobAt] || '', place: p.place && p.place !== EX.place ? p.place : '', date: p.date || '', name: f.name, data });
+          ckRes[jobAt] = worse(ckRes[jobAt], p.res || 'ok'); jobCnt[jobAt] = (jobCnt[jobAt] || 0) + 1; drawSteps(); drawLeft();
+          const nx = JOB.steps.findIndex((_, i) => !jobCnt[i]);
+          toast((JOB.steps[jobAt] || '') + ' ' + CK[p.res || 'ok'] + (nx >= 0 ? ' — 다음: ' + JOB.steps[nx] + ' (위에서 눌러요)' : ' — 모든 항목을 찍었어요'));
+          return;
+        }
         jobPost({ t: 'job-shot', step: jobAt, cap: JOB.steps[jobAt] || '', place: p.place && p.place !== EX.place ? p.place : '', date: p.date || '', name: f.name, data });   // 위치 · 날짜도 — 앱이 사진마다 날짜 · 공종 · 장소별로 모아 보게
         // 2026-10-05 사용자: 한 차례에 여러 장 — 저장해도 차례는 그대로. 다음 차례는 위의 [다음 ›] 이나 차례 이름을 눌러서.
         // 앱을 닫아도 찍은 사진은 앱이 바로 보관하고, 다시 열면 이어서 찍는다(JOB.at · JOB.counts)
@@ -912,7 +931,18 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
       bg.append(el('div', { class: 'sheet' }, el('h2', { text: '이 사진 글 수정' }), ...cfg.fields.filter(f => f.on).map(row), el('button', { class: 'big pri', onclick: () => bg.remove() }, '다 고쳤어요')));
       document.body.append(bg);
     };
-    const box = el('div', { class: 'review' }, rc, msg, el('div', { class: 'rv-bar' },
+    let ckEl = null;
+    if (CHECK) {   // 결과 고르기 — 기본 양호. 불량 · 조치 완료면 내용 한 줄(말로도)
+      p.res = p.res || 'ok';
+      const noteIn = el('input', { type: 'text', maxlength: 60, placeholder: '불량 내용 (예: 2번 밸브 미세 누수)', value: p.note || '', oninput: () => { p.note = noteIn.value; } });
+      const noteRow = el('div', { class: 'cknote' }, el('div', { class: 'inrow' }, noteIn, SR ? micBtn(noteIn, { label: '불량 내용' }) : null));
+      const btns = el('div', { class: 'ck3' });
+      const drawCk = () => { btns.replaceChildren(...['ok', 'ng', 'fx'].map(k => el('button', { class: k + (p.res === k ? ' on' : ''), onclick: () => { p.res = k; drawCk(); } }, CK[k])));
+        noteRow.style.display = p.res === 'ok' ? 'none' : ''; noteIn.placeholder = p.res === 'fx' ? '조치 내용 (예: 3번 회로 차단기 교체)' : '불량 내용 (예: 2번 밸브 미세 누수)'; };
+      drawCk(); ckEl = el('div', {}, btns, noteRow);
+      setTimeout(() => { msg.textContent = (JOB.steps[jobAt] || '이 항목') + ' — 결과는?'; }, 0);
+    }
+    const box = el('div', { class: 'review' }, rc, msg, ckEl, el('div', { class: 'rv-bar' },
       el('button', { onclick: drop }, '다시 찍기'), el('button', { onclick: editIt }, '글 수정'), el('button', { class: 'pri', onclick: keep }, '저장')));
     close(); review = { el: box, p, keep, drop, draw }; wrap.append(box); draw();
     if (p.aiP) p.aiP.then(() => { p.aiDone = true; if (review && review.p === p) draw(); });
