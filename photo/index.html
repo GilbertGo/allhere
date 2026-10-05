@@ -153,10 +153,11 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 .cam .zoom{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);display:flex;gap:4px;background:rgba(0,0,0,.4);border-radius:999px;padding:4px;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
 .cam .zoom button{min-width:40px;height:36px;border-radius:999px;background:transparent;color:#fff;font-size:13px;font-weight:700;padding:0 8px}
 .cam .zoom button.on{background:rgba(255,255,255,.92);color:#2A2118}
-.cam .steps{position:absolute;left:12px;right:64px;top:calc(12px + env(safe-area-inset-top,0px));display:flex;gap:6px;flex-wrap:wrap;pointer-events:none}
-.cam .steps span{background:rgba(0,0,0,.5);color:rgba(255,255,255,.75);border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:6px 11px;font-size:13px;font-weight:600}
-.cam .steps span.now{background:#2563EB;border-color:#2563EB;color:#fff}
-.cam .steps span.done{background:rgba(255,255,255,.92);color:#1D1712;border-color:transparent}
+.cam .steps{position:absolute;left:12px;right:64px;top:calc(12px + env(safe-area-inset-top,0px));display:flex;gap:6px;flex-wrap:wrap}
+.cam .steps button.next{background:#fff;color:#1D4ED8;border-color:#fff;font-weight:800}
+.cam .steps button{background:rgba(0,0,0,.5);color:rgba(255,255,255,.75);border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:6px 11px;font-size:13px;font-weight:600}
+.cam .steps button.now{background:#2563EB;border-color:#2563EB;color:#fff}
+.cam .steps button.done{background:rgba(255,255,255,.92);color:#1D1712;border-color:transparent}
 .cam .shots{position:absolute;left:12px;bottom:12px;background:rgba(0,0,0,.55);color:#fff;border-radius:999px;font-size:13px;font-weight:700;padding:5px 11px}
 @media (max-height:700px){.panel{max-height:28vh}.home h1{font-size:26px}.big{height:56px}input[type=text]{height:40px}.acts .big{height:48px}label.f{font-size:12px}}
 </style>
@@ -170,7 +171,7 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = '2026-10-05a';
+const PHOTO_VER = '2026-10-05b';
 async function checkVer() {
   try {
     const t = await (await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' })).text();
@@ -703,11 +704,14 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   const ghostP = () => Object.assign({ date: fmtDate(new Date()), place: cfg.mode === 'fire' ? lastOr('place') : (placeNow || EX.place) }, typeof perDefaults === 'function' ? perDefaults() : {}, camVals);
   here.then(h => h && placeName(h.lat, h.lng).then(n => { if (n) placeNow = n; }));
   const shotsEl = el('div', { class: 'shots', style: 'display:none' });
-  let jobAt = 0;   // 작업 모드: 지금 찍을 차례(JOB.steps 번호)
+  let jobAt = JOB ? Math.min(JOB.at || 0, JOB.steps.length - 1) : 0;   // 작업 모드: 지금 찍을 차례(JOB.steps 번호). 이어서 찍을 때는 앱이 준 차례부터
+  const jobCnt = JOB ? JOB.steps.map((_, i) => (JOB.counts && JOB.counts[i]) || 0) : [];   // 차례마다 찍은 장 수(지난번에 찍은 것 포함)
+  const jobTotal = () => jobCnt.reduce((a, b) => a + b, 0);
   const stepsEl = el('div', { class: 'steps' });
   const jobMemo = i => [JOB.kind, JOB.steps[i] || ('추가 ' + (i - JOB.steps.length + 1))].filter(Boolean).join(' — ');
   const drawSteps = () => { if (!JOB) return; vals.memo = jobMemo(jobAt);
-    stepsEl.replaceChildren(...JOB.steps.map((t, i) => el('span', { class: i < jobAt ? 'done' : i === jobAt ? 'now' : '' }, (i + 1) + ' ' + t + (i < jobAt ? ' ✓' : '')))); };
+    stepsEl.replaceChildren(...JOB.steps.map((t, i) => el('button', { class: i === jobAt ? 'now' : jobCnt[i] ? 'done' : '', onclick: () => { jobAt = i; drawSteps(); } }, (i + 1) + ' ' + t + (jobCnt[i] ? ' · ' + jobCnt[i] + '장' : ''))),
+      jobAt < JOB.steps.length - 1 ? el('button', { class: 'next', onclick: () => { jobAt++; drawSteps(); toast(`이제 '${JOB.steps[jobAt]}' 을 찍어요`); } }, '다음 ›') : null); };
   if (JOB) { vals.title = JOB.name || ''; vals.who = JOB.who || ''; drawSteps(); }
   const chips = el('div', { class: 'chips' });
   let setBtn = null;
@@ -813,8 +817,10 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
       if (JOB && f) {
         const data = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(f); });
         jobPost({ t: 'job-shot', step: jobAt, cap: JOB.steps[jobAt] || '', name: f.name, data });
-        jobAt++; drawSteps(); drawLeft();
-        if (jobAt === JOB.steps.length) { toast('모두 찍었어요 — 사진대지로 갑니다'); setTimeout(() => jobPost({ t: 'job-done' }), 1200); }
+        // 2026-10-05 사용자: 한 차례에 여러 장 — 저장해도 차례는 그대로. 다음 차례는 위의 [다음 ›] 이나 차례 이름을 눌러서.
+        // 앱을 닫아도 찍은 사진은 앱이 바로 보관하고, 다시 열면 이어서 찍는다(JOB.at · JOB.counts)
+        jobCnt[jobAt] = (jobCnt[jobAt] || 0) + 1; drawSteps(); drawLeft();
+        toast(`${JOB.steps[jobAt] || '추가'} ${jobCnt[jobAt]}장 — 더 찍거나, 위의 [다음 ›]`);
       }
     };
     const drop = () => { close(); toast('지웠어요. 다시 찍어 주세요'); };
@@ -837,7 +843,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   let thumb = null;
   const drawLeft = () => { if (shots.length) { const q = shots[shots.length - 1]; if (!thumb) { const c = document.createElement('canvas'), k = 120 / Math.max(q.W, q.H); c.width = Math.round(q.W * k); c.height = Math.round(q.H * k); drawNote(c.getContext('2d'), q.bmp, c.width, c.height, { ...noteFor(q), at: null }); thumb = c.toDataURL('image/jpeg', .7); } leftBtn.style.cssText = `background:#222 url(${thumb}) center/cover;padding-left:52px;background-size:44px 44px;background-position:6px center;background-repeat:no-repeat`; } else leftBtn.style.cssText = '';
     leftBtn.textContent = shots.length ? `찍은 사진 · ${shots.length}장` : photos.length ? '돌아가기' : '앨범에서\n사진 불러오기'; leftBtn.onclick = shots.length || photos.length ? done : () => pickIn.click();
-    if (JOB) { leftBtn.textContent = shots.length ? `다 찍음\n사진대지 (${shots.length}장)` : '처음으로'; leftBtn.onclick = () => jobPost({ t: shots.length ? 'job-done' : 'job-back' }); } };
+    if (JOB) { const n = jobTotal(); leftBtn.textContent = n ? `다 찍음\n사진대지 (${n}장)` : '처음으로'; leftBtn.onclick = () => jobPost({ t: n ? 'job-done' : 'job-back' }); } };
   drawLeft();
   // 설정(예전 첫 화면에 있던 것): AI로 채우기 설정 · 두드림 감도
   const openSet = () => {
