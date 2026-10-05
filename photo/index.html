@@ -172,7 +172,7 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = '2026-10-05f';
+const PHOTO_VER = '2026-10-05g';
 async function checkVer() {
   try {
     const t = await (await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' })).text();
@@ -823,7 +823,8 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   };
   // 기본 카메라(2026-10-05 사용자: 광학 줌 — 이 화면의 카메라는 기본 렌즈 하나와 센서 확대뿐이라 망원 렌즈를 못 쓴다).
   // 휴대폰 카메라 앱을 열어(0.6× · 1× · 3× 렌즈, 최고 화질) 찍고 돌아오면 같은 '저장할까요?' 확인으로 — 글상자 · 칸 · 위치 · 날짜는 그대로 들어가요.
-  // 사진통 앱 안에서는 앱이 카메라를 열어 주고(native-cam), 휴대폰 브라우저에서는 파일 고르기의 카메라로
+  // 사진통 앱 안에서는 앱이 카메라를 열어 주고(native-cam), 휴대폰 브라우저에서는 파일 고르기의 카메라로.
+  // native-cam 을 모르는 예전 앱(window.__nativeCam 없음) 안에서는 버튼을 숨겨요 — 눌러도 대답이 없어 카메라가 멈춘 채로 남는다
   const nIn = el('input', { type: 'file', accept: 'image/*', capture: 'environment', style: 'display:none' });
   const nativeShot = async () => {
     if (camStream) camStream.getTracks().forEach(t => t.stop());   // 카메라를 기본 카메라 앱에 넘겨요
@@ -932,7 +933,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   camClose = stop;
   const view = el('div', { class: 'view' }, video, ov,
       el('button', { class: 'gear', 'aria-label': '설정', onclick: openSet }, ui('sliders', 20)),
-      zoomEl, el('button', { class: 'ncam', onclick: nativeShot }, ui('camera', 16), '기본 카메라\n광학줌 · 고화질'), nIn, JOB ? stepsEl : null);
+      zoomEl, window.ReactNativeWebView && !window.__nativeCam ? null : el('button', { class: 'ncam', onclick: nativeShot }, ui('camera', 16), '기본 카메라\n광학줌 · 고화질'), nIn, JOB ? stepsEl : null);
   view.addEventListener('pointerdown', e => { onPt(e); if (pts.size === 2) pinch = { d: pdist(), z: zoom }; });
   view.addEventListener('pointermove', e => { if (!pts.has(e.pointerId)) return; onPt(e); if (pinch && pts.size === 2) setZoom(pinch.z * pdist() / pinch.d); });
   const ptUp = e => { pts.delete(e.pointerId); if (pts.size < 2) pinch = null; };
