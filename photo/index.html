@@ -171,7 +171,7 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = '2026-10-05c';
+const PHOTO_VER = '2026-10-05d';
 async function checkVer() {
   try {
     const t = await (await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' })).text();
@@ -710,8 +710,18 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   const stepsEl = el('div', { class: 'steps' });
   const jobMemo = i => [JOB.kind, JOB.steps[i] || ('추가 ' + (i - JOB.steps.length + 1))].filter(Boolean).join(' — ');
   const drawSteps = () => { if (!JOB) return; vals.memo = jobMemo(jobAt);
-    stepsEl.replaceChildren(...JOB.steps.map((t, i) => el('button', { class: i === jobAt ? 'now' : jobCnt[i] ? 'done' : '', onclick: () => { jobAt = i; drawSteps(); } }, (i + 1) + ' ' + t + (jobCnt[i] ? ' · ' + jobCnt[i] + '장' : ''))),
-      jobAt < JOB.steps.length - 1 ? el('button', { class: 'next', onclick: () => { jobAt++; drawSteps(); toast(`이제 '${JOB.steps[jobAt]}' 을 찍어요`); } }, '다음 ›') : null); };
+    // 2026-10-05 사용자: 찍을 순서를 미리 정하는 건 불편 — 칸 이름은 '고르는 단추'. 순서와 상관없이 지금 찍는 사진의 칸을 누르면 되고,
+    // 안 누르면 직전 칸으로 계속 들어간다. 정리(칸 순서)는 사진대지가 한다. [+ 칸] 으로 그 자리에서 칸을 더한다
+    stepsEl.replaceChildren(...JOB.steps.map((t, i) => el('button', { class: i === jobAt ? 'now' : jobCnt[i] ? 'done' : '', onclick: () => { jobAt = i; drawSteps(); } }, t + (jobCnt[i] ? ' · ' + jobCnt[i] : ''))),
+      el('button', { class: 'next', onclick: addStep }, '+ 칸')); };
+  const addStep = () => {
+    const inp = el('input', { type: 'text', maxlength: 12, placeholder: '예: 승강장 버튼' });
+    const bg = el('div', { class: 'sheet-bg', onclick: e => { if (e.target === bg) bg.remove(); } });
+    const ok = () => { const t = inp.value.trim(); bg.remove(); if (!t) return; JOB.steps.push(t); jobCnt.push(0); jobAt = JOB.steps.length - 1; drawSteps(); jobPost({ t: 'job-steps', steps: JOB.steps }); };
+    inp.onkeydown = e => { if (e.key === 'Enter') ok(); };
+    bg.append(el('div', { class: 'sheet' }, el('h2', { text: '칸 더하기' }), el('label', { class: 'f' }, '칸 이름', inp), el('button', { class: 'big pri', onclick: ok }, '더하기')));
+    document.body.append(bg); setTimeout(() => inp.focus(), 50);
+  };
   if (JOB) { vals.title = JOB.name || ''; vals.who = JOB.who || ''; drawSteps(); }
   const chips = el('div', { class: 'chips' });
   let setBtn = null;
@@ -820,7 +830,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
         // 2026-10-05 사용자: 한 차례에 여러 장 — 저장해도 차례는 그대로. 다음 차례는 위의 [다음 ›] 이나 차례 이름을 눌러서.
         // 앱을 닫아도 찍은 사진은 앱이 바로 보관하고, 다시 열면 이어서 찍는다(JOB.at · JOB.counts)
         jobCnt[jobAt] = (jobCnt[jobAt] || 0) + 1; drawSteps(); drawLeft();
-        toast(`${JOB.steps[jobAt] || '추가'} ${jobCnt[jobAt]}장 — 더 찍거나, 위의 [다음 ›]`);
+        toast(`${JOB.steps[jobAt] || '추가'} ${jobCnt[jobAt]}장 — 다른 칸은 위에서 누르세요`);
       }
     };
     const drop = () => { close(); toast('지웠어요. 다시 찍어 주세요'); };
