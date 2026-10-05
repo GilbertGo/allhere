@@ -171,7 +171,7 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = '2026-10-05b';
+const PHOTO_VER = '2026-10-05c';
 async function checkVer() {
   try {
     const t = await (await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' })).text();
@@ -816,7 +816,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
       close(); toast(`저장했어요 (사진첩 > 다운로드) · 찍은 사진 ${shots.length}장`);
       if (JOB && f) {
         const data = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(f); });
-        jobPost({ t: 'job-shot', step: jobAt, cap: JOB.steps[jobAt] || '', name: f.name, data });
+        jobPost({ t: 'job-shot', step: jobAt, cap: JOB.steps[jobAt] || '', place: p.place && p.place !== EX.place ? p.place : '', date: p.date || '', name: f.name, data });   // 위치 · 날짜도 — 앱이 사진마다 날짜 · 공종 · 장소별로 모아 보게
         // 2026-10-05 사용자: 한 차례에 여러 장 — 저장해도 차례는 그대로. 다음 차례는 위의 [다음 ›] 이나 차례 이름을 눌러서.
         // 앱을 닫아도 찍은 사진은 앱이 바로 보관하고, 다시 열면 이어서 찍는다(JOB.at · JOB.counts)
         jobCnt[jobAt] = (jobCnt[jobAt] || 0) + 1; drawSteps(); drawLeft();
