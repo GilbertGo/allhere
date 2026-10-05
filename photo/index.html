@@ -159,6 +159,15 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 .cam .steps button{background:rgba(0,0,0,.5);color:rgba(255,255,255,.75);border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:6px 11px;font-size:13px;font-weight:600}
 .cam .steps button.now{background:#2563EB;border-color:#2563EB;color:#fff}
 .cam .steps button.done{background:rgba(255,255,255,.92);color:#1D1712;border-color:transparent}
+.cam .steps.pair{flex-direction:column;flex-wrap:nowrap;align-items:stretch;max-height:42%;overflow:auto}
+.cam .steps.pair button{text-align:left;border-radius:12px;display:flex;gap:6px;align-items:center}
+.cam .steps.pair button .t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cam .steps.pair button .m{font-size:11px;font-weight:800;padding:1px 6px;border-radius:999px;background:rgba(255,255,255,.18)}
+.cam .steps.pair button .m.y{background:#fff;color:#111}
+.cam .steps.pair button.next{align-self:flex-start;border-radius:999px}
+.cam .ph2{position:absolute;left:50%;bottom:58px;transform:translateX(-50%);display:flex;background:rgba(0,0,0,.5);border-radius:999px;padding:3px;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.cam .ph2 button{white-space:nowrap;padding:8px 16px;border-radius:999px;font-size:14px;font-weight:800;color:rgba(255,255,255,.8);background:transparent}
+.cam .ph2 button.on.b{background:#DC2626;color:#fff}.cam .ph2 button.on.a{background:#2563EB;color:#fff}
 .cam .shots{position:absolute;left:12px;bottom:12px;background:rgba(0,0,0,.55);color:#fff;border-radius:999px;font-size:13px;font-weight:700;padding:5px 11px}
 @media (max-height:700px){.panel{max-height:28vh}.home h1{font-size:26px}.big{height:56px}input[type=text]{height:40px}.acts .big{height:48px}label.f{font-size:12px}}
 </style>
@@ -172,7 +181,7 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = '2026-10-05h';
+const PHOTO_VER = '2026-10-06a';
 async function checkVer() {
   try {
     const t = await (await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' })).text();
@@ -712,22 +721,40 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   const ghostP = () => Object.assign({ date: fmtDate(new Date()), place: cfg.mode === 'fire' ? lastOr('place') : (placeNow || EX.place) }, typeof perDefaults === 'function' ? perDefaults() : {}, camVals);
   here.then(h => h && placeName(h.lat, h.lng).then(n => { if (n) placeNow = n; }));
   const shotsEl = el('div', { class: 'shots', style: 'display:none' });
-  let jobAt = JOB ? Math.min(JOB.at || 0, JOB.steps.length - 1) : 0;   // 작업 모드: 지금 찍을 차례(JOB.steps 번호). 이어서 찍을 때는 앱이 준 차례부터
+  let jobAt = JOB ? Math.max(0, Math.min(JOB.at || 0, JOB.steps.length - 1)) : 0;   // 작업 모드: 지금 찍을 차례(JOB.steps 번호). 이어서 찍을 때는 앱이 준 차례부터
+  // 조치 전·후(2026-10-06 사용자 승인 시안): 칸 = 지적사항(보수 항목). 사진마다 조치 전 / 조치 후. 앱이 사진대지에서 짝을 지어 준다
+  const PAIR = !!(JOB && JOB.format === 'pair');
+  const PL = Object.assign({ b: '조치 전', a: '조치 후', item: '지적사항', ex: '예: B1 방재실 감지기 탈락' }, (JOB && JOB.pl) || {});
+  const pairCnt = PAIR ? JOB.steps.map((_, i) => Object.assign({ b: 0, a: 0 }, (JOB.pc && JOB.pc[i]) || {})) : [];
+  let jobPh = PAIR && pairCnt[jobAt] && pairCnt[jobAt].b && !pairCnt[jobAt].a ? 'a' : 'b';
   const jobCnt = JOB ? JOB.steps.map((_, i) => (JOB.counts && JOB.counts[i]) || 0) : [];   // 차례마다 찍은 장 수(지난번에 찍은 것 포함)
   const jobTotal = () => jobCnt.reduce((a, b) => a + b, 0);
   const stepsEl = el('div', { class: 'steps' });
-  const jobMemo = i => [JOB.kind, JOB.steps[i] || ('추가 ' + (i - JOB.steps.length + 1))].filter(Boolean).join(' — ');
+  const jobMemo = i => PAIR ? [JOB.steps[i] || '', PL[jobPh]].filter(Boolean).join(' · ') : [JOB.kind, JOB.steps[i] || ('추가 ' + (i - JOB.steps.length + 1))].filter(Boolean).join(' — ');
+  const phEl = el('div', { class: 'ph2' });
+  const drawPh = () => { if (!PAIR) return; phEl.replaceChildren(...['b', 'a'].map(k => el('button', { class: k + (jobPh === k ? ' on' : ''), onclick: () => { jobPh = k; drawSteps(); } }, PL[k]))); };
+  const pickItem = i => { jobAt = i; const n = pairCnt[i] || { b: 0, a: 0 }; jobPh = !n.b ? 'b' : !n.a ? 'a' : jobPh; drawSteps(); };
   const drawSteps = () => { if (!JOB) return; vals.memo = jobMemo(jobAt);
     // 2026-10-05 사용자: 찍을 순서를 미리 정하는 건 불편 — 칸 이름은 '고르는 단추'. 순서와 상관없이 지금 찍는 사진의 칸을 누르면 되고,
     // 안 누르면 직전 칸으로 계속 들어간다. 정리(칸 순서)는 사진대지가 한다. [+ 칸] 으로 그 자리에서 칸을 더한다
+    if (PAIR) {   // 지적사항 줄 — 번호 · 내용 · 전 ✓ · 후 ✓. 누르면 그 지적사항으로(조치 전이 있으면 조치 후로)
+      stepsEl.classList.add('pair'); drawPh();
+      stepsEl.replaceChildren(...JOB.steps.map((t, i) => { const n = pairCnt[i] || { b: 0, a: 0 };
+        return el('button', { class: i === jobAt ? 'now' : '', onclick: () => pickItem(i) }, el('span', { class: 't' }, (i + 1) + ' · ' + t),
+          el('span', { class: 'm' + (n.b ? ' y' : '') }, '전' + (n.b ? ' ✓' : '')), el('span', { class: 'm' + (n.a ? ' y' : '') }, '후' + (n.a ? ' ✓' : ''))); }),
+        el('button', { class: 'next', onclick: addStep }, '+ ' + PL.item + (SR ? ' (말로도)' : '')));
+      return;
+    }
     stepsEl.replaceChildren(...JOB.steps.map((t, i) => el('button', { class: i === jobAt ? 'now' : jobCnt[i] ? 'done' : '', onclick: () => { jobAt = i; drawSteps(); } }, t + (jobCnt[i] ? ' · ' + jobCnt[i] : ''))),
       el('button', { class: 'next', onclick: addStep }, '+ 칸')); };
   const addStep = () => {
-    const inp = el('input', { type: 'text', maxlength: 12, placeholder: '예: 승강장 버튼' });
+    const inp = el('input', { type: 'text', maxlength: PAIR ? 60 : 12, placeholder: PAIR ? PL.ex : '예: 승강장 버튼' });
     const bg = el('div', { class: 'sheet-bg', onclick: e => { if (e.target === bg) bg.remove(); } });
-    const ok = () => { const t = inp.value.trim(); bg.remove(); if (!t) return; JOB.steps.push(t); jobCnt.push(0); jobAt = JOB.steps.length - 1; drawSteps(); jobPost({ t: 'job-steps', steps: JOB.steps }); };
+    const ok = () => { const t = inp.value.trim(); bg.remove(); if (!t) return; JOB.steps.push(t); jobCnt.push(0); if (PAIR) { pairCnt.push({ b: 0, a: 0 }); jobPh = 'b'; } jobAt = JOB.steps.length - 1; drawSteps(); jobPost({ t: 'job-steps', steps: JOB.steps }); };
     inp.onkeydown = e => { if (e.key === 'Enter') ok(); };
-    bg.append(el('div', { class: 'sheet' }, el('h2', { text: '칸 더하기' }), el('label', { class: 'f' }, '칸 이름', inp), el('button', { class: 'big pri', onclick: ok }, '더하기')));
+    bg.append(el('div', { class: 'sheet' }, el('h2', { text: PAIR ? PL.item + ' 더하기' : '칸 더하기' }),
+      PAIR ? el('div', { class: 'hint', style: 'text-align:left', text: '어디의 무엇이 어떤지 한 줄로 — 사진대지의 ' + PL.item + ' 줄이 돼요' }) : null,
+      el('label', { class: 'f' }, PAIR ? PL.item : '칸 이름', PAIR && SR ? el('div', { class: 'inrow' }, inp, micBtn(inp, { label: PL.item })) : inp), el('button', { class: 'big pri', onclick: ok }, '더하기')));
     document.body.append(bg); setTimeout(() => inp.focus(), 50);
   };
   if (JOB) { vals.title = JOB.name || ''; vals.who = JOB.who || ''; drawSteps(); }
@@ -859,6 +886,16 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
       close(); toast(`저장했어요 (사진첩 > 다운로드) · 찍은 사진 ${shots.length}장`);
       if (JOB && f) {
         const data = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(f); });
+        if (PAIR && !JOB.steps.length) { JOB.steps.push(PL.item + ' 1'); jobCnt.push(0); pairCnt.push({ b: 0, a: 0 }); jobAt = 0; jobPost({ t: 'job-steps', steps: JOB.steps }); }   // 지적사항을 안 적고 찍었으면 '지적사항 1' — 사진대지에서 고친다
+        if (PAIR) {
+          jobPost({ t: 'job-shot', step: jobAt, ph: jobPh, cap: '', place: p.place && p.place !== EX.place ? p.place : '', date: p.date || '', name: f.name, data });
+          pairCnt[jobAt][jobPh]++; jobCnt[jobAt] = (jobCnt[jobAt] || 0) + 1;
+          const n = pairCnt[jobAt], no = jobAt + 1;
+          if (jobPh === 'b' && !n.a) toast(no + '번 ' + PL.b + ' 찍음 — 고친 뒤 같은 자리에서 [' + PL.a + ']');
+          else if (jobPh === 'a') toast(no + '번 ' + PL.a + ' 찍음 — 다음은 [+ ' + PL.item + '] 또는 남은 번호를 눌러요');
+          drawSteps(); drawLeft();
+          return;
+        }
         jobPost({ t: 'job-shot', step: jobAt, cap: JOB.steps[jobAt] || '', place: p.place && p.place !== EX.place ? p.place : '', date: p.date || '', name: f.name, data });   // 위치 · 날짜도 — 앱이 사진마다 날짜 · 공종 · 장소별로 모아 보게
         // 2026-10-05 사용자: 한 차례에 여러 장 — 저장해도 차례는 그대로. 다음 차례는 위의 [다음 ›] 이나 차례 이름을 눌러서.
         // 앱을 닫아도 찍은 사진은 앱이 바로 보관하고, 다시 열면 이어서 찍는다(JOB.at · JOB.counts)
@@ -934,7 +971,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   camClose = stop;
   const view = el('div', { class: 'view' }, video, ov,
       el('button', { class: 'gear', 'aria-label': '설정', onclick: openSet }, ui('sliders', 20)),
-      zoomEl, window.ReactNativeWebView && !window.__nativeCam ? null : el('button', { class: 'ncam', onclick: nativeShot }, ui('camera', 16), '기본 카메라\n광학줌 · 고화질'), nIn, JOB ? stepsEl : null);
+      zoomEl, PAIR ? phEl : null, window.ReactNativeWebView && !window.__nativeCam ? null : el('button', { class: 'ncam', onclick: nativeShot }, ui('camera', 16), '기본 카메라\n광학줌 · 고화질'), nIn, JOB ? stepsEl : null);
   view.addEventListener('pointerdown', e => { onPt(e); if (pts.size === 2) pinch = { d: pdist(), z: zoom }; });
   view.addEventListener('pointermove', e => { if (!pts.has(e.pointerId)) return; onPt(e); if (pinch && pts.size === 2) setZoom(pinch.z * pdist() / pinch.d); });
   const ptUp = e => { pts.delete(e.pointerId); if (pts.size < 2) pinch = null; };
