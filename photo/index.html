@@ -169,6 +169,11 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 .cam .ph2 button{white-space:nowrap;padding:8px 16px;border-radius:999px;font-size:14px;font-weight:800;color:rgba(255,255,255,.8);background:transparent}
 .cam .ph2 button.on.b{background:#DC2626;color:#fff}.cam .ph2 button.on.a{background:#2563EB;color:#fff}
 .optbox{display:flex;flex-direction:column;gap:8px}
+.logopick{display:flex;flex-direction:column;gap:8px}
+.logogrid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.logocell{height:52px;border-radius:12px;background:#fff;box-shadow:var(--shadow);display:flex;align-items:center;justify-content:center;padding:6px 8px;border:2px solid transparent}
+.logocell.on{border-color:var(--accent)}.logocell img{max-height:34px;max-width:100%;object-fit:contain}
+.optbox .inrow{display:flex;gap:6px}.optbox .inrow input{flex:1;min-width:0}
 .logorow{display:flex;align-items:center;gap:8px}.logorow img{height:44px;max-width:120px;object-fit:contain;background:#fff;border-radius:8px;padding:4px;box-shadow:var(--shadow)}
 .review .ck3{display:flex;gap:6px;padding:4px 14px 6px}
 .review .ck3 button{flex:1;height:46px;border-radius:12px;font-size:15px;font-weight:800;border:2px solid transparent}
@@ -563,18 +568,55 @@ function drawLogo(g, W, H, ghost) {
   g.fillStyle = 'rgba(255,255,255,.85)'; g.beginPath(); g.roundRect(x, y, bw, bh, pad * 1.5); g.fill();
   g.drawImage(LOGO, x + pad, y + pad, lw, lh); g.restore();
 }
-function appLogo() {
-  const c = document.createElement('canvas'), H = 120, g = c.getContext('2d');
-  g.font = `800 72px ${FONT}`; const tw = g.measureText('사진통').width;
+// 기본 로고(2026-10-07 고성식 님: 사진통 말고도 몇 가지) — 색 네모 안 흰 그림 + 글자. 그림 파일 없이 그려서 인터넷 없이도 된다
+const GLYPH = {
+  // 사진통 — 카메라 + 문서(2026-10-07 정한 심볼, 참고자료/시안/시안-로고-적용계획.html)
+  app(g, x, y, s, col) { const k = s / 100, R = (a, b, w, h, rr) => { g.beginPath(); g.roundRect(x + a * k, y + b * k, w * k, h * k, rr * k); };
+    g.fillStyle = '#fff'; R(20, 16, 24, 12, 4); g.fill(); R(6, 24, 68, 56, 13); g.fill();
+    g.lineWidth = 5 * k; g.strokeStyle = col; R(56, 30, 38, 52, 7); g.fill(); g.stroke();
+    g.fillStyle = col; [[42, 22], [52, 22], [62, 15]].forEach(([yy, w]) => { R(64, yy, w, 4.5, 2.2); g.fill(); });
+    g.beginPath(); g.arc(x + 35 * k, y + 53 * k, 20 * k, 0, 7); g.fill(); g.fillStyle = '#fff'; g.beginPath(); g.arc(x + 35 * k, y + 53 * k, 13.5 * k, 0, 7); g.fill();
+    g.fillStyle = col; g.beginPath(); g.arc(x + 35 * k, y + 53 * k, 7 * k, 0, 7); g.fill(); },
+  office(g, x, y, s) { const k = s / 100; g.fillStyle = '#fff'; g.beginPath(); g.roundRect(x + 24 * k, y + 14 * k, 52 * k, 74 * k, 5 * k); g.fill();
+    g.fillStyle = 'rgba(0,0,0,.28)'; for (let i = 0; i < 3; i++) for (let j = 0; j < 2; j++) g.fillRect(x + (34 + j * 20) * k, y + (24 + i * 16) * k, 12 * k, 9 * k);
+    g.fillRect(x + 43 * k, y + 70 * k, 14 * k, 18 * k); },
+  facility(g, x, y, s) { const k = s / 100, cx = x + 50 * k, cy = y + 50 * k; g.fillStyle = '#fff';
+    for (let i = 0; i < 8; i++) { g.save(); g.translate(cx, cy); g.rotate(i * Math.PI / 4); g.fillRect(-7 * k, -40 * k, 14 * k, 16 * k); g.restore(); }
+    g.beginPath(); g.arc(cx, cy, 28 * k, 0, 7); g.fill(); g.globalCompositeOperation = 'destination-out'; g.beginPath(); g.arc(cx, cy, 11 * k, 0, 7); g.fill(); g.globalCompositeOperation = 'source-over'; },
+  fire(g, x, y, s) { const k = s / 100, P = (a, b) => [x + a * k, y + b * k]; g.fillStyle = '#fff'; g.beginPath();
+    g.moveTo(...P(50, 10)); g.bezierCurveTo(...P(62, 30), ...P(80, 42), ...P(78, 62)); g.bezierCurveTo(...P(77, 80), ...P(64, 90), ...P(50, 90));
+    g.bezierCurveTo(...P(34, 90), ...P(22, 79), ...P(22, 62)); g.bezierCurveTo(...P(22, 48), ...P(32, 40), ...P(36, 30)); g.bezierCurveTo(...P(40, 40), ...P(44, 44), ...P(48, 44));
+    g.bezierCurveTo(...P(46, 32), ...P(46, 20), ...P(50, 10)); g.fill(); },
+  safety(g, x, y, s, col) { const k = s / 100, P = (a, b) => [x + a * k, y + b * k]; g.fillStyle = '#fff'; g.beginPath();
+    g.moveTo(...P(50, 10)); g.lineTo(...P(82, 22)); g.bezierCurveTo(...P(82, 58), ...P(70, 80), ...P(50, 92)); g.bezierCurveTo(...P(30, 80), ...P(18, 58), ...P(18, 22)); g.closePath(); g.fill();
+    g.strokeStyle = col; g.lineWidth = 9 * k; g.lineCap = 'round'; g.lineJoin = 'round'; g.beginPath(); g.moveTo(...P(35, 50)); g.lineTo(...P(46, 62)); g.lineTo(...P(66, 38)); g.stroke(); },
+  work(g, x, y, s, col) { const k = s / 100, P = (a, b) => [x + a * k, y + b * k]; g.fillStyle = '#fff'; g.beginPath();
+    g.moveTo(...P(50, 10)); g.lineTo(...P(74, 80)); g.lineTo(...P(26, 80)); g.closePath(); g.fill(); g.fillRect(...P(14, 80), 72 * k, 10 * k);
+    g.fillStyle = col; g.fillRect(...P(36, 38), 28 * k, 8 * k); g.fillRect(...P(31, 56), 38 * k, 8 * k); },
+  text(g, x, y, s, col, t) { g.fillStyle = '#fff'; g.font = `900 ${s * 0.56}px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(String(t || '').trim().slice(0, 1), x + s / 2, y + s / 2 + s * 0.03); g.textAlign = 'left'; }
+};
+const LOGOS = [
+  { k: 'app', t: '사진통', col: '#2563EB', hi: '통' },
+  { k: 'office', t: '관리사무소', col: '#1E3A8A' },
+  { k: 'facility', t: '시설관리', col: '#0F766E' },
+  { k: 'fire', t: '소방 점검', col: '#DC2626' },
+  { k: 'safety', t: '안전 점검', col: '#15803D' },
+  { k: 'work', t: '공사 중', col: '#EA580C' }
+];
+// 색 네모(그림) + 글자 — hi 는 글자 중 색을 입힐 끝부분(사진'통')
+function badgeLogo(kind, text, col, hi) {
+  const c = document.createElement('canvas'), H = 120, g = c.getContext('2d'), F = `800 70px ${FONT}`;
+  g.font = F; const tw = g.measureText(text).width;
   c.width = Math.ceil(H + 22 + tw + 8); c.height = H;
-  g.fillStyle = '#2563EB'; g.beginPath(); g.roundRect(0, 0, H, H, 28); g.fill();
-  g.fillStyle = '#fff'; g.beginPath(); g.roundRect(22, 38, 76, 54, 10); g.fill();          // 카메라 몸
-  g.beginPath(); g.roundRect(44, 28, 32, 16, 5); g.fill();                                // 위 볼록
-  g.fillStyle = '#2563EB'; g.beginPath(); g.arc(60, 65, 17, 0, 7); g.fill();               // 렌즈
-  g.fillStyle = '#fff'; g.beginPath(); g.arc(60, 65, 9, 0, 7); g.fill();
-  g.fillStyle = '#111827'; g.font = `800 72px ${FONT}`; g.textBaseline = 'middle'; g.fillText('사진통', H + 22, H / 2 + 4);
+  g.fillStyle = col; g.beginPath(); g.roundRect(0, 0, H, H, 28); g.fill();
+  (GLYPH[kind] || GLYPH.text)(g, 16, 16, H - 32, col, text);
+  g.font = F; g.textBaseline = 'middle';
+  const head = hi && text.endsWith(hi) ? text.slice(0, -hi.length) : text;
+  g.fillStyle = '#111827'; g.fillText(head, H + 22, H / 2 + 4);
+  if (head !== text) { g.fillStyle = col; g.fillText(hi, H + 22 + g.measureText(head).width, H / 2 + 4); }
   return c.toDataURL('image/png');
 }
+const appLogo = () => badgeLogo('app', '사진통', '#2563EB', '통');
 // 원본(보드판 · 로고 없이) 한 장 — 파일 이름 끝 _orig
 async function origFile(p, name) {
   const c = document.createElement('canvas'); c.width = p.W; c.height = p.H; c.getContext('2d').drawImage(p.bmp, 0, 0, p.W, p.H);
@@ -1015,8 +1057,9 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
       } catch { toast('그림을 읽지 못했어요'); }
     } });
     const seg = (items, cur, set) => el('div', { class: 'seg', style: 'flex-wrap:nowrap' }, ...items.map(([k, t]) => el('button', { style: 'flex:1 1 0', class: cur === k ? 'on' : '', onclick: () => { set(k); saveOpt(); draw(); } }, t)));
-    let choose = false;   // 로고 고르는 중 — [사진통 로고] [내 로고 고르기]
-    const useApp = async () => { OPT.logo = appLogo(); OPT.logoKind = 'app'; saveOpt(); await loadLogo(); choose = false; draw(); toast('사진통 로고를 넣었어요'); };
+    let choose = false;   // 로고 고르는 중 — 기본 로고 6가지 · 글자로 만들기 · 내 로고 고르기
+    const useLogo = async (url, kind, msg) => { OPT.logo = url; OPT.logoKind = kind; saveOpt(); await loadLogo(); choose = false; draw(); toast(msg || '로고를 넣었어요'); };
+    const textIn = el('input', { type: 'text', maxlength: 14, placeholder: '예: 대성설비 · 햇살아파트 관리사무소', value: OPT.logoText || '' });
     const pickMine = () => { choose = false; logoIn.click(); };
     const draw = () => box.replaceChildren(
       el('div', { class: 'hint', style: 'text-align:left;margin-bottom:-4px', text: '저장' }),
@@ -1026,10 +1069,13 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
       LOGO && !choose ? el('div', { class: 'logorow' }, el('img', { src: OPT.logo, alt: '로고' }),
           el('button', { class: 'chipbtn', onclick: () => { choose = true; draw(); } }, '바꾸기'),
           el('button', { class: 'chipbtn', onclick: async () => { OPT.logo = ''; OPT.logoKind = ''; saveOpt(); await loadLogo(); draw(); toast('로고를 뺐어요'); } }, '빼기'))
-        : el('div', { class: 'seg', style: 'flex-wrap:nowrap' },
-            el('button', { style: 'flex:1 1 0', class: OPT.logoKind === 'app' && LOGO ? 'on' : '', onclick: useApp }, '사진통 로고'),
-            el('button', { style: 'flex:1 1 0', class: OPT.logoKind === 'mine' && LOGO ? 'on' : '', onclick: pickMine }, '내 로고 고르기')),
-      !LOGO || choose ? el('div', { class: 'hint', style: 'text-align:left;margin-top:-2px', text: '내 로고: 업체 · 관리사무소 로고 그림(사진 · PNG). 모든 사진에 들어가요' }) : null,
+        : el('div', { class: 'logopick' },
+            el('div', { class: 'logogrid' }, ...LOGOS.map(L => { const url = badgeLogo(L.k, L.t, L.col, L.hi);
+              return el('button', { class: 'logocell' + (OPT.logoKind === L.k && LOGO ? ' on' : ''), onclick: () => useLogo(url, L.k, L.t + ' 로고를 넣었어요') }, el('img', { src: url, alt: L.t })); })),
+            el('div', { class: 'hint', style: 'text-align:left;margin:2px 0 -2px', text: '글자로 만들기 — 업체 · 관리사무소 이름' }),
+            el('div', { class: 'inrow' }, textIn, el('button', { class: 'chipbtn', onclick: () => { const t = textIn.value.trim(); if (!t) { textIn.focus(); return; } OPT.logoText = t; useLogo(badgeLogo('text', t, '#2563EB'), 'text', '글자 로고를 만들었어요'); } }, '만들기')),
+            el('button', { class: 'big sec', onclick: pickMine }, '내 로고 고르기 (그림 · 사진)')),
+      !LOGO || choose ? el('div', { class: 'hint', style: 'text-align:left;margin-top:-2px', text: '고른 로고는 모든 사진에 들어가요 · 위치와 크기는 넣은 뒤에 골라요' }) : null,
       LOGO ? seg([['br', '오른쪽 아래'], ['tr', '오른쪽 위'], ['bl', '왼쪽 아래']], OPT.logoPos, v => { OPT.logoPos = v; }) : null,
       LOGO ? seg([[0.7, '작게'], [1, '보통'], [1.4, '크게']], OPT.logoSize, v => { OPT.logoSize = v; }) : null,
       logoIn);
