@@ -196,7 +196,7 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = '2026-10-07b';
+const PHOTO_VER = '2026-10-07c';
 async function checkVer() {
   try {
     const t = await (await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' })).text();
@@ -628,7 +628,7 @@ const download = f => { const url = URL.createObjectURL(f), a = el('a', { href: 
 
 function drawNote(g, img, W, H, note, ghost) {
   if (img) g.drawImage(img, 0, 0, W, H); else g.clearRect(0, 0, W, H);
-  drawLogo(g, W, H, ghost);
+  // 로고는 사진에 넣지 않는다(2026-10-07 고성식 님: 사진마다 로고는 이상하다 · 보드판에도 넣지 마) — drawLogo · 기본 로고 그리기는 남겨 두되 부르지 않는다
   if (note.layout === 'none') return null;   // 표 없음: 사진만
   if (!note.title && !note.rows.some(r => r.value) && !['table', 'tableH', 'table2'].includes(note.layout)) return null;
   if (!note.title && !note.rows.length) return null;
@@ -1066,19 +1066,6 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
       el('div', { class: 'hint', style: 'text-align:left;margin-bottom:-4px', text: '저장' }),
       el('button', { class: 'big sec', onclick: () => { OPT.orig = !OPT.orig; saveOpt(); draw(); } }, OPT.orig ? '보드판 없는 원본도 함께 저장: 켬' : '보드판 없는 원본도 함께 저장: 끔'),
       el('div', { class: 'hint', style: 'text-align:left;margin:-2px 0 2px', text: '켜면 저장할 때마다 원본이 한 장 더 저장돼요(파일 이름 끝 _orig)' }),
-      el('div', { class: 'hint', style: 'text-align:left;margin-bottom:-4px', text: '로고 (업체 · 관리사무소)' }),
-      LOGO && !choose ? el('div', { class: 'logorow' }, el('img', { src: OPT.logo, alt: '로고' }),
-          el('button', { class: 'chipbtn', onclick: () => { choose = true; draw(); } }, '바꾸기'),
-          el('button', { class: 'chipbtn', onclick: async () => { OPT.logo = ''; OPT.logoKind = ''; saveOpt(); await loadLogo(); draw(); toast('로고를 뺐어요'); } }, '빼기'))
-        : el('div', { class: 'logopick' },
-            el('div', { class: 'logogrid' }, ...LOGOS.map(L => { const url = badgeLogo(L.k, L.t, L.col, L.hi);
-              return el('button', { class: 'logocell' + (OPT.logoKind === L.k && LOGO ? ' on' : ''), onclick: () => useLogo(url, L.k, L.t + ' 로고를 넣었어요') }, el('img', { src: url, alt: L.t })); })),
-            el('div', { class: 'hint', style: 'text-align:left;margin:2px 0 -2px', text: '글자로 만들기 — 업체 · 관리사무소 이름' }),
-            el('div', { class: 'inrow' }, textIn, el('button', { class: 'chipbtn', onclick: () => { const t = textIn.value.trim(); if (!t) { textIn.focus(); return; } OPT.logoText = t; useLogo(badgeLogo('text', t, '#2563EB'), 'text', '글자 로고를 만들었어요'); } }, '만들기')),
-            el('button', { class: 'big sec', onclick: pickMine }, '내 로고 고르기 (그림 · 사진)')),
-      !LOGO || choose ? el('div', { class: 'hint', style: 'text-align:left;margin-top:-2px', text: '고른 로고는 모든 사진에 들어가요 · 위치와 크기는 넣은 뒤에 골라요' }) : null,
-      LOGO ? seg([['br', '오른쪽 아래'], ['tr', '오른쪽 위'], ['bl', '왼쪽 아래']], OPT.logoPos, v => { OPT.logoPos = v; }) : null,
-      LOGO ? seg([[0.7, '작게'], [1, '보통'], [1.4, '크게']], OPT.logoSize, v => { OPT.logoSize = v; }) : null,
       logoIn);
     draw(); return box;
   };
