@@ -168,6 +168,8 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 .cam .ph2{position:absolute;left:50%;bottom:58px;transform:translateX(-50%);display:flex;background:rgba(0,0,0,.5);border-radius:999px;padding:3px;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
 .cam .ph2 button{white-space:nowrap;padding:8px 16px;border-radius:999px;font-size:14px;font-weight:800;color:rgba(255,255,255,.8);background:transparent}
 .cam .ph2 button.on.b{background:#DC2626;color:#fff}.cam .ph2 button.on.a{background:#2563EB;color:#fff}
+.optbox{display:flex;flex-direction:column;gap:8px}
+.logorow{display:flex;align-items:center;gap:8px}.logorow img{height:44px;max-width:120px;object-fit:contain;background:#fff;border-radius:8px;padding:4px;box-shadow:var(--shadow)}
 .review .ck3{display:flex;gap:6px;padding:4px 14px 6px}
 .review .ck3 button{flex:1;height:46px;border-radius:12px;font-size:15px;font-weight:800;border:2px solid transparent}
 .review .ck3 .ok{background:#DCFCE7;color:#15803D}.review .ck3 .ng{background:#FEE2E2;color:#B91C1C}.review .ck3 .fx{background:#DBEAFE;color:#1D4ED8}
@@ -188,7 +190,7 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = '2026-10-06d';
+const PHOTO_VER = '2026-10-07a';
 async function checkVer() {
   try {
     const t = await (await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' })).text();
@@ -545,8 +547,45 @@ function measureNote(g, note, W, H) {
   } };
 }
 // 사진(img, 없으면 투명) 위에 글상자를 그리고, 그린 자리 {x,y,w,h}를 돌려줘요. ghost면 흐릿하게(찍기 전 미리보기)
+// 2026-10-07 고성식 님(동산보드판과 비교): ① 보드판 없는 원본도 함께 저장 ② 사진에 로고(업체 · 관리사무소)
+//   opt = { orig: 원본도 저장, logo: 로고 그림(dataURL, 긴 변 400), logoPos: 'br'|'tr'|'bl', logoSize: 0.7|1|1.4 } — 휴대폰에 기억
+const OPT = Object.assign({ orig: false, logo: '', logoPos: 'br', logoSize: 1 }, ls.get('opt', {}));
+const saveOpt = () => ls.set('opt', OPT);
+let LOGO = null;
+const loadLogo = () => new Promise(res => { if (!OPT.logo) { LOGO = null; return res(); } const im = new Image(); im.onload = () => { LOGO = im; res(); }; im.onerror = () => { LOGO = null; res(); }; im.src = OPT.logo; });
+loadLogo();
+function drawLogo(g, W, H, ghost) {
+  if (!LOGO || !LOGO.width) return;
+  const u = Math.min(W, H), lw = u * 0.15 * (OPT.logoSize || 1), lh = lw * LOGO.height / LOGO.width, pad = u * 0.012, m = u * 0.03;
+  const bw = lw + pad * 2, bh = lh + pad * 2, pos = OPT.logoPos || 'br';
+  const x = pos === 'bl' ? m : W - bw - m, y = pos === 'tr' ? m : H - bh - m;
+  g.save(); if (ghost) g.globalAlpha = 0.6;
+  g.fillStyle = 'rgba(255,255,255,.85)'; g.beginPath(); g.roundRect(x, y, bw, bh, pad * 1.5); g.fill();
+  g.drawImage(LOGO, x + pad, y + pad, lw, lh); g.restore();
+}
+function appLogo() {
+  const c = document.createElement('canvas'), H = 120, g = c.getContext('2d');
+  g.font = `800 72px ${FONT}`; const tw = g.measureText('사진통').width;
+  c.width = Math.ceil(H + 22 + tw + 8); c.height = H;
+  g.fillStyle = '#2563EB'; g.beginPath(); g.roundRect(0, 0, H, H, 28); g.fill();
+  g.fillStyle = '#fff'; g.beginPath(); g.roundRect(22, 38, 76, 54, 10); g.fill();          // 카메라 몸
+  g.beginPath(); g.roundRect(44, 28, 32, 16, 5); g.fill();                                // 위 볼록
+  g.fillStyle = '#2563EB'; g.beginPath(); g.arc(60, 65, 17, 0, 7); g.fill();               // 렌즈
+  g.fillStyle = '#fff'; g.beginPath(); g.arc(60, 65, 9, 0, 7); g.fill();
+  g.fillStyle = '#111827'; g.font = `800 72px ${FONT}`; g.textBaseline = 'middle'; g.fillText('사진통', H + 22, H / 2 + 4);
+  return c.toDataURL('image/png');
+}
+// 원본(보드판 · 로고 없이) 한 장 — 파일 이름 끝 _orig
+async function origFile(p, name) {
+  const c = document.createElement('canvas'); c.width = p.W; c.height = p.H; c.getContext('2d').drawImage(p.bmp, 0, 0, p.W, p.H);
+  const b = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.92));
+  return b ? new File([b], name.replace(/\.jpg$/, '_orig.jpg'), { type: 'image/jpeg' }) : null;
+}
+const download = f => { const url = URL.createObjectURL(f), a = el('a', { href: url, download: f.name }); document.body.append(a); a.click(); setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 30000); };
+
 function drawNote(g, img, W, H, note, ghost) {
   if (img) g.drawImage(img, 0, 0, W, H); else g.clearRect(0, 0, W, H);
+  drawLogo(g, W, H, ghost);
   if (note.layout === 'none') return null;   // 표 없음: 사진만
   if (!note.title && !note.rows.some(r => r.value) && !['table', 'tableH', 'table2'].includes(note.layout)) return null;
   if (!note.title && !note.rows.length) return null;
@@ -901,8 +940,9 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     const keep = async () => {   // 저장: 휴대폰에 내려받고, 찍은 사진 목록(보내기·사진대지용)에도 넣어요
       if (p.aiP && !p.aiDone) { msg.textContent = 'AI가 다 쓰면 저장할게요…'; await p.aiP; }
       saveCfg(); rememberPer(p); p.saved = true; p.sig = sigOf(p); shots.push(p); thumb = null; drawLeft();
-      const [f] = await render([p]); if (f) { const url = URL.createObjectURL(f), a = el('a', { href: url, download: f.name }); document.body.append(a); a.click(); setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 30000); }
-      close(); toast(`저장했어요 (사진첩 > 다운로드) · 찍은 사진 ${shots.length}장`);
+      const [f] = await render([p]); if (f) download(f);
+      if (f && OPT.orig) { const o = await origFile(p, f.name); if (o) { await new Promise(r => setTimeout(r, 400)); download(o); } }
+      close(); toast(`저장했어요${OPT.orig ? '(원본도)' : ''} (사진첩 > 다운로드) · 찍은 사진 ${shots.length}장`);
       if (JOB && f) {
         const data = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(f); });
         if (PAIR && !JOB.steps.length) { JOB.steps.push(PL.item + ' 1'); jobCnt.push(0); pairCnt.push({ b: 0, a: 0 }); jobAt = 0; jobPost({ t: 'job-steps', steps: JOB.steps }); }   // 지적사항을 안 적고 찍었으면 '지적사항 1' — 사진대지에서 고친다
@@ -963,11 +1003,44 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     if (JOB) { const n = jobTotal(); leftBtn.textContent = n ? `다 찍음\n사진대지 (${n}장)` : '처음으로'; leftBtn.onclick = () => jobPost({ t: n ? 'job-done' : 'job-back' }); } };
   drawLeft();
   // 설정(예전 첫 화면에 있던 것): AI로 채우기 설정 · 두드림 감도
+  // 설정 › 저장 · 로고(2026-10-07) — 원본도 함께 저장 켬/끔, 로고 넣기 · 바꾸기 · 빼기 · 위치 · 크기
+  const optBox = () => {
+    const box = el('div', { class: 'optbox' });
+    const logoIn = el('input', { type: 'file', accept: 'image/*', style: 'display:none', onchange: async () => {
+      const f = logoIn.files && logoIn.files[0]; logoIn.value = ''; if (!f) return;
+      try {
+        const bmp = await createImageBitmap(f), k = Math.min(1, 400 / Math.max(bmp.width, bmp.height)), cv = document.createElement('canvas');
+        cv.width = Math.round(bmp.width * k); cv.height = Math.round(bmp.height * k); cv.getContext('2d').drawImage(bmp, 0, 0, cv.width, cv.height);
+        OPT.logo = cv.toDataURL('image/png'); OPT.logoKind = 'mine'; saveOpt(); await loadLogo(); draw(); toast('로고를 넣었어요 — 모든 사진에 들어가요');
+      } catch { toast('그림을 읽지 못했어요'); }
+    } });
+    const seg = (items, cur, set) => el('div', { class: 'seg', style: 'flex-wrap:nowrap' }, ...items.map(([k, t]) => el('button', { style: 'flex:1 1 0', class: cur === k ? 'on' : '', onclick: () => { set(k); saveOpt(); draw(); } }, t)));
+    let choose = false;   // 로고 고르는 중 — [사진통 로고] [내 로고 고르기]
+    const useApp = async () => { OPT.logo = appLogo(); OPT.logoKind = 'app'; saveOpt(); await loadLogo(); choose = false; draw(); toast('사진통 로고를 넣었어요'); };
+    const pickMine = () => { choose = false; logoIn.click(); };
+    const draw = () => box.replaceChildren(
+      el('div', { class: 'hint', style: 'text-align:left;margin-bottom:-4px', text: '저장' }),
+      el('button', { class: 'big sec', onclick: () => { OPT.orig = !OPT.orig; saveOpt(); draw(); } }, OPT.orig ? '보드판 없는 원본도 함께 저장: 켬' : '보드판 없는 원본도 함께 저장: 끔'),
+      el('div', { class: 'hint', style: 'text-align:left;margin:-2px 0 2px', text: '켜면 저장할 때마다 원본이 한 장 더 저장돼요(파일 이름 끝 _orig)' }),
+      el('div', { class: 'hint', style: 'text-align:left;margin-bottom:-4px', text: '로고 (업체 · 관리사무소)' }),
+      LOGO && !choose ? el('div', { class: 'logorow' }, el('img', { src: OPT.logo, alt: '로고' }),
+          el('button', { class: 'chipbtn', onclick: () => { choose = true; draw(); } }, '바꾸기'),
+          el('button', { class: 'chipbtn', onclick: async () => { OPT.logo = ''; OPT.logoKind = ''; saveOpt(); await loadLogo(); draw(); toast('로고를 뺐어요'); } }, '빼기'))
+        : el('div', { class: 'seg', style: 'flex-wrap:nowrap' },
+            el('button', { style: 'flex:1 1 0', class: OPT.logoKind === 'app' && LOGO ? 'on' : '', onclick: useApp }, '사진통 로고'),
+            el('button', { style: 'flex:1 1 0', class: OPT.logoKind === 'mine' && LOGO ? 'on' : '', onclick: pickMine }, '내 로고 고르기')),
+      !LOGO || choose ? el('div', { class: 'hint', style: 'text-align:left;margin-top:-2px', text: '내 로고: 업체 · 관리사무소 로고 그림(사진 · PNG). 모든 사진에 들어가요' }) : null,
+      LOGO ? seg([['br', '오른쪽 아래'], ['tr', '오른쪽 위'], ['bl', '왼쪽 아래']], OPT.logoPos, v => { OPT.logoPos = v; }) : null,
+      LOGO ? seg([[0.7, '작게'], [1, '보통'], [1.4, '크게']], OPT.logoSize, v => { OPT.logoSize = v; }) : null,
+      logoIn);
+    draw(); return box;
+  };
   const openSet = () => {
     const bg = el('div', { class: 'sheet-bg', onclick: e => { if (e.target === bg) bg.remove(); } });
     bg.append(el('div', { class: 'sheet' }, el('h2', { text: '설정' }),
       el('div', { class: 'hint', style: 'text-align:left;margin-bottom:-4px', text: '사진 비율' }),
       el('div', { class: 'seg', style: 'flex-wrap:nowrap' }, ...RATIOS.map(([k]) => el('button', { style: 'flex:1 1 0', class: ratioKey() === k ? 'on' : '', onclick: e => { ls.set('ratio', k); e.currentTarget.parentNode.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === e.currentTarget)); } }, k === '4:3' ? '4:3 (기본)' : k))),
+      optBox(),
       el('button', { class: 'big sec', onclick: () => { bg.remove(); openAiSettings(); } }, aiReady() ? 'AI로 채우기: 켜짐 (설정)' : 'AI로 채우기 설정'),
       el('button', { class: 'big sec', onclick: () => { bg.remove(); knockTest(); } }, '두드림 · 말소리 시험 (감도 맞추기)'),
       el('div', { class: 'hint', style: 'text-align:left', text: '음성 입력: 장갑을 낀 채 휴대폰을 똑똑똑 세 번 두드려도 켜져요(말로 글을 채우고 "찍어"로 찍기). 다시 똑똑똑 하면 꺼져요. 사진은 휴대폰 안에서만 만들어져요.' }),
@@ -1442,7 +1515,9 @@ async function gloveMode() {
   async function saveCur() {
     const c = document.createElement('canvas'); c.width = cur.W; c.height = cur.H; drawNote(c.getContext('2d'), cur.bmp, cur.W, cur.H, noteFor(cur));
     const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.9)); const now = new Date();
-    if (blob) { const url = URL.createObjectURL(blob), a = el('a', { href: url, download: `photo_${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}.jpg` }); document.body.append(a); a.click(); setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 30000); }
+    const gname = `photo_${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}.jpg`;
+    if (blob) download(new File([blob], gname, { type: 'image/jpeg' }));
+    if (blob && OPT.orig) { const o = await origFile(cur, gname); if (o) { await new Promise(r => setTimeout(r, 400)); download(o); } }
     saved++; cnt.textContent = `${saved}장 저장함`; cur = null; saveCfg();
   }
   async function handle(t) {
@@ -1561,10 +1636,10 @@ async function save() {
   photos.forEach(x => { x.saved = true; x.sig = sigOf(x); });
   saveCfg(); rememberPer(photos[photos.length - 1]);   // 저장할 때의 글·디자인을 다음 기본으로
   const files = await render();
-  for (const f of files) {
-    const url = URL.createObjectURL(f), a = el('a', { href: url, download: f.name }); document.body.append(a); a.click();
-    setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 30000);
+  for (const [i, f] of files.entries()) {
+    download(f);
     await new Promise(r => setTimeout(r, 400));   // 여러 장을 한꺼번에 받으면 막히는 휴대폰이 있어서 조금씩 쉬어요
+    if (OPT.orig && photos[i]) { const o = await origFile(photos[i], f.name); if (o) { download(o); await new Promise(r => setTimeout(r, 400)); } }
   }
   toast(files.length > 1 ? `${files.length}장을 저장했어요 (사진첩 > 다운로드)` : '사진을 저장했어요 (사진첩 > 다운로드)');
 }
