@@ -57,6 +57,7 @@ body:has(.cam) .toast{bottom:auto;top:calc(70px + env(safe-area-inset-top,0px))}
 
 /* 아래 칸: 글 / 모양 / 항목 */
 .etools{display:flex;gap:8px;margin-bottom:10px}
+.tosheet{width:100%;height:52px;border-radius:16px;margin-bottom:8px;font-size:16.5px;font-weight:800;color:#fff;background:#2563EB;display:flex;align-items:center;justify-content:center;gap:8px}
 .etools button{flex:1 1 0;height:62px;border-radius:14px;background:var(--card);border:1px solid rgba(42,33,24,.12);box-shadow:none;font-size:13.5px;font-weight:600;letter-spacing:.01em;color:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}
 .panel.in-sheet{max-height:58vh}
 details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summary{font-weight:700;color:var(--muted);padding:6px 0;cursor:pointer}details.more[open]{display:flex;flex-direction:column;gap:8px}
@@ -201,7 +202,7 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = '2026-10-09a';
+const PHOTO_VER = '2026-10-09b';
 async function checkVer() {
   try {
     const t = await (await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' })).text();
@@ -1310,6 +1311,8 @@ function editor() {
       el('button', { onclick: () => openSheet('text') }, ui('pen'), '글자 수정'),
       el('button', { onclick: () => openSheet('look') }, ui('layout'), '보드 선택'),
       aiReady() ? el('button', { onclick: () => aiFillEditor() }, ui('ai'), 'AI로 채우기') : null),
+    // 2026-10-09 핵심 다듬기: 간편 찍기 → 바로 사진대지(예전엔 홈 › 사진대지 › 빈 칸 › 앨범에서 다시 골라야 했다). 사진통 앱(새 버전) 안에서만
+    window.__toSheet && !JOB ? el('button', { class: 'tosheet', onclick: toSheet }, ui('layout'), '이 사진으로 사진대지 만들기') : null,
     savedNote = el('div', { class: 'savednote', text: '✓ 휴대폰 갤러리에 저장했어요 (Download 앨범) · 글을 고치면 다시 저장할 수 있어요' }),
     el('div', { class: 'acts' },
       el('button', { class: 'big sec', onclick: share }, '보내기'),
@@ -1703,6 +1706,14 @@ async function save() {
     if (OPT.orig && photos[i]) { const o = await origFile(photos[i], f.name); if (o) { download(o); await new Promise(r => setTimeout(r, 400)); } }
   }
   toast(files.length > 1 ? `${files.length}장을 저장했어요 (갤러리 › Download)` : '사진을 저장했어요 (갤러리 › Download)');
+}
+// 보드판을 넣은 사진을 그대로 앱으로 — 앱이 사진대지를 열고 칸에 차례로 넣는다
+async function toSheet() {
+  saveCfg(); rememberPer(photos[photos.length - 1]);
+  toast('사진대지로 옮기는 중…');
+  const files = await render(), out = [];
+  for (const f of files) out.push({ name: f.name, data: await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(f); }) });
+  try { window.ReactNativeWebView.postMessage(JSON.stringify({ t: 'to-sheet', files: out })); } catch {}
 }
 async function share() {
   saveCfg(); rememberPer(photos[photos.length - 1]);
