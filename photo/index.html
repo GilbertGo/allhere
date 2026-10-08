@@ -203,7 +203,7 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = '2026-10-09g';
+const PHOTO_VER = '2026-10-09i';
 async function checkVer() {
   try {
     const t = await (await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' })).text();
@@ -815,7 +815,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   if (camClose) camClose();
   appendNext = photos.length > 0;   // 편집 중에 더 찍으면 지금 사진들에 더해요
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return auto ? homeOld() : camIn.click();   // 안 되는 브라우저는 휴대폰 카메라 앱으로
-  const video = el('video', { autoplay: true, playsinline: true, muted: true }), ov = el('canvas', { class: 'drag', role: 'img', 'aria-label': '보드판 미리보기' });   // 2026-10-09 QA B07: 이름 없는 그림은 읽기 도구에 null 로 보였다
+  const video = el('video', { autoplay: true, playsinline: true, muted: true, 'aria-label': '카메라 화면' }), ov = el('canvas', { class: 'drag', role: 'img', 'aria-label': '보드판 미리보기' });   // 2026-10-09 QA B07: 이름 없는 그림은 읽기 도구에 null 로 보였다
   const shots = [], here = hereNow(); let placeNow = '', box = null;
   const camVals = {};   // 카메라에서 고친 사진마다 칸(일자·위치 등). 이어서 찍는 사진에 같이 들어가요
   const ghostP = () => Object.assign({ date: fmtDate(new Date()), place: cfg.mode === 'fire' ? lastOr('place') : (placeNow || EX.place) }, typeof perDefaults === 'function' ? perDefaults() : {}, camVals);
@@ -1007,7 +1007,9 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
       if (JOB && f) {
         const data = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(f); });
         // 2026-10-09 ChatGPT 시험 B04: 보드판에 적은 내용을 항목 이름 · 사진 설명으로(다시 적지 않게)
-        const bm = (() => { const fd = (cfg.fields || []).find(x => x.id === 'memo') || { id: 'memo' }; const s = String(valOf(p, fd) || '').trim(); return s && s !== EX.memo && s !== JOB.kind && s !== JOB.memo ? s : ''; })();
+        const bm = (() => { const fd = (cfg.fields || []).find(x => x.id === 'memo') || { id: 'memo' }; let s = String(valOf(p, fd) || '').trim();
+          if (PAIR) for (const w of [PL.b, PL.a]) if (w && s.endsWith(w)) s = s.slice(0, -w.length).replace(/[\s·\-—]+$/, '').trim();   // 2026-10-09 Codex 재시험: 보드판 내용 끝에 붙는 '청소 후' 같은 단계 말은 빼고
+          return s && s !== EX.memo && s !== JOB.kind && s !== JOB.memo ? s : ''; })();
         if (PAIR && !JOB.steps.length) { JOB.steps.push(bm || PL.item + ' 1'); jobCnt.push(0); pairCnt.push({ b: 0, a: 0 }); jobAt = 0; jobPost({ t: 'job-steps', steps: JOB.steps }); }   // 지적사항을 안 적고 찍었으면 '지적사항 1' — 사진대지에서 고친다
         if (PAIR) {
           jobPost({ t: 'job-shot', step: jobAt, ph: jobPh, cap: bm && bm !== JOB.steps[jobAt] ? bm : '', place: p.place && p.place !== EX.place ? p.place : '', date: p.date || '', name: f.name, data });
@@ -1528,7 +1530,7 @@ async function gloveMode() {
   let stream; try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1440 } }, audio: false }); }
   catch { gloveOn = false; return alert('카메라를 쓸 수 있게 허락해 주세요.'); }
   let wake = null; try { wake = await navigator.wakeLock.request('screen'); } catch {}
-  const video = el('video', { autoplay: true, playsinline: true, muted: true }), ov = el('canvas');
+  const video = el('video', { autoplay: true, playsinline: true, muted: true, 'aria-label': '카메라 화면' }), ov = el('canvas', { role: 'img', 'aria-label': '보드판 미리보기' });
   video.srcObject = stream;
   const here = hereNow(); let placeNow = '';
   here.then(h => h && placeName(h.lat, h.lng).then(n => { if (n) placeNow = n; }));
