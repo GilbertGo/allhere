@@ -1006,9 +1006,11 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
       close(); toast(`저장했어요${OPT.orig ? '(원본도)' : ''} (갤러리 › Download) · 찍은 사진 ${shots.length}장`);
       if (JOB && f) {
         const data = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(f); });
-        if (PAIR && !JOB.steps.length) { JOB.steps.push(PL.item + ' 1'); jobCnt.push(0); pairCnt.push({ b: 0, a: 0 }); jobAt = 0; jobPost({ t: 'job-steps', steps: JOB.steps }); }   // 지적사항을 안 적고 찍었으면 '지적사항 1' — 사진대지에서 고친다
+        // 2026-10-09 ChatGPT 시험 B04: 보드판에 적은 내용을 항목 이름 · 사진 설명으로(다시 적지 않게)
+        const bm = (() => { const fd = (cfg.fields || []).find(x => x.id === 'memo') || { id: 'memo' }; const s = String(valOf(p, fd) || '').trim(); return s && s !== EX.memo && s !== JOB.kind && s !== JOB.memo ? s : ''; })();
+        if (PAIR && !JOB.steps.length) { JOB.steps.push(bm || PL.item + ' 1'); jobCnt.push(0); pairCnt.push({ b: 0, a: 0 }); jobAt = 0; jobPost({ t: 'job-steps', steps: JOB.steps }); }   // 지적사항을 안 적고 찍었으면 '지적사항 1' — 사진대지에서 고친다
         if (PAIR) {
-          jobPost({ t: 'job-shot', step: jobAt, ph: jobPh, cap: '', place: p.place && p.place !== EX.place ? p.place : '', date: p.date || '', name: f.name, data });
+          jobPost({ t: 'job-shot', step: jobAt, ph: jobPh, cap: bm && bm !== JOB.steps[jobAt] ? bm : '', place: p.place && p.place !== EX.place ? p.place : '', date: p.date || '', name: f.name, data });
           if (jobPh === 'b' && !GH[jobAt]) GH[jobAt] = data;   // 방금 찍은 조치 전 — 조치 후를 찍을 때 겹쳐 보기
           pairCnt[jobAt][jobPh]++; jobCnt[jobAt] = (jobCnt[jobAt] || 0) + 1;
           const n = pairCnt[jobAt], no = jobAt + 1;
@@ -1024,7 +1026,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
           toast((JOB.steps[jobAt] || '') + ' ' + CK[p.res || 'ok'] + (nx >= 0 ? ' — 다음: ' + JOB.steps[nx] + ' (위에서 눌러요)' : ' — 모든 항목을 찍었어요'));
           return;
         }
-        jobPost({ t: 'job-shot', step: jobAt, cap: JOB.steps[jobAt] || '', place: p.place && p.place !== EX.place ? p.place : '', date: p.date || '', name: f.name, data });   // 위치 · 날짜도 — 앱이 사진마다 날짜 · 공종 · 장소별로 모아 보게
+        jobPost({ t: 'job-shot', step: jobAt, cap: (JOB.steps[jobAt] || '') + (bm && bm !== JOB.steps[jobAt] ? ' — ' + bm : ''), place: p.place && p.place !== EX.place ? p.place : '', date: p.date || '', name: f.name, data });   // 위치 · 날짜도 — 앱이 사진마다 날짜 · 공종 · 장소별로 모아 보게
         // 2026-10-05 사용자: 한 차례에 여러 장 — 저장해도 차례는 그대로. 다음 차례는 위의 [다음 ›] 이나 차례 이름을 눌러서.
         // 앱을 닫아도 찍은 사진은 앱이 바로 보관하고, 다시 열면 이어서 찍는다(JOB.at · JOB.counts)
         jobCnt[jobAt] = (jobCnt[jobAt] || 0) + 1; drawSteps(); drawLeft();
