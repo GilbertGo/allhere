@@ -203,7 +203,7 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = '2026-10-09h';
+const PHOTO_VER = '2026-10-09k';
 async function checkVer() {
   try {
     const t = await (await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' })).text();
@@ -562,7 +562,7 @@ function measureNote(g, note, W, H) {
 // 사진(img, 없으면 투명) 위에 글상자를 그리고, 그린 자리 {x,y,w,h}를 돌려줘요. ghost면 흐릿하게(찍기 전 미리보기)
 // 2026-10-07 고성식 님(동산보드판과 비교): ① 보드판 없는 원본도 함께 저장 ② 사진에 로고(업체 · 관리사무소)
 //   opt = { orig: 원본도 저장, logo: 로고 그림(dataURL, 긴 변 400), logoPos: 'br'|'tr'|'bl', logoSize: 0.7|1|1.4 } — 휴대폰에 기억
-const OPT = Object.assign({ orig: false, logo: '', logoPos: 'br', logoSize: 1 }, ls.get('opt', {}));
+const OPT = Object.assign({ orig: false, logo: '', logoPos: 'br', logoSize: 1, review: false }, ls.get('opt', {}));   // review: 찍은 뒤 확인 화면(2026-10-09 기본 끔 — 찍으면 바로 저장)
 const saveOpt = () => ls.set('opt', OPT);
 let LOGO = null;
 const loadLogo = () => new Promise(res => { if (!OPT.logo) { LOGO = null; return res(); } const im = new Image(); im.onload = () => { LOGO = im; res(); }; im.onerror = () => { LOGO = null; res(); }; im.src = OPT.logo; });
@@ -963,7 +963,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
         return v.ask('저장, 또는 다시 라고 말씀하세요');
       }
       if (SAY.redo.test(n)) return v.restart();
-      if (SAY.shoot.test(n) || SAY.save.test(n)) { await shoot(); beepClick(); return v.ask('저장할까요? 저장, 또는 다시 라고 말씀하세요'); }
+      if (SAY.shoot.test(n) || SAY.save.test(n)) { await shoot(); beepClick(); if (quick()) return v.ask(`저장했어요. ${shots.length}장째예요. 또 찍어, 끝나면 다 찍었어`); return v.ask('저장할까요? 저장, 또는 다시 라고 말씀하세요'); }
       return v.ask('찍어, 다시, 다 찍었어, 그만 중에 말씀하세요');
     } }); };
   knockCb = () => camVoice();   // 카메라 화면에서 똑똑똑 → 말로 채우고 찍기(장갑)
@@ -986,7 +986,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     const p = photoOf(await createImageBitmap(c), new Date(), h?.lat, h?.lng); if (placeNow && cfg.mode !== 'fire') p.place = placeNow; Object.assign(p, camVals);
     if (aiAuto) p.aiP = aiQueue(p);
     wrap.animate([{ opacity: 0.3 }, { opacity: 1 }], 180); if (navigator.vibrate) navigator.vibrate(40);
-    showReview(p);
+    showReview(p, quick());
   };
   // 기본 카메라(2026-10-05 사용자: 광학 줌 — 이 화면의 카메라는 기본 렌즈 하나와 센서 확대뿐이라 망원 렌즈를 못 쓴다).
   // 휴대폰 카메라 앱을 열어(0.6× · 1× · 3× 렌즈, 최고 화질) 찍고 돌아오면 같은 '저장할까요?' 확인으로 — 글상자 · 칸 · 위치 · 날짜는 그대로 들어가요.
@@ -1010,12 +1010,15 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
       const h = await Promise.race([here, new Promise(r => setTimeout(() => r(null), 50))]);
       const p = photoOf(await toRatio(await createImageBitmap(blob)), new Date(), h?.lat, h?.lng); if (placeNow && cfg.mode !== 'fire') p.place = placeNow; Object.assign(p, camVals);
       if (aiAuto) p.aiP = aiQueue(p);
-      showReview(p);
+      showReview(p, quick());
     } catch { toast('사진을 열지 못했어요'); }
   };
   // 찍은 사진 확인(2026-10-02 사용자: 찍고 나서 찍은 사진 보여주고 저장할지 물어봐): 다시 찍기 / 글 수정 / 저장
   let review = null;
-  const showReview = p => {
+  // 2026-10-09 장남덕님 요청 · 고성식 님 결정: 찍으면 바로 저장하고 곧바로 다음 사진 찍을 준비(확인 화면 없이).
+  // 점검 사진첩(양호 · 불량을 골라야 함)과 설정 '찍은 뒤 확인하기'를 켠 경우만 예전처럼 확인 화면
+  const quick = () => !OPT.review && !CHECK;
+  const showReview = (p, auto) => {
     const rc = el('canvas'), msg = el('div', { class: 'rv-msg' });
     const draw = () => { rc.width = p.W; rc.height = p.H; drawNote(rc.getContext('2d'), p.bmp, p.W, p.H, noteFor(p)); msg.textContent = p.aiP && !p.aiDone ? 'AI가 글을 쓰는 중이에요…' : '이 사진을 저장할까요?'; };
     const close = () => { if (review) { review.el.remove(); review = null; } };
@@ -1077,7 +1080,9 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     }
     const box = el('div', { class: 'review' }, rc, msg, ckEl, el('div', { class: 'rv-bar' },
       el('button', { onclick: drop }, '다시 찍기'), el('button', { onclick: editIt }, '글자 수정'), el('button', { class: 'pri', onclick: keep }, '저장')));
-    close(); review = { el: box, p, keep, drop, draw }; wrap.append(box); draw();
+    close(); review = { el: box, p, keep, drop, draw };
+    if (auto) { keep(); return; }   // 바로 저장 — 화면에 띄우지 않는다
+    wrap.append(box); draw();
     if (p.aiP) p.aiP.then(() => { p.aiDone = true; if (review && review.p === p) draw(); });
   };
   const done = () => { if (!shots.length && !photos.length) return; stop(); if (!shots.length) return editor(); photos = photos.concat(shots); cur = photos.length - shots.length; editor(); fillPlaces(shots, here); };
@@ -1086,7 +1091,9 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   let thumb = null;
   const drawLeft = () => { if (shots.length) { const q = shots[shots.length - 1]; if (!thumb) { const c = document.createElement('canvas'), k = 120 / Math.max(q.W, q.H); c.width = Math.round(q.W * k); c.height = Math.round(q.H * k); drawNote(c.getContext('2d'), q.bmp, c.width, c.height, { ...noteFor(q), at: null }); thumb = c.toDataURL('image/jpeg', .7); } leftBtn.style.cssText = `background:#222 url(${thumb}) center/cover;padding-left:52px;background-size:44px 44px;background-position:6px center;background-repeat:no-repeat`; } else leftBtn.style.cssText = '';
     leftBtn.textContent = shots.length ? `찍은 사진 · ${shots.length}장` : photos.length ? '돌아가기' : '앨범에서\n불러오기'; leftBtn.onclick = shots.length || photos.length ? done : openPick;
-    if (JOB) { const n = jobTotal(); leftBtn.textContent = n ? `다 찍음\n사진대지 (${n}장)` : '처음으로'; leftBtn.onclick = () => jobPost({ t: n ? 'job-done' : 'job-back' }); } };
+    if (JOB) { const n = jobTotal(); leftBtn.textContent = n ? `다 찍음\n사진대지 (${n}장)` : '처음으로'; leftBtn.onclick = () => jobPost({ t: n ? 'job-done' : 'job-back' }); }
+    // 2026-10-09 단계 줄이기: 사진대지 · 팀에서 찍으러 왔으면 왼쪽 버튼이 바로 [사진대지에 넣기] — '찍은 사진 → 완료' 두 번을 한 번으로
+    if (window.__toSheet && !JOB && shots.length) { leftBtn.textContent = (window.__toSheetLabel || '사진대지에 넣기') + '\n(' + shots.length + '장)'; leftBtn.onclick = () => { stop(); photos = shots.slice(); cur = 0; toSheet(); }; } };
   drawLeft();
   // 설정(예전 첫 화면에 있던 것): AI로 채우기 설정 · 두드림 감도
   // 설정 › 저장 · 로고(2026-10-07) — 원본도 함께 저장 켬/끔, 로고 넣기 · 바꾸기 · 빼기 · 위치 · 크기
@@ -1110,6 +1117,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
       el('div', { class: 'hint', style: 'text-align:left;margin-bottom:-4px', text: '저장' }),
       el('button', { class: 'big sec', onclick: () => { OPT.orig = !OPT.orig; saveOpt(); draw(); } }, OPT.orig ? '보드판 없는 원본도 함께 저장: 켬' : '보드판 없는 원본도 함께 저장: 끔'),
       el('div', { class: 'hint', style: 'text-align:left;margin:-2px 0 2px', text: '켜면 저장할 때마다 원본이 한 장 더 저장돼요(파일 이름 끝 _orig)' }),
+      el('button', { class: 'big sec', onclick: () => { OPT.review = !OPT.review; saveOpt(); draw(); } }, OPT.review ? '찍은 뒤 확인하고 저장: 켬' : '찍은 뒤 확인하고 저장: 끔(찍으면 바로 저장)'),
       logoIn);
     draw(); return box;
   };
