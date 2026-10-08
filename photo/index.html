@@ -197,7 +197,7 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = '2026-10-08a';
+const PHOTO_VER = '2026-10-08b';
 async function checkVer() {
   try {
     const t = await (await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' })).text();
@@ -721,6 +721,8 @@ let photos = [], cur = 0, appendNext = false;   // appendNext: 편집 중 '+ 앨
 const camIn = el('input', { type: 'file', accept: 'image/*', capture: 'environment', style: 'display:none', onchange: () => { load([...camIn.files], true); camIn.value = ''; } });
 const pickIn = el('input', { type: 'file', accept: 'image/*', multiple: true, style: 'display:none', onchange: () => { load([...pickIn.files], false); pickIn.value = ''; } });
 document.body.append(camIn, pickIn);
+// 2026-10-08 장남덕님: 카톡으로 받은 사진이 휴대폰 '최근 파일' 창에 안 보임 — 사진통 앱(새 버전) 안에서는 앱의 앨범 고르기(최근 사진 · 카카오톡 폴더)로
+const openPick = () => { if (window.__nativeAlbum && window.ReactNativeWebView) { try { window.ReactNativeWebView.postMessage(JSON.stringify({ t: 'native-album' })); return; } catch {} } pickIn.click(); };
 
 // 첫 화면 = 촬영 화면(2026-10-02 사용자: 첫 화면과 촬영 화면을 하나로). 카메라를 못 쓰는 브라우저만 예전 첫 화면
 function home() { if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) return camera(true); homeOld(); }
@@ -733,7 +735,7 @@ function homeOld() {
       el('div', {}, el('h1', { text: '사진 글상자' }), el('p', { text: '사진 위에 제목·위치·일자·내용 같은 글을 넣어 저장해요.' })),
       el('div', { class: 'sample' }, cv),
       el('button', { class: 'big pri', onclick: () => camera() }, '사진 찍기'),
-      el('button', { class: 'big sec', onclick: () => pickIn.click() }, '앨범에서 고르기 (여러 장 가능)'),
+      el('button', { class: 'big sec', onclick: openPick }, '앨범에서 고르기 (여러 장 가능)'),
       el('button', { class: 'big glove', onclick: async () => { await allowMotion(); gloveMode(); } }, '장갑 모드 · 말로만 찍고 적기'),
       el('div', { class: 'hint', style: 'margin-top:-6px', text: '장갑을 낀 채 휴대폰을 똑똑똑 세 번 두드려도 켜지고, 다시 똑똑똑 하면 꺼져요.' }),
       el('button', { class: 'lnk', style: 'align-self:center', onclick: openAiSettings }, aiReady() ? 'AI로 채우기: 켜짐 (설정)' : 'AI로 채우기 설정'),
@@ -1043,7 +1045,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   const leftBtn = el('button', { class: 'side' });
   let thumb = null;
   const drawLeft = () => { if (shots.length) { const q = shots[shots.length - 1]; if (!thumb) { const c = document.createElement('canvas'), k = 120 / Math.max(q.W, q.H); c.width = Math.round(q.W * k); c.height = Math.round(q.H * k); drawNote(c.getContext('2d'), q.bmp, c.width, c.height, { ...noteFor(q), at: null }); thumb = c.toDataURL('image/jpeg', .7); } leftBtn.style.cssText = `background:#222 url(${thumb}) center/cover;padding-left:52px;background-size:44px 44px;background-position:6px center;background-repeat:no-repeat`; } else leftBtn.style.cssText = '';
-    leftBtn.textContent = shots.length ? `찍은 사진 · ${shots.length}장` : photos.length ? '돌아가기' : '앨범에서\n사진 불러오기'; leftBtn.onclick = shots.length || photos.length ? done : () => pickIn.click();
+    leftBtn.textContent = shots.length ? `찍은 사진 · ${shots.length}장` : photos.length ? '돌아가기' : '앨범에서\n사진 불러오기'; leftBtn.onclick = shots.length || photos.length ? done : openPick;
     if (JOB) { const n = jobTotal(); leftBtn.textContent = n ? `다 찍음\n사진대지 (${n}장)` : '처음으로'; leftBtn.onclick = () => jobPost({ t: n ? 'job-done' : 'job-back' }); } };
   drawLeft();
   // 설정(예전 첫 화면에 있던 것): AI로 채우기 설정 · 두드림 감도
