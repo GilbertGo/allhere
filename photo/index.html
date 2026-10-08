@@ -203,7 +203,7 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = '2026-10-09d';
+const PHOTO_VER = '2026-10-09e';
 async function checkVer() {
   try {
     const t = await (await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' })).text();
@@ -1722,7 +1722,10 @@ async function toSheet() {
   toast('옮기는 중…');
   const files = await render(), out = [];
   for (const f of files) out.push({ name: f.name, data: await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(f); }) });
-  try { window.ReactNativeWebView.postMessage(JSON.stringify({ t: 'to-sheet', files: out })); } catch {}
+  // 2026-10-09: 보드판에 적은 글을 사진대지 제목 · 위치 · 작업내용 · 칸 설명으로(다시 적지 않게)
+  const fv = (p, id) => { const f = (cfg.fields || []).find(x => x.id === id) || { id, per: id === 'date' || id === 'place' }; const s = String(valOf(p, f) || '').trim(); return s && s !== EX[id] ? s : ''; };
+  const meta = photos.map(p => ({ title: fv(p, 'title'), date: fv(p, 'date'), place: fv(p, 'place'), memo: fv(p, 'memo') }));
+  try { window.ReactNativeWebView.postMessage(JSON.stringify({ t: 'to-sheet', files: out, meta })); } catch {}
 }
 async function share() {
   saveCfg(); rememberPer(photos[photos.length - 1]);
