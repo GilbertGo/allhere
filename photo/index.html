@@ -125,6 +125,10 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 .cam{position:fixed;inset:0;background:#000;z-index:50;display:flex;flex-direction:column}
 .cam .view{position:relative;flex:1;min-height:0}
 .cam video,.cam canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+/* 2026-10-09 전후 겹쳐 찍기(CompanyCam 참고 · 고성식 님 "추천대로"): 조치 후를 찍을 때 조치 전 사진을 흐리게 */
+.cam .ghost{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;opacity:.4;pointer-events:none}
+.cam .gbtn{position:absolute;left:12px;top:12px;z-index:3;padding:8px 12px;border-radius:999px;font-size:13px;font-weight:800;color:#fff;background:rgba(0,0,0,.55);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.cam .gbtn.off{color:rgba(255,255,255,.7)}
 .cam canvas{touch-action:none}
 .cam .bar{display:flex;align-items:center;justify-content:space-between;padding:10px 16px calc(18px + env(safe-area-inset-bottom,0px));gap:12px}
 .cam .shut{width:76px;height:76px;border-radius:50%;background:#fff;box-shadow:0 0 0 5px rgba(255,255,255,.35)}
@@ -197,7 +201,7 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = '2026-10-08c';
+const PHOTO_VER = '2026-10-09a';
 async function checkVer() {
   try {
     const t = await (await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' })).text();
@@ -835,7 +839,16 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   const stepsEl = el('div', { class: 'steps' });
   const jobMemo = i => PAIR ? [JOB.steps[i] || '', PL[jobPh]].filter(Boolean).join(' · ') : [JOB.kind, JOB.steps[i] || ('추가 ' + (i - JOB.steps.length + 1))].filter(Boolean).join(' — ');
   const phEl = el('div', { class: 'ph2' });
-  const drawPh = () => { if (!PAIR) return; phEl.replaceChildren(...['b', 'a'].map(k => el('button', { class: k + (jobPh === k ? ' on' : ''), onclick: () => { jobPh = k; drawSteps(); } }, PL[k]))); };
+  // 전후 겹쳐 찍기 — GH[번호] = 조치 전 사진(이번에 찍은 것 또는 앱이 넘겨준 지난 사진). 조치 후 차례에만 보인다
+  const GH = Object.assign({}, window.__ghostData || {});
+  let ghostOn = true;
+  const ghostImg = el('img', { class: 'ghost', alt: '' }); ghostImg.style.display = 'none';
+  const ghostBtn = el('button', { class: 'gbtn', onclick: () => { ghostOn = !ghostOn; showGhost(); } }); ghostBtn.style.display = 'none';
+  const showGhost = () => { const src = PAIR && jobPh === 'a' && GH[jobAt]; ghostBtn.style.display = src ? '' : 'none';
+    ghostBtn.className = 'gbtn' + (ghostOn ? '' : ' off'); ghostBtn.textContent = ghostOn ? '조치 전 겹쳐 보기 ✓' : '조치 전 겹쳐 보기';
+    if (src && ghostOn) { if (ghostImg.src !== src) ghostImg.src = src; ghostImg.style.display = ''; } else ghostImg.style.display = 'none'; };
+  window.__setGhost = o => { Object.assign(GH, o || {}); showGhost(); };
+  const drawPh = () => { if (!PAIR) return; showGhost(); phEl.replaceChildren(...['b', 'a'].map(k => el('button', { class: k + (jobPh === k ? ' on' : ''), onclick: () => { jobPh = k; drawSteps(); } }, PL[k]))); };
   const pickItem = i => { jobAt = i; const n = pairCnt[i] || { b: 0, a: 0 }; jobPh = !n.b ? 'b' : !n.a ? 'a' : jobPh; drawSteps(); };
   const drawSteps = () => { if (!JOB) return; vals.memo = jobMemo(jobAt);
     // 2026-10-05 사용자: 찍을 순서를 미리 정하는 건 불편 — 칸 이름은 '고르는 단추'. 순서와 상관없이 지금 찍는 사진의 칸을 누르면 되고,
@@ -994,6 +1007,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
         if (PAIR && !JOB.steps.length) { JOB.steps.push(PL.item + ' 1'); jobCnt.push(0); pairCnt.push({ b: 0, a: 0 }); jobAt = 0; jobPost({ t: 'job-steps', steps: JOB.steps }); }   // 지적사항을 안 적고 찍었으면 '지적사항 1' — 사진대지에서 고친다
         if (PAIR) {
           jobPost({ t: 'job-shot', step: jobAt, ph: jobPh, cap: '', place: p.place && p.place !== EX.place ? p.place : '', date: p.date || '', name: f.name, data });
+          if (jobPh === 'b' && !GH[jobAt]) GH[jobAt] = data;   // 방금 찍은 조치 전 — 조치 후를 찍을 때 겹쳐 보기
           pairCnt[jobAt][jobPh]++; jobCnt[jobAt] = (jobCnt[jobAt] || 0) + 1;
           const n = pairCnt[jobAt], no = jobAt + 1;
           if (jobPh === 'b' && !n.a) toast(no + '번 ' + PL.b + ' 찍음 — 고친 뒤 같은 자리에서 [' + PL.a + ']');
@@ -1119,7 +1133,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     aiBusy--; drawAi(); p.aiDone = true; if (review && review.p === p) review.draw(); }); };
   drawAi();
   camClose = stop;
-  const view = el('div', { class: 'view' }, video, ov,
+  const view = el('div', { class: 'view' }, video, PAIR ? ghostImg : null, ov, PAIR ? ghostBtn : null,
       el('button', { class: 'gear', 'aria-label': '설정', onclick: openSet }, ui('sliders', 20)),
       zoomEl, PAIR ? phEl : null, window.ReactNativeWebView && !window.__nativeCam ? null : el('button', { class: 'ncam', onclick: nativeShot }, ui('camera', 16), '기본 카메라\n광학줌 · 고화질'), nIn, JOB ? stepsEl : null);
   view.addEventListener('pointerdown', e => { onPt(e); if (pts.size === 2) pinch = { d: pdist(), z: zoom }; });
