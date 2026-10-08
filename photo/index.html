@@ -185,6 +185,7 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 .cam .steps button .rk{font-weight:900;margin-left:4px}.cam .steps button .rk.ng{color:#EF4444}.cam .steps button .rk.ok{color:#16A34A}.cam .steps button .rk.fx{color:#60A5FA}.cam .steps button .rk.na{color:#94A3B8}
 .cam .shots{position:absolute;left:12px;bottom:12px;background:rgba(0,0,0,.55);color:#fff;border-radius:999px;font-size:13px;font-weight:700;padding:5px 11px}
 @media (max-height:700px){.panel{max-height:28vh}.home h1{font-size:26px}.big{height:56px}input[type=text]{height:40px}.acts .big{height:48px}label.f{font-size:12px}}
+.lk{font-size:13px;font-weight:700;color:var(--muted);margin:10px 2px 6px}
 </style>
 </head>
 <body>
@@ -196,7 +197,7 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = '2026-10-07c';
+const PHOTO_VER = '2026-10-08a';
 async function checkVer() {
   try {
     const t = await (await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' })).text();
@@ -985,7 +986,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
       saveCfg(); rememberPer(p); p.saved = true; p.sig = sigOf(p); shots.push(p); thumb = null; drawLeft();
       const [f] = await render([p]); if (f) download(f);
       if (f && OPT.orig) { const o = await origFile(p, f.name); if (o) { await new Promise(r => setTimeout(r, 400)); download(o); } }
-      close(); toast(`저장했어요${OPT.orig ? '(원본도)' : ''} (사진첩 > 다운로드) · 찍은 사진 ${shots.length}장`);
+      close(); toast(`저장했어요${OPT.orig ? '(원본도)' : ''} (갤러리 › Download) · 찍은 사진 ${shots.length}장`);
       if (JOB && f) {
         const data = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(f); });
         if (PAIR && !JOB.steps.length) { JOB.steps.push(PL.item + ' 1'); jobCnt.push(0); pairCnt.push({ b: 0, a: 0 }); jobAt = 0; jobPost({ t: 'job-steps', steps: JOB.steps }); }   // 지적사항을 안 적고 찍었으면 '지적사항 1' — 사진대지에서 고친다
@@ -1089,8 +1090,10 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     const bg = el('div', { class: 'sheet-bg peek' });
     const keepScroll = () => { const s = box2.querySelector('.seg'); return s ? s.scrollLeft : 0; };
     const draw = () => { const sl = keepScroll(); box2.replaceChildren(el('h2', {}, '보드판 수정', el('small', { text: '고르면 바로 보여요 · 보드판은 끌어 옮겨요' })),
+      el('div', { class: 'lk' }, '① 보드판 고르기'),
       el('div', { class: 'seg' }, LAYOUTS.map(([k, n]) => el('button', { class: cfg.layout === k ? 'on' : '', onclick: () => { cfg.layout = k; saveCfg(); draw(); } }, shapeIco(k), n))),
       cfg.layout === 'none' ? el('div', { class: 'hint', style: 'text-align:left', text: '사진만 저장돼요 · 다른 모양을 고르면 보드판이 다시 나와요' }) :
+      el('div', { class: 'lk' }, '② 크기 · 자리 (보드판을 끌어 옮겨요)'),
       el('div', { class: 'seg fit' }, [[0.6, '아주 작게'], [0.8, '작게'], [1, '보통'], [1.2, '크게']].map(([k, n]) => el('button', { class: cfg.size === k ? 'on' : '', onclick: () => { cfg.size = k; saveCfg(); draw(); } }, n))),
       el('div', { class: 'row2' },
         cfg.layout === 'none' ? null : el('button', { class: 'big sec', onclick: () => { delete cfg.at[cfg.layout]; saveCfg(); toast('보드판을 처음 자리로 옮겼어요'); } }, '처음 자리로'),
@@ -1145,7 +1148,7 @@ const sigOf = p => JSON.stringify(noteFor(p));
 function saveState() { const done = photos.length && photos.every(x => x.saved); return !done ? 'new' : photos.some(x => x.sig && x.sig !== sigOf(x)) ? 'changed' : 'done'; }
 // 2026-10-07 고성식 님: 저장한 뒤 무엇을 눌러야 할지 모르겠다 — 저장이 끝나면 오른쪽 버튼이 [완료](앱이면 사진통 화면으로, 웹이면 처음으로), 위에 '✓ 사진첩에 저장했어요'
 function paintSave() { if (!saveBtn) return; const st = saveState(), many = photos.length > 1;
-  saveBtn.textContent = st === 'done' ? '완료' : st === 'changed' ? '고친 사진 저장' : many ? photos.length + '장 저장' : '사진첩에 저장';
+  saveBtn.textContent = st === 'done' ? '완료' : st === 'changed' ? '고친 사진 저장' : many ? photos.length + '장 저장' : '갤러리에 저장';
   saveBtn.className = 'big pri';
   if (savedNote) savedNote.style.display = st === 'done' ? '' : 'none'; }
 const finishEdit = () => { if (window.ReactNativeWebView) { try { window.ReactNativeWebView.postMessage(JSON.stringify({ t: 'job-back' })); } catch {} return; } photos = []; home(); };   // 앱: 'job-back' = 이 화면 닫기(작업 모드가 아니면 바로 앱으로)
@@ -1288,7 +1291,7 @@ function editor() {
       el('button', { onclick: () => openSheet('text') }, ui('pen'), '글 수정'),
       el('button', { onclick: () => openSheet('look') }, ui('layout'), '보드판 수정'),
       aiReady() ? el('button', { onclick: () => aiFillEditor() }, ui('ai'), 'AI로 채우기') : null),
-    savedNote = el('div', { class: 'savednote', text: '✓ 사진첩에 저장했어요 (사진첩 › Download) · 글을 고치면 다시 저장할 수 있어요' }),
+    savedNote = el('div', { class: 'savednote', text: '✓ 휴대폰 갤러리에 저장했어요 (Download 앨범) · 글을 고치면 다시 저장할 수 있어요' }),
     el('div', { class: 'acts' },
       el('button', { class: 'big sec', onclick: share }, '보내기'),
       saveBtn = el('button', { class: 'big pri', onclick: () => { if (saveState() === 'done') return finishEdit(); save().then(paintSave); } })));
@@ -1588,7 +1591,7 @@ async function gloveMode() {
     if (!active) return;
     active = false; gloveOn = false; stopRec(); try { speechSynthesis.cancel(); } catch {}
     cancelAnimationFrame(loop); stream.getTracks().forEach(t => t.stop()); try { wake && wake.release(); } catch {}
-    wrap.remove(); home(); speak(saved ? `장갑 모드를 끝내요. ${saved}장 저장했어요` : '장갑 모드를 끝내요'); if (saved) toast(`${saved}장을 저장했어요 (사진첩 > 다운로드)`);
+    wrap.remove(); home(); speak(saved ? `장갑 모드를 끝내요. ${saved}장 저장했어요` : '장갑 모드를 끝내요'); if (saved) toast(`${saved}장을 저장했어요 (갤러리 › Download)`);
   }
   const wrap = el('div', { class: 'cam glove-cam' },
     el('div', { class: 'view' }, video, ov, cnt),
@@ -1679,7 +1682,7 @@ async function save() {
     await new Promise(r => setTimeout(r, 400));   // 여러 장을 한꺼번에 받으면 막히는 휴대폰이 있어서 조금씩 쉬어요
     if (OPT.orig && photos[i]) { const o = await origFile(photos[i], f.name); if (o) { download(o); await new Promise(r => setTimeout(r, 400)); } }
   }
-  toast(files.length > 1 ? `${files.length}장을 저장했어요 (사진첩 > 다운로드)` : '사진을 저장했어요 (사진첩 > 다운로드)');
+  toast(files.length > 1 ? `${files.length}장을 저장했어요 (갤러리 › Download)` : '사진을 저장했어요 (갤러리 › Download)');
 }
 async function share() {
   saveCfg(); rememberPer(photos[photos.length - 1]);
