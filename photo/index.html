@@ -203,7 +203,7 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = '2026-10-09e';
+const PHOTO_VER = '2026-10-09f';
 async function checkVer() {
   try {
     const t = await (await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' })).text();
@@ -1180,7 +1180,8 @@ function paintSave() { if (!saveBtn) return; const st = saveState(), many = phot
   saveBtn.textContent = st === 'done' ? '완료' : st === 'changed' ? '고친 사진 저장' : many ? photos.length + '장 저장' : '갤러리에 저장';
   saveBtn.className = 'big pri';
   if (savedNote) savedNote.style.display = st === 'done' ? '' : 'none'; }
-const finishEdit = () => { if (window.ReactNativeWebView) { try { window.ReactNativeWebView.postMessage(JSON.stringify({ t: 'job-back' })); } catch {} return; } photos = []; home(); };   // 앱: 'job-back' = 이 화면 닫기(작업 모드가 아니면 바로 앱으로)
+const finishEdit = () => { if (window.__toSheet && photos.length) { toSheet(); return; }   // 2026-10-09 ChatGPT 시험 B01: 사진대지 · 팀에서 찍으러 왔으면 [완료]도 칸에 넣기
+  if (window.ReactNativeWebView) { try { window.ReactNativeWebView.postMessage(JSON.stringify({ t: 'job-back' })); } catch {} return; } photos = []; home(); };   // 앱: 'job-back' = 이 화면 닫기(작업 모드가 아니면 바로 앱으로)
 function redraw() {
   cancelAnimationFrame(raf);
   raf = requestAnimationFrame(() => { const p = photos[cur]; if (!p || !cv) return; p.look = lookOf(); if (cv.width !== p.W || cv.height !== p.H) { cv.width = p.W; cv.height = p.H; } lastBox = drawNote(cv.getContext('2d'), p.bmp, p.W, p.H, noteFor(p)); paintSave(); });
