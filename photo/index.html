@@ -204,8 +204,11 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = '2026-10-09m';
+const PHOTO_VER = '2026-10-09n';
 async function checkVer() {
+  // 사진통 앱 안에서는 새로고침하지 않아요(2026-10-09): 새로고침하면 공개 주소로 바로 넘어가 앱이 넣어 준 연결(작업 칩 · 기본 카메라 · 사진대지에 넣기)이 빠진 채 열렸다.
+  // 앱은 열 때마다 뒤에서 최신판을 받아 두고 다음에 그것으로 연다(PhotoBox.js refreshPage)
+  if (window.ReactNativeWebView) return;
   try {
     const t = await (await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' })).text();
     const m = t.match(/const PHOTO_VER = '([^']+)'/);
@@ -744,7 +747,7 @@ function homeOld() {
       el('div', {}, el('h1', { text: '사진 글상자' }), el('p', { text: '사진 위에 제목·위치·일자·내용 같은 글을 넣어 저장해요.' })),
       el('div', { class: 'sample' }, cv),
       el('button', { class: 'big pri', onclick: () => camera() }, '사진 찍기'),
-      el('button', { class: 'big sec', onclick: openPick }, '앨범에서 고르기 (여러 장 가능)'),
+      el('button', { class: 'big sec', onclick: openPick }, '갤러리에서 고르기 (여러 장 가능)'),
       el('button', { class: 'big glove', onclick: async () => { await allowMotion(); gloveMode(); } }, '장갑 모드 · 말로만 찍고 적기'),
       el('div', { class: 'hint', style: 'margin-top:-6px', text: '장갑을 낀 채 휴대폰을 똑똑똑 세 번 두드려도 켜지고, 다시 똑똑똑 하면 꺼져요.' }),
       el('button', { class: 'lnk', style: 'align-self:center', onclick: openAiSettings }, aiReady() ? 'AI로 채우기: 켜짐 (설정)' : 'AI로 채우기 설정'),
@@ -1035,7 +1038,8 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
       if (JOB && f) {
         const data = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(f); });
         // 2026-10-09 ChatGPT 시험 B04: 보드판에 적은 내용을 항목 이름 · 사진 설명으로(다시 적지 않게)
-        const bm = (() => { const fd = (cfg.fields || []).find(x => x.id === 'memo') || { id: 'memo' }; const s = String(valOf(p, fd) || '').trim(); return s && s !== EX.memo && s !== JOB.kind && s !== JOB.memo ? s : ''; })();
+        const bm = (() => { const fd = (cfg.fields || []).find(x => x.id === 'memo') || { id: 'memo' }; const s = String(valOf(p, fd) || '').trim(); const auto = [jobMemo(jobAt), PL.b, PL.a];   // 2026-10-09 09 N-8: 작업 모드가 스스로 넣은 내용('보수 전', '보수 항목 1 · 보수 후')은 항목 이름 · 사진 설명으로 쓰지 않는다 — 사람이 적은 글만
+          return s && s !== EX.memo && s !== JOB.kind && s !== JOB.memo && !auto.includes(s) ? s : ''; })();
         if (PAIR && !JOB.steps.length) { JOB.steps.push(bm || PL.item + ' 1'); jobCnt.push(0); pairCnt.push({ b: 0, a: 0 }); jobAt = 0; jobPost({ t: 'job-steps', steps: JOB.steps }); }   // 지적사항을 안 적고 찍었으면 '지적사항 1' — 사진대지에서 고친다
         if (PAIR) {
           jobPost({ t: 'job-shot', step: jobAt, ph: jobPh, cap: bm && bm !== JOB.steps[jobAt] ? bm : '', place: p.place && p.place !== EX.place ? p.place : '', date: p.date || '', name: f.name, data });
@@ -1093,7 +1097,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   const leftBtn = el('button', { class: 'side' });
   let thumb = null;
   const drawLeft = () => { if (shots.length) { const q = shots[shots.length - 1]; if (!thumb) { const c = document.createElement('canvas'), k = 120 / Math.max(q.W, q.H); c.width = Math.round(q.W * k); c.height = Math.round(q.H * k); drawNote(c.getContext('2d'), q.bmp, c.width, c.height, { ...noteFor(q), at: null }); thumb = c.toDataURL('image/jpeg', .7); } leftBtn.style.cssText = `background:#222 url(${thumb}) center/cover;padding-left:52px;background-size:44px 44px;background-position:6px center;background-repeat:no-repeat`; } else leftBtn.style.cssText = '';
-    leftBtn.textContent = shots.length ? `찍은 사진 · ${shots.length}장` : photos.length ? '돌아가기' : '앨범에서\n불러오기'; leftBtn.onclick = shots.length || photos.length ? done : openPick;
+    leftBtn.textContent = shots.length ? `찍은 사진 · ${shots.length}장` : photos.length ? '돌아가기' : '갤러리에서\n고르기'; leftBtn.onclick = shots.length || photos.length ? done : openPick;
     if (JOB) { const n = jobTotal(); leftBtn.textContent = n ? `다 찍음\n사진대지 (${n}장)` : '처음으로'; leftBtn.onclick = () => jobPost({ t: n ? 'job-done' : 'job-back' }); }
     // 2026-10-09 단계 줄이기: 사진대지 · 팀에서 찍으러 왔으면 왼쪽 버튼이 바로 [사진대지에 넣기] — '찍은 사진 → 완료' 두 번을 한 번으로
     if (window.__toSheet && !JOB && shots.length) { leftBtn.textContent = (window.__toSheetLabel || '사진대지에 넣기') + '\n(' + shots.length + '장)'; leftBtn.onclick = () => { stop(); photos = shots.slice(); cur = 0; toSheet(); }; } };
@@ -1349,7 +1353,7 @@ function editor() {
   const go = d => { photos[cur].look = lookOf(); cur = (cur + d + photos.length) % photos.length; useLook(photos[cur]); onPhotoChange(); drawPanel(); redraw(); };
   app.replaceChildren(
     el('div', { class: 'top' },
-      el('button', { class: 'lnk', onclick: () => { if (saveState() === 'done' || confirm('아직 저장하지 않은 사진이 있어요.\n저장하지 않고 다시 찍기 · 앨범 고르기로 갈까요?')) { photos = []; home(); } } }, '← 처음으로')),
+      el('button', { class: 'lnk', onclick: () => { if (saveState() === 'done' || confirm('아직 저장하지 않은 사진이 있어요.\n저장하지 않고 다시 찍기 · 갤러리 고르기로 갈까요?')) { photos = []; home(); } } }, '← 처음으로')),
     el('div', { class: 'stage' }, cv, tip,
       many ? el('button', { class: 'nav l', 'aria-label': '이전 사진', onclick: () => go(-1) }, '‹') : null,
       many ? el('button', { class: 'nav r', 'aria-label': '다음 사진', onclick: () => go(1) }, '›') : null, countEl),
@@ -1359,7 +1363,7 @@ function editor() {
       aiReady() ? el('button', { onclick: () => aiFillEditor() }, ui('ai'), 'AI로 채우기') : null),
     // 2026-10-09 핵심 다듬기: 간편 찍기 → 바로 사진대지(예전엔 홈 › 사진대지 › 빈 칸 › 앨범에서 다시 골라야 했다). 사진통 앱(새 버전) 안에서만
     window.__toSheet && !JOB ? el('button', { class: 'tosheet', onclick: toSheet }, ui('layout'), window.__toSheetLabel || '이 사진으로 사진대지 만들기') : null,
-    savedNote = el('div', { class: 'savednote', text: '✓ 휴대폰 갤러리에 저장했어요 (Download 앨범) · 글을 고치면 다시 저장할 수 있어요' }),
+    savedNote = el('div', { class: 'savednote', text: '✓ 휴대폰 갤러리에 저장했어요 (Download 폴더) · 글을 고치면 다시 저장할 수 있어요' }),
     el('div', { class: 'acts' },
       el('button', { class: 'big sec', onclick: share }, '보내기'),
       contBtn = el('button', { class: 'big sec', style: 'display:none', onclick: () => { photos = []; home(); } }, '계속 찍기'),
