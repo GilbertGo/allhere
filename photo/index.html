@@ -204,7 +204,7 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = '2026-10-09o';
+const PHOTO_VER = '2026-10-09p';
 async function checkVer() {
   // 사진통 앱 안에서는 새로고침하지 않아요(2026-10-09): 새로고침하면 공개 주소로 바로 넘어가 앱이 넣어 준 연결(작업 칩 · 기본 카메라 · 사진대지에 넣기)이 빠진 채 열렸다.
   // 앱은 열 때마다 뒤에서 최신판을 받아 두고 다음에 그것으로 연다(PhotoBox.js refreshPage)
@@ -1033,7 +1033,8 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
       // 2026-10-09 전·후 뒤바뀜: 저장(await)이 끝난 뒤 jobAt · jobPh 를 읽어서, 그 사이 [조치 후]를 누르면 방금 찍은 '조치 전'이 '조치 후'로 기록됐다.
       // 찍을 때의 차례 · 전후(p.at0 · p.ph0)와 보드판 내용(bm)을 저장 전에 잡아 두고 그것을 쓴다
       let at = p.at0 != null ? p.at0 : jobAt; const ph = p.ph0 || jobPh;
-      const bmOf = () => { const fd = (cfg.fields || []).find(x => x.id === 'memo') || { id: 'memo' }; const s = String(valOf(p, fd) || '').trim(); const auto = [jobMemo(at), PL.b, PL.a];   // 2026-10-09 09 N-8: 작업 모드가 스스로 넣은 내용('보수 전', '보수 항목 1 · 보수 후')은 항목 이름 · 사진 설명으로 쓰지 않는다 — 사람이 적은 글만
+      const bmOf = () => { if (!JOB) return '';   // 2026-10-09 긴급: 간편 찍기(JOB 없음)에서 jobMemo 가 JOB.kind 를 읽다 멈춰 저장이 안 되던 것(10-09o)
+        const fd = (cfg.fields || []).find(x => x.id === 'memo') || { id: 'memo' }; const s = String(valOf(p, fd) || '').trim(); const auto = [jobMemo(at), PL.b, PL.a];   // 2026-10-09 09 N-8: 작업 모드가 스스로 넣은 내용('보수 전', '보수 항목 1 · 보수 후')은 항목 이름 · 사진 설명으로 쓰지 않는다 — 사람이 적은 글만
           return s && s !== EX.memo && s !== JOB.kind && s !== JOB.memo && !auto.includes(s) ? s : ''; };
       let bm = bmOf();
       if (p.aiP && !p.aiDone) { msg.textContent = 'AI가 다 쓰면 저장할게요…'; await p.aiP; bm = bmOf(); }   // AI가 쓴 내용은 기다린 뒤에
