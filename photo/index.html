@@ -204,7 +204,7 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = '2026-10-09l';
+const PHOTO_VER = '2026-10-09m';
 async function checkVer() {
   try {
     const t = await (await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' })).text();
@@ -715,9 +715,11 @@ const lastOr = k => { const o = ls.get('last', {}); return o[k] != null ? o[k] :
 const LOOK_KEYS = ['layout', 'theme', 'size', 'color', 'tRound', 'tBg', 'tLine', 'tStyle', 'tEdge', 'tIn', 'tInW', 'at'];
 const lookOf = () => JSON.parse(JSON.stringify(Object.fromEntries(LOOK_KEYS.map(k => [k, cfg[k]]))));
 const useLook = p => { if (p && p.look) Object.assign(cfg, JSON.parse(JSON.stringify(p.look))); };   // 그 사진의 디자인을 편집 칸에 불러와요
-function noteFor(p) {
+// out: 저장 · 보내는 사진용 — 처음부터 들어 있던 예시 글(EX)은 빼요. 화면 미리보기에는 그대로 보여 줘서 어디를 고치면 되는지 알게(2026-10-09 실사 B-3: 새 사용자 첫 사진에 "점심 삼대째손두부 · 장남덕"이 찍혔다)
+const isEx = (id, v) => !!EX[id] && String(v || '').trim() === EX[id];
+function noteFor(p, out) {
   const D = (p && p.look) || cfg;
-  const v = id => { const f = cfg.fields.find(x => x.id === id); return f ? valOf(p, f) : ''; };
+  const v = id => { const f = cfg.fields.find(x => x.id === id); const x = f ? valOf(p, f) : ''; return out && isEx(id, x) ? '' : x; };
   const on = cfg.fields.filter(f => f.on || (JOB && JOB.labels && JOB.labels[f.id]));
   return { titleOn: on.some(f => f.id === 'title'), title: on.some(f => f.id === 'title') ? v('title').trim() : '', rows: on.filter(f => f.id !== 'title').map(f => ({ id: f.id, icon: f.icon || 'tag', label: labOf(f) || '항목', value: v(f.id).trim() })),   // 빈 칸도 넘겨요(표는 빈 칸도 그리고, 나머지 모양은 뺌)
     layout: D.layout, theme: D.theme, size: D.size, color: D.color, tRound: D.tRound, tBg: D.tBg, tLine: D.tLine, tStyle: D.tStyle, tEdge: D.tEdge, tIn: D.tIn, tInW: D.tInW, at: (D.at || {})[D.layout] || null };
@@ -1204,7 +1206,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
 let cv = null, countEl = null, tab = ls.get('tab', 'text'), lastBox = null, onPhotoChange = null;
 let raf = 0, saveBtn = null, savedNote = null;
 // 저장 버튼 이름(2026-10-06 사용자: '저장됨 · 다시 저장'은 헷갈린다) — 저장한 뒤 그대로면 [저장됨 ✓], 저장한 뒤 글·모양을 고쳤으면 [고친 사진 저장]
-const sigOf = p => JSON.stringify(noteFor(p));
+const sigOf = p => JSON.stringify(noteFor(p, true));
 function saveState() { const done = photos.length && photos.every(x => x.saved); return !done ? 'new' : photos.some(x => x.sig && x.sig !== sigOf(x)) ? 'changed' : 'done'; }
 // 2026-10-07 고성식 님: 저장한 뒤 무엇을 눌러야 할지 모르겠다 — 저장이 끝나면 오른쪽 버튼이 [완료](앱이면 사진통 화면으로, 웹이면 처음으로), 위에 '✓ 사진첩에 저장했어요'
 // 2026-10-08 장남덕님: 저장하면 바로 다시 찍을 수 있게 — 고성식 님: [완료]와 둘 다. 저장이 끝나면 [계속 찍기](촬영 대기로)도 보인다
@@ -1621,7 +1623,7 @@ async function gloveMode() {
     } catch (e) { setState('AI가 안 돼서 말로 받을게요'); await speak('AI가 안 돼서 말로 받을게요'); state = 'ask'; qi = 0; asking = pickFields(); askNext(); }
   }
   async function saveCur() {
-    const c = document.createElement('canvas'); c.width = cur.W; c.height = cur.H; drawNote(c.getContext('2d'), cur.bmp, cur.W, cur.H, noteFor(cur));
+    const c = document.createElement('canvas'); c.width = cur.W; c.height = cur.H; drawNote(c.getContext('2d'), cur.bmp, cur.W, cur.H, noteFor(cur, true));
     const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.9)); const now = new Date();
     const gname = `photo_${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}.jpg`;
     if (blob) download(new File([blob], gname, { type: 'image/jpeg' }));
@@ -1735,7 +1737,7 @@ async function render(list = photos, prog) {
     if (prog) prog(i, list.length);
     if (p.out && p.outSig === sigOf(p)) { out.push(p.out); continue; }   // 이미 저장한 그대로면 다시 그리지 않아요
     const c = document.createElement('canvas'); c.width = p.W; c.height = p.H;
-    const fb = await fullBmp(p); drawNote(c.getContext('2d'), fb, p.W, p.H, noteFor(p)); doneBmp(p, fb);
+    const fb = await fullBmp(p); drawNote(c.getContext('2d'), fb, p.W, p.H, noteFor(p, true)); doneBmp(p, fb);
     const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.9)); c.width = c.height = 0;
     const now = new Date(), name = `photo_${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}_${i + 1}.jpg`;   // 한글 파일 이름은 'download'로 바뀌는 휴대폰이 있어서 영문·숫자로
     if (blob) out.push(new File([blob], name, { type: 'image/jpeg' }));
