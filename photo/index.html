@@ -215,7 +215,7 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = '2026-10-14c';
+const PHOTO_VER = '2026-10-14d';
 async function checkVer() {
   // 사진통 앱 안에서는 새로고침하지 않아요(2026-10-09): 새로고침하면 공개 주소로 바로 넘어가 앱이 넣어 준 연결(작업 칩 · 기본 카메라 · 사진대지에 넣기)이 빠진 채 열렸다.
   // 앱은 열 때마다 뒤에서 최신판을 받아 두고 다음에 그것으로 연다(PhotoBox.js refreshPage)
@@ -1015,7 +1015,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
       const rec = (ls.get('recent', {})[f.id] || []).filter(Boolean);
       const chips = rec.length ? el('div', { class: 'rchips' }, ...rec.map(t => el('button', { type: 'button', onclick: e => { e.preventDefault(); set(t); } }, t))) : null;
       setTimeout(paintSteps, 0);
-      return el('label', { class: 'f', for: 'c-' + f.id }, labOf(f), el('div', { class: 'inrow' }, i, micBtn(i, f), up, dn), chips); };
+      return el('label', { class: 'f', for: 'c-' + f.id }, labOf(f), el('div', { class: 'inrow' }, i, micBtn(i, f), up, dn), chips); };
     bg.append(el('div', { class: 'sheet' }, el('h2', { text: '보드판 고치기' }), SR ? el('button', { class: 'vbtn', onclick: camVoice }, '말로 모두 채우고 찍기 (똑똑똑으로도)') : null, el('div', { class: 'hint', style: 'text-align:left', text: '고친 글은 이제부터 찍는 사진에 들어가요.' }),
       ...on.map(row), QUICK ? el('div', { class: 'hint', style: 'text-align:left', text: '번호가 있는 칸은 ▲▼로 넘겨요(층 · 동 · 호 · 번). 아래 단추는 최근에 쓴 글이에요.' }) : null, el('button', { class: 'big pri', onclick: () => bg.remove() }, '다 고쳤어요')));
     document.body.append(bg);
