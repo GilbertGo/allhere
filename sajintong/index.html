@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>사진통 설치</title>
+<meta name="description" content="찍고, 정리하고, 보고서까지 — 사진통 안드로이드 앱 설치 안내">
+<meta property="og:title" content="사진통 — 찍고, 정리하고, 보고서까지">
+<meta property="og:description" content="현장 사진에 보드판 · 사진대지 · 보고서까지. 눌러서 설치하세요">
+<meta property="og:image" content="https://gilbertgo.github.io/allhere/sajintong/icon.png">
+<meta name="theme-color" content="#2563EB">
+<link rel="icon" href="icon.png">
+<link rel="apple-touch-icon" href="icon.png">
+<style>
+  :root { --bg:#F5F8FC; --card:#FFFFFF; --ink:#0F172A; --sub:#5B6B82; --line:#DCE6F5; --accent:#2563EB; --accentInk:#FFFFFF; --soft:#E8F0FE; --warn:#9A3412; --warnBg:#FFF1E6; color-scheme: light }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0E1420; --card:#162033; --ink:#F7EDE9; --sub:#A5B4CC; --line:#26334A; --accent:#60A5FA; --accentInk:#0E1420; --soft:#1E2B44; --warn:#FDBA74; --warnBg:#2E1D14; color-scheme: dark } }
+  * { box-sizing: border-box }
+  body { margin:0; background:var(--bg); color:var(--ink); font: 16px/1.6 -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif; -webkit-text-size-adjust:100%; word-break: keep-all; overflow-wrap: anywhere }
+  main { max-width: 480px; margin: 0 auto; padding: calc(28px + env(safe-area-inset-top, 0px)) 18px calc(40px + env(safe-area-inset-bottom, 0px)); display:flex; flex-direction:column; gap:18px }
+  .hero { display:flex; flex-direction:column; align-items:center; text-align:center; gap:10px; padding-top:8px }
+  .hero img { width:96px; height:96px; border-radius:22px; box-shadow: 0 6px 18px rgba(37,99,235,.28) }
+  h1 { margin:6px 0 0; font-size:28px; letter-spacing:-.5px; line-height:1.25 }
+  .tag { margin:0; color:var(--sub); font-size:16px }
+  .meta { margin:0; color:var(--sub); font-size:13px }
+  .btn { display:flex; align-items:center; justify-content:center; gap:8px; width:100%; min-height:58px; border-radius:16px; border:0; background:var(--accent); color:var(--accentInk); font-size:18px; font-weight:700; text-decoration:none; cursor:pointer }
+  .btn.sec { background:var(--soft); color:var(--ink); font-size:16px; min-height:50px }
+  .box { background:var(--card); border:1px solid var(--line); border-radius:18px; padding:18px; display:flex; flex-direction:column; gap:12px }
+  .box h2 { margin:0; font-size:17px }
+  ol { margin:0; padding:0; list-style:none; counter-reset:s; display:flex; flex-direction:column; gap:14px }
+  ol li { counter-increment:s; display:grid; grid-template-columns: 30px 1fr; gap:10px; align-items:start }
+  ol li::before { content:counter(s); width:28px; height:28px; border-radius:50%; background:var(--accent); color:var(--accentInk); font-weight:700; font-size:15px; display:flex; align-items:center; justify-content:center; margin-top:1px }
+  ol li b { display:block }
+  ol li span { color:var(--sub); font-size:14.5px }
+  .key { display:inline-block; padding:0 7px; border-radius:6px; background:var(--soft); color:var(--ink); font-weight:700; font-size:14px; white-space:nowrap }
+  .note { background:var(--warnBg); color:var(--warn); border-radius:14px; padding:14px 16px; font-size:15px }
+  .note b { display:block; margin-bottom:2px }
+  .what { display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; text-align:center }
+  .what div { background:var(--soft); border-radius:14px; padding:12px 6px; font-size:13.5px; color:var(--ink) }
+  .what strong { display:block; font-size:22px; color:var(--accent); line-height:1.2 }
+  footer { text-align:center; color:var(--sub); font-size:12.5px; padding-top:4px }
+  [hidden] { display:none !important }
+</style>
+</head>
+<body>
+<main>
+  <section class="hero">
+    <img src="icon.png" alt="사진통 아이콘">
+    <h1>사진통</h1>
+    <p class="tag">찍고, 정리하고, 보고서까지</p>
+  </section>
+
+  <div class="what" aria-label="이렇게 써요">
+    <div><strong>1</strong>보드판 넣어 찍기</div>
+    <div><strong>2</strong>사진대지 · 보고서</div>
+    <div><strong>3</strong>카톡 · PDF로 보내기</div>
+  </div>
+
+  <!-- 아이폰 -->
+  <div class="note" id="ios" hidden><b>아이폰은 아직 안 돼요</b>지금은 안드로이드 휴대폰(갤럭시 등)만 설치할 수 있어요. 아이폰용은 준비 중이에요.</div>
+
+  <!-- 카카오톡 안에서 열었을 때 -->
+  <div class="box" id="inapp" hidden>
+    <h2>먼저 다른 브라우저로 열어 주세요</h2>
+    <p class="meta" style="font-size:14.5px;margin:0">카카오톡 안에서는 설치 파일이 잘 안 받아져요.</p>
+    <a class="btn sec" id="openOut" href="#">크롬 · 삼성 인터넷으로 열기</a>
+    <p class="meta" style="margin:0">안 열리면: 오른쪽 위 <span class="key">⋮</span> → <span class="key">다른 브라우저로 열기</span></p>
+  </div>
+
+  <a class="btn" id="dl" href="https://firebasestorage.googleapis.com/v0/b/sisultong.firebasestorage.app/o/apk%2Fsajintong3-latest.apk?alt=media&amp;token=sajintong3-apk-2026">
+    <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3a1 1 0 0 1 1 1v9.6l3.3-3.3a1 1 0 1 1 1.4 1.4l-5 5a1 1 0 0 1-1.4 0l-5-5a1 1 0 1 1 1.4-1.4l3.3 3.3V4a1 1 0 0 1 1-1zM5 19h14a1 1 0 1 1 0 2H5a1 1 0 1 1 0-2z"/></svg>
+    안드로이드 앱 받기
+  </a>
+  <p class="meta" style="text-align:center;margin-top:-8px">최신판 · 약 32MB · 안드로이드 8 이상</p>
+
+  <section class="box">
+    <h2>설치 순서</h2>
+    <ol>
+      <li><div><b>위 버튼으로 받기</b><span>다 받아지면 알림이나 '내 파일 › 다운로드'에서 파일을 눌러요.</span></div></li>
+      <li><div><b>"출처를 알 수 없는 앱" 이 나오면</b><span><span class="key">설정</span> → <span class="key">이 출처 허용</span> 켜고 뒤로 가기</span></div></li>
+      <li><div><b><span class="key">설치</span> 누르기</b><span>"Play 프로텍트" 경고가 나오면 <span class="key">세부정보 더보기</span> → <span class="key">무시하고 설치</span>. 플레이스토어 앱이 아니라서 나오는 안내예요.</span></div></li>
+      <li><div><b>열어서 쓰기</b><span>이미 쓰고 계시면 앱을 열 때 나오는 <span class="key">업데이트</span>를 눌러도 돼요.</span></div></li>
+    </ol>
+  </section>
+
+  <footer>사진통 · 사진통 개발팀</footer>
+</main>
+<script>
+  (function () {
+    var ua = navigator.userAgent || '';
+    var ios = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    var android = /Android/i.test(ua);
+    var kakao = /KAKAOTALK/i.test(ua), inapp = kakao || /NAVER|Instagram|FBAN|FBAV|Line\//i.test(ua);
+    var here = location.href.split('#')[0];
+    if (ios) { document.getElementById('ios').hidden = false; document.getElementById('dl').hidden = true; document.querySelector('#dl + .meta').hidden = true; }
+    if (android && inapp) {
+      document.getElementById('inapp').hidden = false;
+      var out = document.getElementById('openOut');
+      out.href = kakao ? 'kakaotalk://web/openExternal?url=' + encodeURIComponent(here)
+        : 'intent://' + here.replace(/^https?:\/\//, '') + '#Intent;scheme=https;package=com.android.chrome;end';
+    }
+  })();
+</script>
+</body>
+</html>
