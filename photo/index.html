@@ -151,8 +151,6 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 .cam .tools{display:flex;gap:6px;padding:8px 10px 0}
 .cam .tools button{flex:1 1 0;min-width:0;height:62px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.16);color:rgba(255,255,255,.9);font-size:12px;font-weight:600;letter-spacing:.01em;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;white-space:nowrap;letter-spacing:-.03em}
 .cam .tools button svg,.etools button svg{display:block}
-.cam .ntop{position:absolute;left:12px;top:calc(12px + env(safe-area-inset-top,0px));display:flex;gap:8px;z-index:3}
-.cam .ntop button{width:44px;height:44px;border-radius:50%;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.22);color:#fff;display:flex;align-items:center;justify-content:center;font-size:19px;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
 .cam .nloc{display:flex;align-items:center;gap:8px;margin:8px 10px 0;padding:6px 6px 6px 14px;border-radius:14px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);min-height:62px}
 .cam .nloc .v{flex:1;min-width:0;text-align:left;color:#fff;background:none}
 .cam .nloc .v small{display:block;color:rgba(255,255,255,.6);font-size:12px;font-weight:600}
@@ -160,8 +158,6 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 .cam .nloc .st,.sheet .st{width:56px;height:50px;border-radius:12px;background:#2563EB;color:#fff;font-size:20px;font-weight:800;flex:none}
 .cam .nloc .auto{width:64px;height:50px;border-radius:12px;background:rgba(255,255,255,.1);color:rgba(255,255,255,.75);font-size:11.5px;font-weight:700;line-height:1.25;flex:none;white-space:pre-line}
 .cam .nloc .auto.on{background:#D8B67A;color:#2A2118}
-.cam .mic{width:84px;height:56px;border-radius:28px;background:rgba(255,255,255,.14);color:#fff;display:flex;align-items:center;justify-content:center}
-.cam .mic.on{background:#2563EB}
 .sheet .rchips{display:flex;gap:6px;overflow-x:auto;padding:4px 0 2px}
 .sheet .rchips button{flex:none;height:34px;border-radius:999px;padding:0 12px;background:rgba(127,127,127,.12);font-weight:700;font-size:14px;color:inherit;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cam .tools-hint{display:flex;align-items:center;gap:5px;padding:6px 14px 0;color:rgba(255,255,255,.62);font-size:12px;letter-spacing:-.01em}
@@ -217,7 +213,7 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = '2026-10-14e';
+const PHOTO_VER = '2026-10-14f';
 async function checkVer() {
   // 사진통 앱 안에서는 새로고침하지 않아요(2026-10-09): 새로고침하면 공개 주소로 바로 넘어가 앱이 넣어 준 연결(작업 칩 · 기본 카메라 · 사진대지에 넣기)이 빠진 채 열렸다.
   // 앱은 열 때마다 뒤에서 최신판을 받아 두고 다음에 그것으로 연다(PhotoBox.js refreshPage)
@@ -238,7 +234,7 @@ checkVer();
 try { document.fonts.load("700 20px 'Noto Serif KR'", '점심 삼대째손두부').then(() => { if (typeof redraw === 'function') redraw(); }); } catch {}
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && !photos.length) checkVer(); });
 /* 새 촬영 화면(시험, 2026-10-14 고성식 님 '사진보드 촬영 화면이 너무 복잡해' · '시험용 화면 좋은데 넣을 수 없어?', 장남덕님 '층별 점검 — 찍고 라벨링 흐름이 끊겨요').
-   설정 › [새 촬영 화면 써 보기]로 켜고 끈다(기본 꺼짐). 사진통 앱 BoardScreen 의 boardQuick.js 와 같은 규칙 */
+   맞춤 모드(점검 · 사진보드)에만 — 간편 모드는 가장 간편하게(10-14 고성식 님, 시험 스위치는 뺌). 사진통 앱 BoardScreen 의 boardQuick.js 와 같은 규칙 */
 const FLOOR_RX = /(지하\s*|B\s*)?(\d{1,3})\s*층/i;
 function stepFloor(v, d) { const s = String(v || ''), m = FLOOR_RX.exec(s); if (!m) return null;
   let n = (m[1] ? -1 : 1) * Number(m[2]) + d; if (n === 0) n += d;
@@ -871,7 +867,6 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   const video = el('video', { autoplay: true, playsinline: true, muted: true }), ov = el('canvas', { class: 'drag', role: 'img', 'aria-label': '보드판 미리보기' });   // 2026-10-09 QA B07: 이름 없는 그림은 읽기 도구에 null 로 보였다
   const shots = [], here = hereNow(); let placeNow = '', box = null;
   const camVals = {};   // 카메라에서 고친 사진마다 칸(일자·위치 등). 이어서 찍는 사진에 같이 들어가요
-  const NEWCAM = !!ls.get('newCam', false) && !JOB_NOW();   // 새 촬영 화면(시험) — 작업 모드(사진대지 · 점검 차례)는 예전 화면 그대로
   const ghostP = () => Object.assign({ date: fmtDate(new Date()), place: cfg.mode === 'fire' ? lastOr('place') : (placeNow || EX.place) }, typeof perDefaults === 'function' ? perDefaults() : {}, camVals);
   here.then(h => h && placeName(h.lat, h.lng).then(n => { if (n) placeNow = n; }));
   const shotsEl = el('div', { class: 'shots', style: 'display:none' });
@@ -884,7 +879,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   // 점검 사진첩(2026-10-06 2단계): 칸 = 점검 항목. 찍은 뒤 [양호 | 불량 | 조치 완료] + 불량 내용. 칸 단추에 결과 표시(✓ · ✕ · ↺)
   const CHECK = !!(JOB && JOB.format === 'check');
   // 2026-10-14 고성식 님 '남덕의 층별 변경 요구는 소방점검 중의 일 — 맞춤 모드에서': 시설 · 점검(점검 항목) 촬영에도 위치 줄 [▲][▼] · 고치기 창 ▲▼ · 최근 글
-  const QUICK = NEWCAM || CHECK || !!window.__quick;   // __quick: 사진통 맞춤 모드 [사진보드](10-14) — 보드판만 찍을 때도 위치 줄 ▲▼
+  const QUICK = CHECK || !!window.__quick;   // __quick: 사진통 맞춤 모드 [사진보드](10-14) — 보드판만 찍을 때도 위치 줄 ▲▼
   const CK = Object.assign({ ok: '양호', ng: '불량', fx: '조치 완료', na: '해당없음' }, (JOB && JOB.ck) || {});
   // 2026-10-06 사진통 1차 개선: 결과는 [양호 | 불량 | 해당없음] — '조치 완료'는 점검결과가 아니라 조치상태라 앱(점검 사진첩 · [조치하기])에서.
   // 이 페이지는 옛 앱도 같이 쓴다. 'na'를 모르는 옛 앱(2.44 이하)이 깨지지 않게, 새 앱이 window.__ckv 를 줄 때만 새 버튼
@@ -1202,7 +1197,6 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     bg.append(el('div', { class: 'sheet' }, el('h2', { text: '설정' }),
       el('div', { class: 'hint', style: 'text-align:left;margin-bottom:-4px', text: '사진 비율' }),
       el('div', { class: 'seg', style: 'flex-wrap:nowrap' }, ...RATIOS.map(([k]) => el('button', { style: 'flex:1 1 0', class: ratioKey() === k ? 'on' : '', onclick: e => { ls.set('ratio', k); e.currentTarget.parentNode.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === e.currentTarget)); } }, k === '4:3' ? '4:3 (기본)' : k))),
-      el('button', { class: 'big ' + (ls.get('newCam', false) ? 'pri' : 'sec'), onclick: () => { ls.set('newCam', !ls.get('newCam', false)); bg.remove(); camera(); } }, ls.get('newCam', false) ? '✓ 새 촬영 화면 쓰는 중 (시험) — 누르면 예전 화면' : '새 촬영 화면 써 보기 (시험)'),
       optBox(),
       el('button', { class: 'big sec', onclick: () => { bg.remove(); openAiSettings(); } }, aiReady() ? 'AI로 채우기: 켜짐 (설정)' : 'AI로 채우기 설정'),
       el('button', { class: 'big sec', onclick: () => { bg.remove(); knockTest(); } }, '두드림 · 말소리 시험 (감도 맞추기)'),
@@ -1255,8 +1249,6 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   }, 600);
   const view = el('div', { class: 'view' }, video, PAIR ? ghostImg : null, ov, PAIR ? ghostBtn : null,
       el('button', { class: 'gear', 'aria-label': '설정', onclick: openSet }, ui('sliders', 20)),
-      NEWCAM ? el('div', { class: 'ntop' }, el('button', { 'aria-label': '보드 선택', onclick: openLook }, ui('layout', 20)), el('button', { 'aria-label': '글자 수정', onclick: editText }, ui('pen', 20)),
-        el('button', { 'aria-label': '앞뒤 카메라 바꾸기', onclick: () => { facing = facing === 'environment' ? 'user' : 'environment'; start(); } }, '⟲')) : null,
       zoomEl, PAIR ? phEl : null, window.ReactNativeWebView && !window.__nativeCam ? null : el('button', { class: 'ncam', onclick: nativeShot }, ui('camera', 16), '기본 카메라\n광학줌 · 고화질'), nIn, JOB ? stepsEl : null);
   view.addEventListener('pointerdown', e => { onPt(e); if (pts.size === 2) pinch = { d: pdist(), z: zoom }; });
   view.addEventListener('pointermove', e => { if (!pts.has(e.pointerId)) return; onPt(e); if (pinch && pts.size === 2) setZoom(pinch.z * pdist() / pinch.d); });
@@ -1266,16 +1258,15 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     view,
     // 도구 줄(2026-10-02 사용자: 화면 정리 · 음성 입력, AI 자동 입력 / 2026-10-04 사용자: 표 수정 · 글 수정 · 음성 입력 순서로)
     QUICK ? locEl : null,
-    NEWCAM ? null : el('div', { class: 'tools' },
+    el('div', { class: 'tools' },
       el('button', { onclick: openLook }, ui('layout'), '보드 선택'),
       el('button', { onclick: editText }, ui('pen'), '글자 수정'),
       el('button', { onclick: async () => { await allowMotion(); camVoice(); } }, ui('mic'), '음성 입력')),
-    NEWCAM ? null : el('div', { class: 'tools-hint' }, ui('mic', 14), '터치 없이 음성 입력: 휴대폰을 3회 톡톡톡 두드리세요!'),   // 2026-10-08 장남덕님 문구(고성식 님 승인)
+    el('div', { class: 'tools-hint' }, ui('mic', 14), '터치 없이 음성 입력: 휴대폰을 3회 톡톡톡 두드리세요!'),   // 2026-10-08 장남덕님 문구(고성식 님 승인)
     el('div', { class: 'bar' },
       leftBtn,
       el('button', { class: 'shut', 'aria-label': '찍기', onclick: shoot }),
-      NEWCAM ? el('button', { class: 'mic', 'aria-label': '음성 입력', onclick: async () => { await allowMotion(); camVoice(); } }, ui('mic', 24))
-        : el('button', { class: 'side', onclick: e => { facing = facing === 'environment' ? 'user' : 'environment'; e.currentTarget.textContent = facing === 'user' ? '뒤 카메라' : '셀카 모드'; start(); } }, facing === 'user' ? '뒤 카메라' : '셀카 모드')));
+      el('button', { class: 'side', onclick: e => { facing = facing === 'environment' ? 'user' : 'environment'; e.currentTarget.textContent = facing === 'user' ? '뒤 카메라' : '셀카 모드'; start(); } }, facing === 'user' ? '뒤 카메라' : '셀카 모드')));
   document.body.append(wrap);
   drawLoc();
   await start(); tick();
