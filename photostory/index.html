@@ -15,7 +15,7 @@
   :root { --bg:#FFF8F4; --card:#FFFFFF; --ink:#2A1A16; --sub:#7A645C; --line:#F1DDD4; --accent:#F06A5A; --accentInk:#FFFFFF; --soft:#FDE9E3; --warn:#9A3412; --warnBg:#FFF1E6; color-scheme: light }
   @media (prefers-color-scheme: dark) { :root { --bg:#1B1311; --card:#261A17; --ink:#F7EDE9; --sub:#C3AAA2; --line:#3A2925; --accent:#F27E70; --accentInk:#1B1311; --soft:#33221E; --warn:#FDBA74; --warnBg:#2E1D14; color-scheme: dark } }
   * { box-sizing: border-box }
-  body { margin:0; background:var(--bg); color:var(--ink); font: 16px/1.6 -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif; -webkit-text-size-adjust:100% }
+  body { margin:0; background:var(--bg); color:var(--ink); font: 16px/1.6 -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif; -webkit-text-size-adjust:100%; word-break: keep-all; overflow-wrap: anywhere }
   main { max-width: 480px; margin: 0 auto; padding: calc(28px + env(safe-area-inset-top, 0px)) 18px calc(40px + env(safe-area-inset-bottom, 0px)); display:flex; flex-direction:column; gap:18px }
   .hero { display:flex; flex-direction:column; align-items:center; text-align:center; gap:10px; padding-top:8px }
   .hero img { width:96px; height:96px; border-radius:22px; box-shadow: 0 6px 18px rgba(240,106,90,.28) }
