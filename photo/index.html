@@ -158,6 +158,8 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 .cam .nloc .v small{display:block;color:rgba(255,255,255,.6);font-size:12px;font-weight:600}
 .cam .nloc .v b{display:block;font-size:18px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cam .nloc .st,.sheet .st{width:56px;height:50px;border-radius:12px;background:#2563EB;color:#fff;font-size:20px;font-weight:800;flex:none}
+.cam .nloc .auto{width:64px;height:50px;border-radius:12px;background:rgba(255,255,255,.1);color:rgba(255,255,255,.75);font-size:11.5px;font-weight:700;line-height:1.25;flex:none;white-space:pre-line}
+.cam .nloc .auto.on{background:#D8B67A;color:#2A2118}
 .cam .mic{width:84px;height:56px;border-radius:28px;background:rgba(255,255,255,.14);color:#fff;display:flex;align-items:center;justify-content:center}
 .cam .mic.on{background:#2563EB}
 .sheet .rchips{display:flex;gap:6px;overflow-x:auto;padding:4px 0 2px}
@@ -215,7 +217,7 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = '2026-10-14d';
+const PHOTO_VER = '2026-10-14e';
 async function checkVer() {
   // 사진통 앱 안에서는 새로고침하지 않아요(2026-10-09): 새로고침하면 공개 주소로 바로 넘어가 앱이 넣어 준 연결(작업 칩 · 기본 카메라 · 사진대지에 넣기)이 빠진 채 열렸다.
   // 앱은 열 때마다 뒤에서 최신판을 받아 두고 다음에 그것으로 연다(PhotoBox.js refreshPage)
@@ -1024,9 +1026,23 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   /* 새 화면: 카메라 아래 위치 줄 [▲][▼] — 층별 점검은 ▼ 한 번 → 셔터 */
   const locF = () => cfg.fields.find(x => x.on && x.id === 'place') || cfg.fields.find(x => x.on && !['title', 'date'].includes(x.id) && stepNum(camGet(x), 1) != null);
   const locEl = el('div', { class: 'nloc' });
+  /* 찍으면 자동으로 넘기기(2026-10-14 고성식 님 '추천대로 자동 넘기기 넣어') — 끔 · 층(한 시설을 층별로) · 항목(한 층의 시설을 다 찍고 다음 층, 점검 항목이 있을 때만). 기본 끔.
+     층은 마지막으로 손으로 누른 방향(▲ · ▼, 처음은 ▼)으로 */
+  let floorDir = ls.get('floorDir', -1);
+  const AUTO_OPTS = () => CHECK && JOB.steps.length ? ['off', 'floor', 'item'] : ['off', 'floor'];
+  const autoMode = () => { const m = ls.get('autoStep', 'off'); return AUTO_OPTS().includes(m) ? m : 'off'; };
+  const AUTO_T = { off: '자동\n넘김 끔', floor: '찍으면\n층 ', item: '찍으면\n다음 항목' };
+  const autoNext = at => { const m = autoMode(); if (!QUICK || m === 'off') return;
+    const f = locF(), stepF = () => { if (!f) return ''; const v = stepNum(camGet(f), floorDir); if (v == null) return ''; camSet(f, v); return v; };
+    let say = '';
+    if (m === 'floor') say = stepF();
+    if (m === 'item') { let n = (at == null ? jobAt : at) + 1; if (n >= JOB.steps.length) { n = 0; const v = stepF(); say = v ? v + ' · ' : ''; } jobAt = n; drawSteps(); say += JOB.steps[n] || ''; }
+    drawLoc(); if (say) setTimeout(() => toast('다음: ' + say), 1300); };
   const drawLoc = () => { if (!QUICK) return; const f = locF(); if (!f){ locEl.style.display = 'none'; return; } locEl.style.display = '';
-    const step = d => { const v = stepNum(camGet(f), d); if (v == null){ toast(labOf(f) + "에 '5층'처럼 층을 넣어 주세요 — 그다음부터 ▲▼로 바꿔요"); editText(); setTimeout(() => { const i = document.getElementById('c-' + f.id); if (i){ i.focus(); i.select(); } }, 150); return; } camSet(f, v); drawLoc(); };
-    locEl.replaceChildren(el('button', { class: 'v', onclick: editText, 'aria-label': labOf(f) + ' 고치기' }, el('small', {}, labOf(f)), el('b', {}, camGet(f) || '눌러서 넣기')),
+    const am = autoMode(), autoBtn = el('button', { class: 'auto' + (am !== 'off' ? ' on' : ''), 'aria-label': '찍으면 자동으로 넘기기', onclick: () => { const o = AUTO_OPTS(); ls.set('autoStep', o[(o.indexOf(am) + 1) % o.length]); drawLoc();
+        const n = autoMode(); toast(n === 'off' ? '자동 넘김 끔 — ▲▼로 직접 바꿔요' : n === 'floor' ? '찍을 때마다 층이 ' + (floorDir > 0 ? '올라가요' : '내려가요') + ' (한 시설을 층별로)' : '찍을 때마다 다음 항목, 다 찍으면 다음 층 (한 층을 다 찍고 이동)'); } }, AUTO_T[am] + (am === 'floor' ? (floorDir > 0 ? '▲' : '▼') : ''));
+    const step = d => { floorDir = d; ls.set('floorDir', d); const v = stepNum(camGet(f), d); if (v == null){ toast(labOf(f) + "에 '5층'처럼 층을 넣어 주세요 — 그다음부터 ▲▼로 바꿔요"); editText(); setTimeout(() => { const i = document.getElementById('c-' + f.id); if (i){ i.focus(); i.select(); } }, 150); return; } camSet(f, v); drawLoc(); };
+    locEl.replaceChildren(el('button', { class: 'v', onclick: editText, 'aria-label': labOf(f) + ' 고치기' }, el('small', {}, labOf(f)), el('b', {}, camGet(f) || '눌러서 넣기')), autoBtn,
       el('button', { class: 'st', 'aria-label': '위층 · 번호 올리기', onclick: () => step(1) }, '▲'), el('button', { class: 'st', 'aria-label': '아래층 · 번호 내리기', onclick: () => step(-1) }, '▼')); };
   const noteRecent = () => { if (!QUICK) return; const r = ls.get('recent', {}); cfg.fields.filter(x => x.on && !['title', 'date'].includes(x.id)).forEach(x => { const v = camGet(x); if (v && v !== EX[x.id]) r[x.id] = pushRecent(r[x.id], v); }); ls.set('recent', r); };
   dragBox(ov, () => box, () => { const q = crop(); return q ? [q.w, q.h] : [1, 1]; }, () => {}, editText);
@@ -1089,6 +1105,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
       if (f && OPT.orig) { const o = await origFile(p, f.name); if (o) { await new Promise(r => setTimeout(r, 400)); download(o); } }
       close(); toast(`저장했어요${OPT.orig ? '(원본도)' : ''} (갤러리 › Download) · 찍은 사진 ${shots.length}장`);
       slim(p);   // 메모리: 저장한 사진은 접어 둔다(위 slim)
+      autoNext(at);   // 찍으면 자동으로 넘기기(10-14) — 찍을 때의 차례(at) 다음으로
       if (JOB && f) {
         const data = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(f); });
         // 2026-10-09 ChatGPT 시험 B04: 보드판에 적은 내용을 항목 이름 · 사진 설명으로(다시 적지 않게)
