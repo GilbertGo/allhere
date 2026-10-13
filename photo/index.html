@@ -215,7 +215,7 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = '2026-10-14b';
+const PHOTO_VER = '2026-10-14c';
 async function checkVer() {
   // 사진통 앱 안에서는 새로고침하지 않아요(2026-10-09): 새로고침하면 공개 주소로 바로 넘어가 앱이 넣어 준 연결(작업 칩 · 기본 카메라 · 사진대지에 넣기)이 빠진 채 열렸다.
   // 앱은 열 때마다 뒤에서 최신판을 받아 두고 다음에 그것으로 연다(PhotoBox.js refreshPage)
@@ -882,7 +882,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   // 점검 사진첩(2026-10-06 2단계): 칸 = 점검 항목. 찍은 뒤 [양호 | 불량 | 조치 완료] + 불량 내용. 칸 단추에 결과 표시(✓ · ✕ · ↺)
   const CHECK = !!(JOB && JOB.format === 'check');
   // 2026-10-14 고성식 님 '남덕의 층별 변경 요구는 소방점검 중의 일 — 맞춤 모드에서': 시설 · 점검(점검 항목) 촬영에도 위치 줄 [▲][▼] · 고치기 창 ▲▼ · 최근 글
-  const QUICK = NEWCAM || CHECK;
+  const QUICK = NEWCAM || CHECK || !!window.__quick;   // __quick: 사진통 맞춤 모드 [사진보드](10-14) — 보드판만 찍을 때도 위치 줄 ▲▼
   const CK = Object.assign({ ok: '양호', ng: '불량', fx: '조치 완료', na: '해당없음' }, (JOB && JOB.ck) || {});
   // 2026-10-06 사진통 1차 개선: 결과는 [양호 | 불량 | 해당없음] — '조치 완료'는 점검결과가 아니라 조치상태라 앱(점검 사진첩 · [조치하기])에서.
   // 이 페이지는 옛 앱도 같이 쓴다. 'na'를 모르는 옛 앱(2.44 이하)이 깨지지 않게, 새 앱이 window.__ckv 를 줄 때만 새 버튼
