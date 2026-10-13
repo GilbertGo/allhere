@@ -215,7 +215,7 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = '2026-10-14a';
+const PHOTO_VER = '2026-10-14b';
 async function checkVer() {
   // 사진통 앱 안에서는 새로고침하지 않아요(2026-10-09): 새로고침하면 공개 주소로 바로 넘어가 앱이 넣어 준 연결(작업 칩 · 기본 카메라 · 사진대지에 넣기)이 빠진 채 열렸다.
   // 앱은 열 때마다 뒤에서 최신판을 받아 두고 다음에 그것으로 연다(PhotoBox.js refreshPage)
@@ -881,6 +881,8 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   let jobPh = PAIR && pairCnt[jobAt] && pairCnt[jobAt].b && !pairCnt[jobAt].a ? 'a' : 'b';
   // 점검 사진첩(2026-10-06 2단계): 칸 = 점검 항목. 찍은 뒤 [양호 | 불량 | 조치 완료] + 불량 내용. 칸 단추에 결과 표시(✓ · ✕ · ↺)
   const CHECK = !!(JOB && JOB.format === 'check');
+  // 2026-10-14 고성식 님 '남덕의 층별 변경 요구는 소방점검 중의 일 — 맞춤 모드에서': 시설 · 점검(점검 항목) 촬영에도 위치 줄 [▲][▼] · 고치기 창 ▲▼ · 최근 글
+  const QUICK = NEWCAM || CHECK;
   const CK = Object.assign({ ok: '양호', ng: '불량', fx: '조치 완료', na: '해당없음' }, (JOB && JOB.ck) || {});
   // 2026-10-06 사진통 1차 개선: 결과는 [양호 | 불량 | 해당없음] — '조치 완료'는 점검결과가 아니라 조치상태라 앱(점검 사진첩 · [조치하기])에서.
   // 이 페이지는 옛 앱도 같이 쓴다. 'na'를 모르는 옛 앱(2.44 이하)이 깨지지 않게, 새 앱이 window.__ckv 를 줄 때만 새 버튼
@@ -1004,7 +1006,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     const row = f => { let paintSteps = () => {}; const i = el('input', { type: 'text', id: 'c-' + f.id, maxlength: f.id === 'memo' ? 60 : 30, placeholder: PH[f.id] || '', value: (f.per ? g[f.id] : vals[f.id]) || '',
         onfocus: () => { if (i.value && i.value === EX[f.id]) setTimeout(() => i.select(), 0); },
         oninput: () => { camSet(f, i.value); paintSteps(); } }); sheetIn[f.id] = i;
-      if (!NEWCAM) return el('label', { class: 'f', for: 'c-' + f.id }, labOf(f), el('div', { class: 'inrow' }, i, micBtn(i, f)));
+      if (!QUICK) return el('label', { class: 'f', for: 'c-' + f.id }, labOf(f), el('div', { class: 'inrow' }, i, micBtn(i, f)));
       /* 새 화면: 번호가 있으면 ▲▼(층 · 동 · 호 · 번), 아래에 최근에 쓴 글 단추 */
       const set = v => { i.value = v; camSet(f, v); paintSteps(); drawLoc(); };
       const up = el('button', { class: 'st', type: 'button', 'aria-label': f.label + ' 번호 올리기', onclick: e => { e.preventDefault(); const v = stepNum(i.value, 1); if (v != null) set(v); } }, '▲');
@@ -1015,18 +1017,18 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
       setTimeout(paintSteps, 0);
       return el('label', { class: 'f', for: 'c-' + f.id }, labOf(f), el('div', { class: 'inrow' }, i, micBtn(i, f), up, dn), chips); };
     bg.append(el('div', { class: 'sheet' }, el('h2', { text: '보드판 고치기' }), SR ? el('button', { class: 'vbtn', onclick: camVoice }, '말로 모두 채우고 찍기 (똑똑똑으로도)') : null, el('div', { class: 'hint', style: 'text-align:left', text: '고친 글은 이제부터 찍는 사진에 들어가요.' }),
-      ...on.map(row), NEWCAM ? el('div', { class: 'hint', style: 'text-align:left', text: '번호가 있는 칸은 ▲▼로 넘겨요(층 · 동 · 호 · 번). 아래 단추는 최근에 쓴 글이에요.' }) : null, el('button', { class: 'big pri', onclick: () => bg.remove() }, '다 고쳤어요')));
+      ...on.map(row), QUICK ? el('div', { class: 'hint', style: 'text-align:left', text: '번호가 있는 칸은 ▲▼로 넘겨요(층 · 동 · 호 · 번). 아래 단추는 최근에 쓴 글이에요.' }) : null, el('button', { class: 'big pri', onclick: () => bg.remove() }, '다 고쳤어요')));
     document.body.append(bg);
-    if (NEWCAM){ const mo = new MutationObserver(() => { if (!bg.isConnected){ mo.disconnect(); drawLoc(); } }); mo.observe(document.body, { childList: true }); }
+    if (QUICK){ const mo = new MutationObserver(() => { if (!bg.isConnected){ mo.disconnect(); drawLoc(); } }); mo.observe(document.body, { childList: true }); }
   };
   /* 새 화면: 카메라 아래 위치 줄 [▲][▼] — 층별 점검은 ▼ 한 번 → 셔터 */
   const locF = () => cfg.fields.find(x => x.on && x.id === 'place') || cfg.fields.find(x => x.on && !['title', 'date'].includes(x.id) && stepNum(camGet(x), 1) != null);
   const locEl = el('div', { class: 'nloc' });
-  const drawLoc = () => { if (!NEWCAM) return; const f = locF(); if (!f){ locEl.style.display = 'none'; return; } locEl.style.display = '';
-    const step = d => { const v = stepNum(camGet(f), d); if (v == null) return toast(labOf(f) + "에 '5층' · '3번'처럼 번호를 넣으면 ▲▼로 바꿔요"); camSet(f, v); drawLoc(); };
+  const drawLoc = () => { if (!QUICK) return; const f = locF(); if (!f){ locEl.style.display = 'none'; return; } locEl.style.display = '';
+    const step = d => { const v = stepNum(camGet(f), d); if (v == null){ toast(labOf(f) + "에 '5층'처럼 층을 넣어 주세요 — 그다음부터 ▲▼로 바꿔요"); editText(); setTimeout(() => { const i = document.getElementById('c-' + f.id); if (i){ i.focus(); i.select(); } }, 150); return; } camSet(f, v); drawLoc(); };
     locEl.replaceChildren(el('button', { class: 'v', onclick: editText, 'aria-label': labOf(f) + ' 고치기' }, el('small', {}, labOf(f)), el('b', {}, camGet(f) || '눌러서 넣기')),
       el('button', { class: 'st', 'aria-label': '위층 · 번호 올리기', onclick: () => step(1) }, '▲'), el('button', { class: 'st', 'aria-label': '아래층 · 번호 내리기', onclick: () => step(-1) }, '▼')); };
-  const noteRecent = () => { if (!NEWCAM) return; const r = ls.get('recent', {}); cfg.fields.filter(x => x.on && !['title', 'date'].includes(x.id)).forEach(x => { const v = camGet(x); if (v && v !== EX[x.id]) r[x.id] = pushRecent(r[x.id], v); }); ls.set('recent', r); };
+  const noteRecent = () => { if (!QUICK) return; const r = ls.get('recent', {}); cfg.fields.filter(x => x.on && !['title', 'date'].includes(x.id)).forEach(x => { const v = camGet(x); if (v && v !== EX[x.id]) r[x.id] = pushRecent(r[x.id], v); }); ls.set('recent', r); };
   dragBox(ov, () => box, () => { const q = crop(); return q ? [q.w, q.h] : [1, 1]; }, () => {}, editText);
   const shoot = async () => {
     const q = crop(); if (!q) return;
@@ -1246,7 +1248,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   const wrap = el('div', { class: 'cam' },
     view,
     // 도구 줄(2026-10-02 사용자: 화면 정리 · 음성 입력, AI 자동 입력 / 2026-10-04 사용자: 표 수정 · 글 수정 · 음성 입력 순서로)
-    NEWCAM ? locEl : null,
+    QUICK ? locEl : null,
     NEWCAM ? null : el('div', { class: 'tools' },
       el('button', { onclick: openLook }, ui('layout'), '보드 선택'),
       el('button', { onclick: editText }, ui('pen'), '글자 수정'),
