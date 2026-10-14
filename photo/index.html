@@ -163,6 +163,18 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 .cam .tools-hint{display:flex;align-items:center;gap:5px;padding:6px 14px 0;color:rgba(255,255,255,.62);font-size:12px;letter-spacing:-.01em}
 .cam .tools button.on{background:rgba(216,182,122,.14);border-color:#D8B67A;color:#E9CF9E}
 .cam .edits{position:absolute;right:12px;bottom:12px;display:flex;gap:8px}.cam .edits .edit{position:static}
+.cam .labmode{position:absolute;left:12px;top:calc(12px + env(safe-area-inset-top,0px));height:40px;border-radius:999px;background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.3);color:#fff;font-size:14px;font-weight:700;padding:0 14px;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.cam .gear.more{font-size:22px;font-weight:800;line-height:1}
+.cam .labok{position:absolute;left:50%;top:40%;transform:translate(-50%,-50%);z-index:8;background:rgba(22,101,52,.92);color:#fff;font-size:20px;font-weight:800;padding:14px 22px;border-radius:18px;pointer-events:none;white-space:nowrap}
+.vbar .g-btns .g-b{height:56px;font-size:17px}
+.sheet.labmore .big{flex:none;height:52px;font-size:16.5px;border-radius:14px;width:100%}
+.sheet.labmore .row2{display:flex;gap:8px}
+.sheet.labmore .row2 .big{flex:1}
+.labpick{display:flex;flex-direction:column;gap:10px}
+.labpick button{text-align:left;padding:14px 16px;border-radius:16px;border:1px solid var(--line);background:var(--card);color:var(--ink)}
+.labpick button.on{border:2px solid var(--brown);background:var(--soft)}
+.labpick b{display:block;font-size:17px;margin-bottom:4px}
+.labpick span{font-size:13.5px;color:var(--muted)}
 .cam .gear{position:absolute;right:12px;top:calc(12px + env(safe-area-inset-top,0px));width:44px;height:44px;border-radius:50%;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.22);color:#fff;display:flex;align-items:center;justify-content:center;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
 .cam .edit.gl{right:auto;left:12px;background:#2A2118;color:#FFD9B5}
 .cam .side{min-width:84px;width:auto!important;padding:0 12px;background-color:rgba(255,255,255,.04)!important;border:1px solid rgba(255,255,255,.18);font-weight:600!important;letter-spacing:.01em}
@@ -214,6 +226,9 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
 const PHOTO_VER = '2026-10-14f';
+// 사진통 실험실(2026-10-15 장남덕님 간결 수정안 · 이슈 #225): 실험실 앱(com.sisultong.photo.test)이 window.__lab 을 줄 때만 —
+// 찍고 말하기 / 말하고 찍기 고르기 · 말한 칸만 바꾸기 · 저장 알림 · 촬영 화면 비우기(배율 · 기본 카메라 · 도구 줄 · 셀카는 [⋯ 더보기]로). 3.0 화면은 그대로
+const LAB = !!window.__lab;
 async function checkVer() {
   // 사진통 앱 안에서는 새로고침하지 않아요(2026-10-09): 새로고침하면 공개 주소로 바로 넘어가 앱이 넣어 준 연결(작업 칩 · 기본 카메라 · 사진대지에 넣기)이 빠진 채 열렸다.
   // 앱은 열 때마다 뒤에서 최신판을 받아 두고 다음에 그것으로 연다(PhotoBox.js refreshPage)
@@ -587,7 +602,7 @@ function measureNote(g, note, W, H) {
 // 사진(img, 없으면 투명) 위에 글상자를 그리고, 그린 자리 {x,y,w,h}를 돌려줘요. ghost면 흐릿하게(찍기 전 미리보기)
 // 2026-10-07 고성식 님(동산보드판과 비교): ① 보드판 없는 원본도 함께 저장 ② 사진에 로고(업체 · 관리사무소)
 //   opt = { orig: 원본도 저장, logo: 로고 그림(dataURL, 긴 변 400), logoPos: 'br'|'tr'|'bl', logoSize: 0.7|1|1.4 } — 휴대폰에 기억
-const OPT = Object.assign({ orig: false, logo: '', logoPos: 'br', logoSize: 1, review: false }, ls.get('opt', {}));   // review: 찍은 뒤 확인 화면(2026-10-09 기본 끔 — 찍으면 바로 저장)
+const OPT = Object.assign({ orig: LAB, logo: '', logoPos: 'br', logoSize: 1, review: false }, ls.get('opt', {}));   // review: 찍은 뒤 확인 화면(2026-10-09 기본 끔 — 찍으면 바로 저장)
 const saveOpt = () => ls.set('opt', OPT);
 let LOGO = null;
 const loadLogo = () => new Promise(res => { if (!OPT.logo) { LOGO = null; return res(); } const im = new Image(); im.onload = () => { LOGO = im; res(); }; im.onerror = () => { LOGO = null; res(); }; im.src = OPT.logo; });
@@ -879,7 +894,13 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   // 점검 사진첩(2026-10-06 2단계): 칸 = 점검 항목. 찍은 뒤 [양호 | 불량 | 조치 완료] + 불량 내용. 칸 단추에 결과 표시(✓ · ✕ · ↺)
   const CHECK = !!(JOB && JOB.format === 'check');
   // 2026-10-14 고성식 님 '남덕의 층별 변경 요구는 소방점검 중의 일 — 맞춤 모드에서': 시설 · 점검(점검 항목) 촬영에도 위치 줄 [▲][▼] · 고치기 창 ▲▼ · 최근 글
-  const QUICK = CHECK || !!window.__quick;   // __quick: 사진통 맞춤 모드 [사진보드](10-14) — 보드판만 찍을 때도 위치 줄 ▲▼
+  const QUICK = CHECK || !!window.__quick;
+  const LABC = LAB && !JOB;   // 실험실은 간편 찍기(작업 · 점검 사진첩이 아닐 때)만
+  const LABM = { after: '찍고 말하기', before: '말하고 찍기', classic: '기존 방식' };
+  const labMode = () => { const m = ls.get('labVoice', 'after'); return LABM[m] ? m : 'after'; };   // after = 찍고 말하기, before = 말하고 찍기, classic = 기존(찍으면 바로 저장)
+  /* 비교 기록(ChatGPT 10-15): 방식마다 저장한 장 수 · 걸린 시간(앞 사진 저장 ~ 이 사진 저장) · 누른 횟수 · 말로 고친 횟수 · 저장 실패 */
+  let labT = Date.now(), labTaps = 0, labVoiceN = 0;
+  const labStat = (k, add) => { const all = ls.get('labStats', {}), m = labMode(), o = all[m] || { n: 0, ms: 0, taps: 0, voice: 0, fail: 0 }; Object.entries(add).forEach(([a, b]) => o[a] = (o[a] || 0) + b); all[m] = o; ls.set('labStats', all); };   // __quick: 사진통 맞춤 모드 [사진보드](10-14) — 보드판만 찍을 때도 위치 줄 ▲▼
   const CK = Object.assign({ ok: '양호', ng: '불량', fx: '조치 완료', na: '해당없음' }, (JOB && JOB.ck) || {});
   // 2026-10-06 사진통 1차 개선: 결과는 [양호 | 불량 | 해당없음] — '조치 완료'는 점검결과가 아니라 조치상태라 앱(점검 사진첩 · [조치하기])에서.
   // 이 페이지는 옛 앱도 같이 쓴다. 'na'를 모르는 옛 앱(2.44 이하)이 깨지지 않게, 새 앱이 window.__ckv 를 줄 때만 새 버튼
@@ -980,7 +1001,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     // 글상자를 누르거나 '글 고치기' → 찍기 전에 글을 고쳐요(고치는 대로 화면 글상자도 바로 바뀜)
   let sheetIn = {};   // 열린 고치기 창의 칸(말로 채우면 같이 바뀌게)
   const camGet = f => (f.per ? ghostP()[f.id] : vals[f.id]) || '';
-  const camSet = (f, t) => { if (f.per) camVals[f.id] = t; else { vals[f.id] = t; saveCfg(); } if (f.per) rememberPer(camVals); };
+  const camSet = (f, t) => { if (LABC && voiceStop) labVoiceN++; if (f.per) camVals[f.id] = t; else { vals[f.id] = t; saveCfg(); } if (f.per) rememberPer(camVals); };
   // 장갑 모드처럼 말로 채우기: 칸을 차례로 묻고 → "찍어" 하면 찍기 → 또 "찍어" / "다시"(글 다시) / "다 찍었어" / "그만"
   const camVoice = () => { document.querySelectorAll('.sheet-bg').forEach(x => x.remove()); voiceFill({ get: camGet, set: camSet, changed: () => Object.entries(sheetIn).forEach(([k, i]) => { const f = cfg.fields.find(x => x.id === k); if (f) i.value = camGet(f); }),
     help: '대답 · "같음"=그대로 · "찍어" / "다시" / "다 찍었어" · 끝낼 때 "그만" 또는 똑똑똑',
@@ -997,6 +1018,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
       return v.ask('찍어, 다시, 다 찍었어, 그만 중에 말씀하세요');
     } }); };
   knockCb = () => camVoice();   // 카메라 화면에서 똑똑똑 → 말로 채우고 찍기(장갑)
+  if (LABC) knockCb = () => { if (labMode() !== 'after') return camVoice(); if (!review && !voiceStop) shoot(); };   // 실험실 찍고 말하기: 똑똑똑 = 찍기
   const editText = () => {
     const on = cfg.fields.filter(f => f.on); if (!on.length) return toast('켠 항목이 없어요'); sheetIn = {};
     const g = ghostP(), bg = el('div', { class: 'sheet-bg', onclick: e => { if (e.target === bg) bg.remove(); } });
@@ -1049,7 +1071,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     const p = photoOf(await createImageBitmap(c), new Date(), h?.lat, h?.lng); if (placeNow && cfg.mode !== 'fire') p.place = placeNow; Object.assign(p, camVals);
     if (aiAuto) p.aiP = aiQueue(p);
     wrap.animate([{ opacity: 0.3 }, { opacity: 1 }], 180); if (navigator.vibrate) navigator.vibrate(40);
-    showReview(p, quick());
+    afterShot(p);
   };
   // 기본 카메라(2026-10-05 사용자: 광학 줌 — 이 화면의 카메라는 기본 렌즈 하나와 센서 확대뿐이라 망원 렌즈를 못 쓴다).
   // 휴대폰 카메라 앱을 열어(0.6× · 1× · 3× 렌즈, 최고 화질) 찍고 돌아오면 같은 '저장할까요?' 확인으로 — 글상자 · 칸 · 위치 · 날짜는 그대로 들어가요.
@@ -1073,7 +1095,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
       const h = await Promise.race([here, new Promise(r => setTimeout(() => r(null), 50))]);
       const p = photoOf(await toRatio(await createImageBitmap(blob)), new Date(), h?.lat, h?.lng); if (placeNow && cfg.mode !== 'fire') p.place = placeNow; Object.assign(p, camVals);
       if (aiAuto) p.aiP = aiQueue(p);
-      showReview(p, quick());
+      afterShot(p);
     } catch { toast('사진을 열지 못했어요'); }
   };
   // 찍은 사진 확인(2026-10-02 사용자: 찍고 나서 찍은 사진 보여주고 저장할지 물어봐): 다시 찍기 / 글 수정 / 저장
@@ -1085,7 +1107,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     if (JOB && p.at0 == null){ p.at0 = jobAt; p.ph0 = jobPh; }   // 찍은 순간의 차례 · 전후(아래 keep)
     const rc = el('canvas'), msg = el('div', { class: 'rv-msg' });
     const draw = () => { rc.width = p.W; rc.height = p.H; drawNote(rc.getContext('2d'), p.bmp, p.W, p.H, noteFor(p)); msg.textContent = p.aiP && !p.aiDone ? 'AI가 글을 쓰는 중이에요…' : '이 사진을 저장할까요?'; };
-    const close = () => { if (review) { review.el.remove(); review = null; } };
+    const close = () => { if (LABC && voiceKill) voiceKill(); if (review) { review.el.remove(); review = null; } };
     const keep = async () => {   // 저장: 휴대폰에 내려받고, 찍은 사진 목록(보내기·사진대지용)에도 넣어요
       // 2026-10-09 전·후 뒤바뀜: 저장(await)이 끝난 뒤 jobAt · jobPh 를 읽어서, 그 사이 [조치 후]를 누르면 방금 찍은 '조치 전'이 '조치 후'로 기록됐다.
       // 찍을 때의 차례 · 전후(p.at0 · p.ph0)와 보드판 내용(bm)을 저장 전에 잡아 두고 그것을 쓴다
@@ -1096,9 +1118,12 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
       let bm = bmOf();
       if (p.aiP && !p.aiDone) { msg.textContent = 'AI가 다 쓰면 저장할게요…'; await p.aiP; bm = bmOf(); }   // AI가 쓴 내용은 기다린 뒤에
       saveCfg(); rememberPer(p); p.saved = true; p.sig = sigOf(p); shots.push(p); thumb = null; drawLeft();
-      const [f] = await render([p]); if (f) { download(f); p.out = f; p.outSig = p.sig; }   // 2026-10-09 고성식 님 '옮기는 중 10초': 저장한 그림을 기억해 두고 옮길 때 다시 그리지 않는다
+      let f = null; try { [f] = await render([p]); } catch {}
+      if (LABC && !f) { shots.pop(); p.saved = false; thumb = null; drawLeft(); labStat(0, { fail: 1 }); toast('저장하지 못했어요 — 사진과 글은 그대로예요. 다시 [저장]을 눌러 주세요'); if (!review || review.p !== p) { wrap.append(box); review = { el: box, p, keep, drop, draw, edit: editIt }; draw(); } return; }
+      if (f) { download(f); p.out = f; p.outSig = p.sig; }   // 2026-10-09 고성식 님 '옮기는 중 10초': 저장한 그림을 기억해 두고 옮길 때 다시 그리지 않는다
       if (f && OPT.orig) { const o = await origFile(p, f.name); if (o) { await new Promise(r => setTimeout(r, 400)); download(o); } }
       close(); toast(`저장했어요${OPT.orig ? '(원본도)' : ''} (갤러리 › Download) · 찍은 사진 ${shots.length}장`);
+      if (LABC) { labOk(); labStat(0, { n: 1, ms: Date.now() - labT, taps: labTaps, voice: labVoiceN }); labT = Date.now(); labTaps = labVoiceN = 0; }
       slim(p);   // 메모리: 저장한 사진은 접어 둔다(위 slim)
       autoNext(at);   // 찍으면 자동으로 넘기기(10-14) — 찍을 때의 차례(at) 다음으로
       if (JOB && f) {
@@ -1151,11 +1176,72 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     }
     const box = el('div', { class: 'review' }, rc, msg, ckEl, el('div', { class: 'rv-bar' },
       el('button', { onclick: drop }, '다시 찍기'), el('button', { onclick: editIt }, '글자 수정'), el('button', { class: 'pri', onclick: keep }, '저장')));
-    close(); review = { el: box, p, keep, drop, draw };
+    close(); review = { el: box, p, keep, drop, draw, edit: editIt };
     if (auto) { keep(); return; }   // 바로 저장 — 화면에 띄우지 않는다
     wrap.append(box); draw();
     if (p.aiP) p.aiP.then(() => { p.aiDone = true; if (review && review.p === p) draw(); });
   };
+  /* 실험실 — 찍고 말하기: 찍으면 사진 확인 화면 + 제목부터 말로(일자 · 위치는 저절로, 담당은 정해 둔 이름이 없을 때만).
+     "같음"=그대로, "내용 ○○"=그 칸만, "저장" / "다시"(처음부터) / "다시 찍기". 자판으로도 고치고, 저장하면 곧바로 다음 사진 */
+  const askEach = () => ls.get('labAskEach', true);
+  const afterShot = p => { if (LABC && labMode() === 'after' && SR && askEach()) { showReview(p, false); return afterVoice(); } showReview(p, LABC && labMode() === 'after' ? true : quick()); };
+  const labOk = () => { const o = el('div', { class: 'labok', role: 'status' }, '✓ 저장됐어요 · ' + shots.length + '장째'); wrap.append(o); setTimeout(() => o.remove(), 1400); };
+  const labKeep = async () => { if (!review) return; await review.keep(); speak('저장했어요. ' + shots.length + '장째'); };
+  const afterVoice = () => { if (!review) return; const p = review.p;
+    voiceFill({ get: f => valOf(p, f), set: (f, t) => { putVal(p, f, t); if (!f.per) saveCfg(); labVoiceN++; }, changed: () => { if (review && review.p === p) review.draw(); },
+      skip: f => ['date', 'place'].includes(f.id) || (f.id === 'who' && vals.who && vals.who !== EX.who), byLabel: true,
+      help: '대답 · "같음"=그대로 · "내용 ○○"=그 칸만 · "저장" / "다시 찍기"',
+      buttons: [['다시 찍기', v => { v.stop(); if (review) review.drop(); }, 'x'], ['자판으로', v => { v.stop(); if (review) review.edit(); }, 'x'], ['저장하고 계속 찍기', v => { v.stop(); labKeep(); }]],
+      confirmQ: sum => sum + '. 저장할까요?',
+      confirm: async (n, v) => {
+        if (/다시\s?찍|버려|취소|지워/.test(n)) { v.stop(); if (review) review.drop(); return speak('지웠어요. 다시 찍어 주세요'); }
+        if (SAY.redo.test(n)) return v.restart();
+        if (SAY.save.test(n)) { v.stop(); return labKeep(); }
+        return v.ask('저장, 다시, 다시 찍기 중에 말씀하세요');
+      } }); };
+  const flipCam = () => { facing = facing === 'environment' ? 'user' : 'environment'; start(); };
+  const LABN = { after: 'before', before: 'classic', classic: 'after' };
+  const labModeBtn = el('button', { class: 'labmode', onclick: () => { ls.set('labVoice', LABN[labMode()]); drawLab(); labT = Date.now(); labTaps = labVoiceN = 0; toast(labMode() === 'after' ? '찍고 말하기 — 찍으면 제목부터 물어요' : labMode() === 'before' ? '말하고 찍기 — 오른쪽 아래 [말하고 찍기]로 글부터' : '기존 방식 — 찍으면 바로 저장, 글은 [글자 수정]으로'); } });
+  const labRight = el('button', { class: 'side' });
+  const drawLab = () => { if (!LABC) return; labModeBtn.textContent = LABM[labMode()] + ' ⇄';
+    if (labMode() === 'before') { labRight.textContent = '말하고\n찍기'; labRight.onclick = async () => { await allowMotion(); camVoice(); }; }
+    else { labRight.textContent = '글자\n수정'; labRight.onclick = editText; } };
+  if (LABC) document.addEventListener('pointerdown', () => { if (wrap.isConnected) labTaps++; }, true);
+  /* 실험실 — [⋯ 더보기]: 겉에서 뺀 것을 모두 여기에(빼지 않고 옮김) */
+  const openMore = () => {
+    const bg = el('div', { class: 'sheet-bg', onclick: e => { if (e.target === bg) bg.remove(); } });
+    const go = fn => () => { bg.remove(); fn(); };
+    const pick = (k, t, d) => el('button', { class: labMode() === k ? 'on' : '', onclick: () => { ls.set('labVoice', k); drawLab(); bg.remove(); openMore(); } }, el('b', {}, t), el('span', {}, d));
+    const pre = [1, 2, 4].filter(v => v <= zMax() + 0.01);
+    bg.append(el('div', { class: 'sheet labmore' }, el('h2', { text: '더보기' }),
+      el('div', { class: 'hint', style: 'text-align:left;margin-bottom:-4px', text: '찍는 방식' }),
+      el('div', { class: 'labpick' }, pick('after', '찍고 말하기', '찍으면 바로 제목부터 말로 — 저장하면 다음 사진'), pick('before', '말하고 찍기', '글을 말로 먼저 채우고 "찍어"'), pick('classic', '기존 방식', '찍으면 바로 저장 — 비교용')),
+      labMode() === 'after' ? el('button', { class: 'big sec', onclick: () => { ls.set('labAskEach', !askEach()); bg.remove(); openMore(); } }, askEach() ? '찍을 때마다 설명 묻기: 켬' : '찍을 때마다 설명 묻기: 끔 (계속 찍기 — 글은 그대로)') : null,
+      el('div', { class: 'hint', style: 'text-align:left;margin-bottom:-4px', text: '방식별 비교 기록 (한 장 평균)' }), labTable(),
+      el('div', { class: 'hint', style: 'text-align:left;margin-bottom:-4px', text: '보드판 글' }),
+      el('div', { class: 'row2' }, el('button', { class: 'big sec', onclick: go(openLook) }, '보드 선택'), el('button', { class: 'big sec', onclick: go(editText) }, '글자 수정')),
+      SR ? el('button', { class: 'big sec', onclick: go(async () => { await allowMotion(); camVoice(); }) }, '말로 모두 채우고 찍기') : null,
+      el('div', { class: 'hint', style: 'text-align:left;margin-bottom:-4px', text: '카메라 (두 손가락으로도 확대돼요)' }),
+      el('div', { class: 'seg', style: 'flex-wrap:nowrap' }, ...pre.map(v => el('button', { style: 'flex:1 1 0', class: Math.abs(zoom - v) < 0.05 ? 'on' : '', onclick: go(() => setZoom(v)) }, v + '×'))),
+      window.ReactNativeWebView && !window.__nativeCam ? null : el('button', { class: 'big sec', onclick: go(nativeShot) }, '기본 카메라 (광학줌 · 고화질)'),
+      el('button', { class: 'big sec', onclick: go(flipCam) }, facing === 'user' ? '뒤 카메라로' : '셀카 모드'),
+      el('button', { class: 'big sec', onclick: go(openSet) }, '설정 (비율 · 저장 · 로고 · 똑똑똑)'),
+      el('button', { class: 'big pri', onclick: () => bg.remove() }, '닫기')));
+    document.body.append(bg);
+  };
+  const labTable = () => { const all = ls.get('labStats', {}), rows = Object.keys(LABM).filter(k => all[k]);
+    if (!rows.length) return el('div', { class: 'hint', style: 'text-align:left', text: '아직 기록이 없어요 — 같은 작업을 세 방식으로 찍어 보면 여기에 쌓여요.' });
+    const avg = (o, k) => o.n ? (o[k] / o.n) : 0;
+    return el('div', {}, el('div', { class: 'hint', style: 'text-align:left;white-space:pre-line;font-variant-numeric:tabular-nums' }, rows.map(k => { const o = all[k]; return `${LABM[k]} — ${o.n}장 · ${avg(o, 'ms') / 1000 > 0 ? (avg(o, 'ms') / 1000).toFixed(1) : '0'}초 · 누름 ${avg(o, 'taps').toFixed(1)}번 · 말로 고침 ${avg(o, 'voice').toFixed(1)}번 · 실패 ${o.fail || 0}`; }).join('\n')),
+      el('button', { class: 'big sec', style: 'margin-top:6px', onclick: e => { ls.set('labStats', {}); e.currentTarget.parentNode.replaceWith(labTable()); } }, '기록 지우기')); };
+  /* 실험실 처음 한 번 — 어떤 방식으로 찍을지(나중에 위 왼쪽 단추 · 더보기에서 바꿈) */
+  const labAsk = () => { const bg = el('div', { class: 'sheet-bg' });
+    const choose = k => () => { ls.set('labVoice', k); ls.set('labAsked', 1); drawLab(); bg.remove(); };
+    bg.append(el('div', { class: 'sheet' }, el('h2', {}, '어떻게 찍을까요?'), el('div', { class: 'hint', style: 'text-align:left', text: '사진통 실험실이에요. 두 방식을 써 보고 편한 쪽을 알려 주세요 — 화면 위 왼쪽 단추로 언제든 바꿔요.' }),
+      el('div', { class: 'labpick' }, el('button', { onclick: choose('after') }, el('b', {}, '찍고 말하기'), el('span', {}, '찍으면 바로 "제목을 말씀하세요" — 대답하고 "저장"')),
+        el('button', { onclick: choose('before') }, el('b', {}, '말하고 찍기'), el('span', {}, '[말하고 찍기]를 누르고 글을 말한 뒤 "찍어"')),
+        el('button', { onclick: choose('classic') }, el('b', {}, '기존 방식'), el('span', {}, '찍으면 바로 저장 — 비교용')))));
+    document.body.append(bg); };
   const done = () => { if (!shots.length && !photos.length) return; stop(); if (!shots.length) return editor(); photos = photos.concat(shots); cur = photos.length - shots.length; editor(); fillPlaces(shots, here); };
   // 왼쪽 아래 버튼: 찍기 전 = 앨범에서 고르기, 찍은 뒤 = 다 찍음(장 수). 2026-10-04 사용자: '앨범' → '앨범에서 사진 불러오기'(두 줄)
   const leftBtn = el('button', { class: 'side' });
@@ -1240,7 +1326,8 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   drawAi();
   camClose = stop;
   // 2026-10-09 핵심 다듬기: 처음 쓰는 사람에게 한 번만 — 무엇을 누르면 되는지 세 줄
-  if (!ls.get('firstTip')) setTimeout(() => {
+  if (LABC) { if (!ls.get('labAsked')) setTimeout(() => { if (wrap.isConnected) labAsk(); }, 600); drawLab(); }
+  else if (!ls.get('firstTip')) setTimeout(() => {
     const bg = el('div', { class: 'sheet-bg' });
     bg.append(el('div', { class: 'sheet' }, el('h2', {}, '이렇게 찍어요'),
       el('div', { class: 'tip3' }, el('p', {}, '① 위 보드판의 글을 확인해요 — [글자 수정]으로 고쳐요'), el('p', {}, '② 가운데 흰 버튼으로 찍어요 — 보드판이 함께 찍혀요'), el('p', {}, '③ 찍은 뒤 [저장] — 갤러리에 저장되고, 다 찍었으면 왼쪽 아래 [찍은 사진]으로')),
@@ -1248,8 +1335,9 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     document.body.append(bg);
   }, 600);
   const view = el('div', { class: 'view' }, video, PAIR ? ghostImg : null, ov, PAIR ? ghostBtn : null,
-      el('button', { class: 'gear', 'aria-label': '설정', onclick: openSet }, ui('sliders', 20)),
-      zoomEl, PAIR ? phEl : null, window.ReactNativeWebView && !window.__nativeCam ? null : el('button', { class: 'ncam', onclick: nativeShot }, ui('camera', 16), '기본 카메라\n광학줌 · 고화질'), nIn, JOB ? stepsEl : null);
+      LABC ? labModeBtn : null,
+      LABC ? el('button', { class: 'gear more', 'aria-label': '더보기', onclick: openMore }, '⋯') : el('button', { class: 'gear', 'aria-label': '설정', onclick: openSet }, ui('sliders', 20)),
+      LABC ? null : zoomEl, PAIR ? phEl : null, LABC || (window.ReactNativeWebView && !window.__nativeCam) ? null : el('button', { class: 'ncam', onclick: nativeShot }, ui('camera', 16), '기본 카메라\n광학줌 · 고화질'), nIn, JOB ? stepsEl : null);
   view.addEventListener('pointerdown', e => { onPt(e); if (pts.size === 2) pinch = { d: pdist(), z: zoom }; });
   view.addEventListener('pointermove', e => { if (!pts.has(e.pointerId)) return; onPt(e); if (pinch && pts.size === 2) setZoom(pinch.z * pdist() / pinch.d); });
   const ptUp = e => { pts.delete(e.pointerId); if (pts.size < 2) pinch = null; };
@@ -1258,15 +1346,15 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     view,
     // 도구 줄(2026-10-02 사용자: 화면 정리 · 음성 입력, AI 자동 입력 / 2026-10-04 사용자: 표 수정 · 글 수정 · 음성 입력 순서로)
     QUICK ? locEl : null,
-    el('div', { class: 'tools' },
+    LABC ? null : el('div', { class: 'tools' },
       el('button', { onclick: openLook }, ui('layout'), '보드 선택'),
       el('button', { onclick: editText }, ui('pen'), '글자 수정'),
       el('button', { onclick: async () => { await allowMotion(); camVoice(); } }, ui('mic'), '음성 입력')),
-    el('div', { class: 'tools-hint' }, ui('mic', 14), '터치 없이 음성 입력: 휴대폰을 3회 톡톡톡 두드리세요!'),   // 2026-10-08 장남덕님 문구(고성식 님 승인)
+    LABC ? null : el('div', { class: 'tools-hint' }, ui('mic', 14), '터치 없이 음성 입력: 휴대폰을 3회 톡톡톡 두드리세요!'),   // 2026-10-08 장남덕님 문구(고성식 님 승인)
     el('div', { class: 'bar' },
       leftBtn,
       el('button', { class: 'shut', 'aria-label': '찍기', onclick: shoot }),
-      el('button', { class: 'side', onclick: e => { facing = facing === 'environment' ? 'user' : 'environment'; e.currentTarget.textContent = facing === 'user' ? '뒤 카메라' : '셀카 모드'; start(); } }, facing === 'user' ? '뒤 카메라' : '셀카 모드')));
+      LABC ? labRight : el('button', { class: 'side', onclick: e => { facing = facing === 'environment' ? 'user' : 'environment'; e.currentTarget.textContent = facing === 'user' ? '뒤 카메라' : '셀카 모드'; start(); } }, facing === 'user' ? '뒤 카메라' : '셀카 모드')));
   document.body.append(wrap);
   drawLoc();
   await start(); tick();
@@ -1750,23 +1838,26 @@ async function gloveMode() {
 }
 // ---------- 편집 화면에서 말로 채우기 ----------
 // 켠 칸을 차례로 소리 내어 묻고("같음"=그대로) → 읽어 주고 → "저장"(사진첩에 저장) / "다시" / "다음"(여러 장일 때 다음 사진) / "그만"
-let refreshInputs = null, voiceStop = null;
+let refreshInputs = null, voiceStop = null, voiceKill = null;
 async function voiceFill(opt = {}) {   // opt: 카메라 화면처럼 다른 곳에서 쓸 때 칸 읽기·쓰기·확인 단계를 바꿔요
   if (voiceStop) return voiceStop();   // 이미 듣는 중이면 끄기
   if (!SR) return toast('이 브라우저는 음성 인식이 안 돼요');
   let active = true, rec = null, qi = 0, state = 'ask';
-  const fields = () => cfg.fields.filter(f => f.on);
+  const skip = opt.skip || (() => false);
+  const fields = () => cfg.fields.filter(f => f.on && !skip(f));
+  let V = null;
   const getV = opt.get || (f => valOf(photos[cur], f));
   const setV = opt.set || ((f, t) => { putVal(photos[cur], f, t); saveCfg(); if (f.per) rememberPer(photos[cur]); });
   const stEl = el('div', { class: 'g-state' }), heard = el('div', { class: 'g-heard' });
   const bar = el('div', { class: 'vbar' }, stEl, heard,
     el('div', { class: 'g-help', text: opt.help || '대답 · "같음"=그대로 · "저장" / "다시" / "다음 사진" · 끝낼 때 "그만" 또는 똑똑똑' }),
+    opt.buttons ? el('div', { class: 'g-btns' }, ...opt.buttons.map(([t, fn, c]) => el('button', { class: 'g-b' + (c ? ' ' + c : ''), onclick: () => fn(V) }, t))) : null,
     el('button', { class: 'g-b x', onclick: () => stop() }, '말로 채우기 끝내기'));
   document.body.append(bar);
   let wake = null; try { wake = await navigator.wakeLock.request('screen'); } catch {}
   const stopRec = () => { if (rec) { rec.onend = null; try { rec.abort(); } catch {} rec = null; } };
-  function stop(msg) { if (!active) return; active = false; voiceStop = null; opt.onStop && opt.onStop(); stopRec(); try { speechSynthesis.cancel(); } catch {} try { wake && wake.release(); } catch {} bar.remove(); if (msg) speak(msg); }
-  voiceStop = () => stop('음성 입력을 끝내요');
+  function stop(msg) { if (!active) return; active = false; voiceStop = null; voiceKill = null; opt.onStop && opt.onStop(); stopRec(); try { speechSynthesis.cancel(); } catch {} try { wake && wake.release(); } catch {} bar.remove(); if (msg) speak(msg); }
+  voiceStop = () => stop('음성 입력을 끝내요'); voiceKill = () => stop();
   const listen = () => {
     if (!active) return; stopRec();
     const r = new SR(); r.lang = 'ko-KR'; r.interimResults = true; r.continuous = false; let final = '';
@@ -1779,23 +1870,31 @@ async function voiceFill(opt = {}) {   // opt: 카메라 화면처럼 다른 곳
   const josa = w => { const c = (w || '').charCodeAt(w.length - 1); return c >= 0xAC00 && c <= 0xD7A3 && (c - 0xAC00) % 28 ? '을' : '를'; };
   const askNext = () => {
     const fs = fields(); if (qi >= fs.length) { state = 'confirm'; const sum = fs.map(f => `${f.label} ${getV(f) || '없음'}`).join(', '); return ask(opt.confirmQ ? opt.confirmQ(sum) : `${sum}. 저장할까요?`); }
-    const f = fs[qi], v = getV(f); ask(`${f.label}${josa(f.label)} 말씀하세요${v ? '. 지금은 ' + v : ''}`);
+    const f = fs[qi], v = getV(f); ask(`${f.label}${josa(f.label)} 말씀하세요${v && !(LAB && isEx(f.id, v)) ? '. 지금은 ' + v : ''}`);
   };
   async function handle(t) {
     const n = norm(t);
     if (SAY.quit.test(n) && n.length <= 5) return stop('음성 입력을 끝내요');
+    if (opt.byLabel) {   // 실험실: "내용 계단 청소"처럼 칸 이름부터 말하면 그 칸만 바꾸고 나머지는 그대로 → 확인으로
+      for (const f of fields()) { const L = String(f.label || '').replace(/\s/g, ''); if (!L) continue;
+        const m = t.match(new RegExp('^\\s*' + [...L].map(c => c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s*') + '\\s*(?:은|는|이|가|을|를|:)?\\s*'));
+        const val = m ? t.slice(m[0].length).trim() : ''; if (!val) continue;
+        setV(f, val.slice(0, f.id === 'memo' ? 60 : 30)); if (opt.changed) opt.changed(); else { refreshInputs && refreshInputs(); redraw(); }
+        state = 'ask'; qi = fields().length; return askNext(); }
+    }
     if (state === 'ask') {
       const f = fields()[qi];
       if (!SAY.same.test(n)) { setV(f, t.slice(0, f.id === 'memo' ? 60 : 30)); if (opt.changed) opt.changed(); else { refreshInputs && refreshInputs(); redraw(); } }
       qi++; return askNext();
     }
     const restart = () => { state = 'ask'; qi = 0; return askNext(); };
-    if (opt.confirm) return opt.confirm(n, { ask, stop, restart });
+    if (opt.confirm) return opt.confirm(n, V);
     if (SAY.redo.test(n)) return restart();
     if (/다음/.test(n) && photos.length > 1) { photos[cur].look = lookOf(); cur = (cur + 1) % photos.length; useLook(photos[cur]); onPhotoChange && onPhotoChange(); refreshInputs && refreshInputs(); redraw(); state = 'ask'; qi = 0; stopRec(); await speak(`${cur + 1}번째 사진이에요`); return askNext(); }
     if (SAY.save.test(n)) { await save(); return stop(photos.length > 1 ? `${photos.length}장을 저장했어요` : '저장했어요'); }
     return ask('저장, 다시, 다음 사진, 그만 중에 말씀하세요');
   }
+  V = { ask, stop, restart: () => { state = 'ask'; qi = 0; return askNext(); } };
   if (navigator.vibrate) navigator.vibrate(200);
   toast('음성 입력을 시작해요 · 끝낼 때 "그만" 또는 다시 똑똑똑');
   await speak('음성 입력을 시작해요');
