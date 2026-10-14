@@ -173,6 +173,7 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 .labcfrow{display:flex;gap:10px;align-items:baseline;padding:8px 2px;border-bottom:1px solid var(--line)}
 .labcfrow span{flex:none;width:92px;font-size:13px;color:var(--muted)}
 .labcfrow b{flex:1;font-size:16px;word-break:keep-all}
+.vbar .g-help.big{font-size:16px;line-height:1.45;color:#FFD9B5;font-weight:700}
 .labdesc{font-weight:500;font-size:12px;color:var(--muted)}
 .cam .labear{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);background:rgba(0,0,0,.5);color:#fff;border-radius:999px;padding:6px 12px;font-size:12.5px;font-weight:700;white-space:nowrap;pointer-events:none}
 .labpick{display:flex;flex-direction:column;gap:10px}
@@ -1024,8 +1025,8 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   const camSet = (f, t) => { if (LABC && voiceStop) labVoiceN++; if (f.per) camVals[f.id] = t; else { vals[f.id] = t; saveCfg(); } if (f.per) rememberPer(camVals); };
   // 장갑 모드처럼 말로 채우기: 칸을 차례로 묻고 → "찍어" 하면 찍기 → 또 "찍어" / "다시"(글 다시) / "다 찍었어" / "그만"
   const camVoice = () => { document.querySelectorAll('.sheet-bg').forEach(x => x.remove()); voiceFill({ get: camGet, set: camSet,
-    ...(LABC ? { skip: LAB_SKIP, byLabel: true, onEnd: v => { v.stop(); labConfirm(camGet, () => toast('저장했어요 — 이제 찍으면 이 글이 들어가요'), () => camVoice(), editText); } } : {}), changed: () => Object.entries(sheetIn).forEach(([k, i]) => { const f = cfg.fields.find(x => x.id === k); if (f) i.value = camGet(f); }),
-    help: '대답 · "같음"=그대로 · "찍어" / "다시" / "다 찍었어" · 끝낼 때 "그만" 또는 똑똑똑',
+    ...(LABC ? { skip: LAB_SKIP, byLabel: true, fast: true, onEnd: v => { v.stop(); labConfirm(camGet, () => toast('저장했어요 — 이제 찍으면 이 글이 들어가요'), () => camVoice(), editText); } } : {}), changed: () => Object.entries(sheetIn).forEach(([k, i]) => { const f = cfg.fields.find(x => x.id === k); if (f) i.value = camGet(f); }),
+    help: LABC ? '말하고 "다음" → 다음 칸 · "찍어" · "같음" 그대로 · "다시" 처음부터 · "그만" 끝' : '대답 · "같음"=그대로 · "찍어" / "다시" / "다 찍었어" · 끝낼 때 "그만" 또는 똑똑똑',
     confirmQ: sum => `${sum}. 찍어 라고 하면 찍어요`,
     confirm: async (n, v) => {
       if (/다\s?찍|완료|끝났/.test(n)) { v.stop(); return done(); }
@@ -1065,8 +1066,8 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
       const base = {}, setP = (f, t) => { if (f.id === 'place' && cfg.mode !== 'fire') { if (base.place == null) base.place = isEx('place', camGet(f)) ? '' : camGet(f); t = (base.place + ' ' + t).trim().slice(0, 30); } camSet(f, t); };
       const close = () => { if (bg.isConnected) bg.remove(); };
       new MutationObserver((_, mo) => { if (!bg.isConnected) { mo.disconnect(); if (voiceKill) voiceKill(); } }).observe(document.body, { childList: true });
-      voiceFill({ get: camGet, set: setP, skip: LAB_SKIP, byLabel: true, onEnd: v => { v.stop(); labConfirm(camGet, () => { close(); toast('저장했어요 — 이제 찍는 사진에 들어가요'); }, () => { close(); editText(); }, kbd); }, changed: () => Object.entries(sheetIn).forEach(([k, i]) => { const f = cfg.fields.find(x => x.id === k); if (f && document.activeElement !== i) i.value = camGet(f); }),
-        help: '대답 · "같음"=그대로 · "내용 ○○"=그 칸만 · "다 됐어" / "찍어"',
+      voiceFill({ get: camGet, set: setP, skip: LAB_SKIP, byLabel: true, fast: true, onEnd: v => { v.stop(); labConfirm(camGet, () => { close(); toast('저장했어요 — 이제 찍는 사진에 들어가요'); }, () => { close(); editText(); }, kbd); }, changed: () => Object.entries(sheetIn).forEach(([k, i]) => { const f = cfg.fields.find(x => x.id === k); if (f && document.activeElement !== i) i.value = camGet(f); }),
+        help: '말하고 "다음" → 다음 칸 · "같음" 그대로 · "다 됐어" · "찍어" · "그만" 끝',
         confirmQ: sum => sum + '. 다 됐으면 다 됐어, 바로 찍으려면 찍어',
         confirm: async (n, v) => { if (SAY.shoot.test(n)) { v.stop(); close(); return shoot(); } if (/다\s?됐|됐어|좋아|저장|네|응/.test(n)) { v.stop(); close(); return speak('고쳤어요'); } if (SAY.redo.test(n)) return v.restart(); return v.ask('다 됐어, 찍어, 다시 중에 말씀하세요'); } });
     }
@@ -1222,9 +1223,9 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   const afterVoice = () => { if (!review) return; const p = review.p;
     const base = {};   // 위치: 처음 값(저절로 든 동네) 뒤에 덧붙임
     voiceFill({ get: f => valOf(p, f), set: (f, t) => { if (f.id === 'place' && cfg.mode !== 'fire') { if (base.place == null) base.place = isEx('place', valOf(p, f)) ? '' : valOf(p, f); t = (base.place + ' ' + t).trim().slice(0, 30); } putVal(p, f, t); if (!f.per) saveCfg(); labVoiceN++; }, changed: () => { if (review && review.p === p) review.draw(); },
-      skip: LAB_SKIP, byLabel: true,
+      skip: LAB_SKIP, byLabel: true, fast: true,
       onEnd: v => { v.stop(); labConfirm(f => valOf(p, f), labKeep, () => afterVoice(), () => review && review.edit()); },
-      help: '대답 · "같음"=그대로 · "내용 ○○"=그 칸만 · "저장" / "다시 찍기"',
+      help: '말하고 "다음" → 다음 칸 · "저장" · "같음" 그대로 · "다시" 처음부터 · "그만" 끝 · "다시 찍기"',
       buttons: [['다시 찍기', v => { v.stop(); if (review) review.drop(); }, 'x'], ['자판으로', v => { v.stop(); if (review) review.edit(); }, 'x'], ['저장하고 계속 찍기', v => { v.stop(); labKeep(); }]],
       confirmQ: sum => sum + '. 저장할까요?',
       confirm: async (n, v) => {
@@ -1899,7 +1900,7 @@ async function voiceFill(opt = {}) {   // opt: 카메라 화면처럼 다른 곳
   const setV = opt.set || ((f, t) => { putVal(photos[cur], f, t); saveCfg(); if (f.per) rememberPer(photos[cur]); });
   const stEl = el('div', { class: 'g-state' }), heard = el('div', { class: 'g-heard' });
   const bar = el('div', { class: 'vbar' }, stEl, heard,
-    el('div', { class: 'g-help', text: opt.help || '대답 · "같음"=그대로 · "저장" / "다시" / "다음 사진" · 끝낼 때 "그만" 또는 똑똑똑' }),
+    el('div', { class: 'g-help' + (opt.fast ? ' big' : ''), text: opt.help || '대답 · "같음"=그대로 · "저장" / "다시" / "다음 사진" · 끝낼 때 "그만" 또는 똑똑똑' }),
     opt.buttons ? el('div', { class: 'g-btns' }, ...opt.buttons.map(([t, fn, c]) => el('button', { class: 'g-b' + (c ? ' ' + c : ''), onclick: () => fn(V) }, t))) : null,
     el('button', { class: 'g-b x', onclick: () => opt.onEnd ? opt.onEnd(V) : stop() }, '말로 채우기 끝내기'));
   document.body.append(bar);
@@ -1909,10 +1910,15 @@ async function voiceFill(opt = {}) {   // opt: 카메라 화면처럼 다른 곳
   voiceStop = () => stop('음성 입력을 끝내요'); voiceKill = () => stop();
   const listen = () => {
     if (!active) return; stopRec();
-    const r = new SR(); r.lang = 'ko-KR'; r.interimResults = true; r.continuous = false; let final = '';
-    r.onresult = ev => { const t = [...ev.results].map(x => x[0].transcript).join(''); heard.textContent = t; if (ev.results[ev.results.length - 1].isFinal) final = t; };
+    const r = new SR(); r.lang = 'ko-KR'; r.interimResults = true; r.continuous = false; let final = '', idleT = 0;
+    // 실험실(opt.fast): 말 끝 "다음"·"넘어가"(칸 묻는 중) · "저장"·"다시"(확인 중)는 듣는 즉시, 시끄러워 멈춤을 못 알아채면 2.5초 뒤 들은 대로
+    const finish = t => { if (final || rec !== r) return; final = t; clearTimeout(idleT); try { r.stop(); } catch {} };
+    r.onresult = ev => { const t = [...ev.results].map(x => x[0].transcript).join(''); heard.textContent = t; if (ev.results[ev.results.length - 1].isFinal) { final = t; clearTimeout(idleT); return; }
+      if (!opt.fast || !t.trim()) return; const m = norm(t);
+      if (state === 'ask' ? /(다음|넘어가)$/.test(m) : (SAY.save.test(m) || SAY.redo.test(m) || SAY.shoot.test(m) || /다시찍|버려|다됐|됐어/.test(m))) return finish(t);
+      clearTimeout(idleT); idleT = setTimeout(() => finish(t), 2500); };
     r.onerror = ev => { if (ev.error === 'not-allowed') stop(), toast('마이크 사용을 허락해 주세요'); };
-    r.onend = () => { rec = null; if (!active) return; if (final.trim()) handle(final.trim()); else setTimeout(listen, 150); };
+    r.onend = () => { clearTimeout(idleT); rec = null; if (!active) return; if (final.trim()) handle(final.trim()); else setTimeout(listen, 150); };
     try { r.start(); rec = r; } catch { setTimeout(listen, 500); }
   };
   const ask = async t => { stopRec(); stEl.textContent = t; heard.textContent = ''; await speak(t); listen(); };
@@ -1922,6 +1928,7 @@ async function voiceFill(opt = {}) {   // opt: 카메라 화면처럼 다른 곳
     const f = fs[qi], v = getV(f); ask(`${f.label}${josa(f.label)} 말씀하세요${v && !(LAB && isEx(f.id, v)) ? '. 지금은 ' + v : ''}`);
   };
   async function handle(t) {
+    if (opt.fast && state === 'ask') { const t2 = t.replace(/[\s.,!?~]*(다음|넘어가)[\s.,!?~]*$/, '').trim(); if (t2 !== t.trim()) t = t2 || '같음'; }
     const n = norm(t);
     if (SAY.quit.test(n) && n.length <= 5) return stop('음성 입력을 끝내요');
     if (opt.byLabel) {   // 실험실: "내용 계단 청소"처럼 칸 이름부터 말하면 그 칸만 바꾸고 나머지는 그대로 → 확인으로
