@@ -170,6 +170,9 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 .sheet.labmore .big{flex:none;height:52px;font-size:16.5px;border-radius:14px;width:100%}
 .sheet.labmore .row2{display:flex;gap:8px}
 .sheet.labmore .row2 .big{flex:1}
+.labcfrow{display:flex;gap:10px;align-items:baseline;padding:8px 2px;border-bottom:1px solid var(--line)}
+.labcfrow span{flex:none;width:92px;font-size:13px;color:var(--muted)}
+.labcfrow b{flex:1;font-size:16px;word-break:keep-all}
 .labdesc{font-weight:500;font-size:12px;color:var(--muted)}
 .cam .labear{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);background:rgba(0,0,0,.5);color:#fff;border-radius:999px;padding:6px 12px;font-size:12.5px;font-weight:700;white-space:nowrap;pointer-events:none}
 .labpick{display:flex;flex-direction:column;gap:10px}
@@ -904,6 +907,16 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   const LABC = LAB && !JOB;   // 실험실은 간편 찍기(작업 · 점검 사진첩이 아닐 때)만
   if (LABC && !ls.get('labInit')) { cfg.layout = 'table2'; saveCfg(); ls.set('labInit', 1); }   // 장남덕님 10-15 '기본세팅 2단 표'
   const LABM = { after: '찍고 말하기', before: '말하고 찍기', classic: '기존 방식' };
+  const LAB_SKIP = f => !['title', 'memo'].includes(f.id);   // 장남덕님 10-15: 제목 · 세부 내용만 말로, 날짜 · 장소 · 담당은 자동(묻지 않음)
+  /* 확인 창: 말로 넣은 것(제목 · 내용)과 자동으로 든 것(일자 · 위치 · 담당)을 보여 주고 [저장] */
+  const labConfirm = (get, onSave, onRedo, onKbd) => { document.querySelectorAll('.sheet-bg.labcf').forEach(x => x.remove());
+    const bg = el('div', { class: 'sheet-bg labcf' }), shown = f => { const v = get(f); return v && !isEx(f.id, v) ? v : '(없음)'; };
+    const rows = cfg.fields.filter(f => f.on).map(f => el('div', { class: 'labcfrow' }, el('span', {}, labOf(f) + (LAB_SKIP(f) ? ' · 자동' : '')), el('b', {}, shown(f))));
+    const go = fn => () => { bg.remove(); fn && fn(); };
+    bg.append(el('div', { class: 'sheet labmore' }, el('h2', {}, '이렇게 넣을까요?'), ...rows,
+      el('button', { class: 'big pri', onclick: go(onSave) }, '저장'),
+      el('div', { class: 'row2' }, el('button', { class: 'big sec', onclick: go(onRedo) }, '다시 말하기'), el('button', { class: 'big sec', onclick: go(onKbd) }, '자판으로 고치기'))));
+    document.body.append(bg); speak(cfg.fields.filter(f => f.on && !LAB_SKIP(f)).map(f => labOf(f) + ' ' + shown(f)).join(', ') + '. 저장할까요?'); };
   const labMode = () => { const m = ls.get('labVoice', 'after'); return LABM[m] ? m : 'after'; };   // after = 찍고 말하기, before = 말하고 찍기, classic = 기존(찍으면 바로 저장)
   /* 비교 기록(ChatGPT 10-15): 방식마다 저장한 장 수 · 걸린 시간(앞 사진 저장 ~ 이 사진 저장) · 누른 횟수 · 말로 고친 횟수 · 저장 실패 */
   let labT = Date.now(), labTaps = 0, labVoiceN = 0;
@@ -1010,7 +1023,8 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   const camGet = f => (f.per ? ghostP()[f.id] : vals[f.id]) || '';
   const camSet = (f, t) => { if (LABC && voiceStop) labVoiceN++; if (f.per) camVals[f.id] = t; else { vals[f.id] = t; saveCfg(); } if (f.per) rememberPer(camVals); };
   // 장갑 모드처럼 말로 채우기: 칸을 차례로 묻고 → "찍어" 하면 찍기 → 또 "찍어" / "다시"(글 다시) / "다 찍었어" / "그만"
-  const camVoice = () => { document.querySelectorAll('.sheet-bg').forEach(x => x.remove()); voiceFill({ get: camGet, set: camSet, changed: () => Object.entries(sheetIn).forEach(([k, i]) => { const f = cfg.fields.find(x => x.id === k); if (f) i.value = camGet(f); }),
+  const camVoice = () => { document.querySelectorAll('.sheet-bg').forEach(x => x.remove()); voiceFill({ get: camGet, set: camSet,
+    ...(LABC ? { skip: LAB_SKIP, byLabel: true, onEnd: v => { v.stop(); labConfirm(camGet, () => toast('저장했어요 — 이제 찍으면 이 글이 들어가요'), () => camVoice(), editText); } } : {}), changed: () => Object.entries(sheetIn).forEach(([k, i]) => { const f = cfg.fields.find(x => x.id === k); if (f) i.value = camGet(f); }),
     help: '대답 · "같음"=그대로 · "찍어" / "다시" / "다 찍었어" · 끝낼 때 "그만" 또는 똑똑똑',
     confirmQ: sum => `${sum}. 찍어 라고 하면 찍어요`,
     confirm: async (n, v) => {
@@ -1051,7 +1065,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
       const base = {}, setP = (f, t) => { if (f.id === 'place' && cfg.mode !== 'fire') { if (base.place == null) base.place = isEx('place', camGet(f)) ? '' : camGet(f); t = (base.place + ' ' + t).trim().slice(0, 30); } camSet(f, t); };
       const close = () => { if (bg.isConnected) bg.remove(); };
       new MutationObserver((_, mo) => { if (!bg.isConnected) { mo.disconnect(); if (voiceKill) voiceKill(); } }).observe(document.body, { childList: true });
-      voiceFill({ get: camGet, set: setP, skip: f => f.id === 'date', byLabel: true, changed: () => Object.entries(sheetIn).forEach(([k, i]) => { const f = cfg.fields.find(x => x.id === k); if (f && document.activeElement !== i) i.value = camGet(f); }),
+      voiceFill({ get: camGet, set: setP, skip: LAB_SKIP, byLabel: true, onEnd: v => { v.stop(); labConfirm(camGet, () => { close(); toast('저장했어요 — 이제 찍는 사진에 들어가요'); }, () => { close(); editText(); }, kbd); }, changed: () => Object.entries(sheetIn).forEach(([k, i]) => { const f = cfg.fields.find(x => x.id === k); if (f && document.activeElement !== i) i.value = camGet(f); }),
         help: '대답 · "같음"=그대로 · "내용 ○○"=그 칸만 · "다 됐어" / "찍어"',
         confirmQ: sum => sum + '. 다 됐으면 다 됐어, 바로 찍으려면 찍어',
         confirm: async (n, v) => { if (SAY.shoot.test(n)) { v.stop(); close(); return shoot(); } if (/다\s?됐|됐어|좋아|저장|네|응/.test(n)) { v.stop(); close(); return speak('고쳤어요'); } if (SAY.redo.test(n)) return v.restart(); return v.ask('다 됐어, 찍어, 다시 중에 말씀하세요'); } });
@@ -1208,7 +1222,8 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   const afterVoice = () => { if (!review) return; const p = review.p;
     const base = {};   // 위치: 처음 값(저절로 든 동네) 뒤에 덧붙임
     voiceFill({ get: f => valOf(p, f), set: (f, t) => { if (f.id === 'place' && cfg.mode !== 'fire') { if (base.place == null) base.place = isEx('place', valOf(p, f)) ? '' : valOf(p, f); t = (base.place + ' ' + t).trim().slice(0, 30); } putVal(p, f, t); if (!f.per) saveCfg(); labVoiceN++; }, changed: () => { if (review && review.p === p) review.draw(); },
-      skip: f => f.id === 'date' || (f.id === 'who' && vals.who && vals.who !== EX.who), byLabel: true,
+      skip: LAB_SKIP, byLabel: true,
+      onEnd: v => { v.stop(); labConfirm(f => valOf(p, f), labKeep, () => afterVoice(), () => review && review.edit()); },
       help: '대답 · "같음"=그대로 · "내용 ○○"=그 칸만 · "저장" / "다시 찍기"',
       buttons: [['다시 찍기', v => { v.stop(); if (review) review.drop(); }, 'x'], ['자판으로', v => { v.stop(); if (review) review.edit(); }, 'x'], ['저장하고 계속 찍기', v => { v.stop(); labKeep(); }]],
       confirmQ: sum => sum + '. 저장할까요?',
@@ -1886,7 +1901,7 @@ async function voiceFill(opt = {}) {   // opt: 카메라 화면처럼 다른 곳
   const bar = el('div', { class: 'vbar' }, stEl, heard,
     el('div', { class: 'g-help', text: opt.help || '대답 · "같음"=그대로 · "저장" / "다시" / "다음 사진" · 끝낼 때 "그만" 또는 똑똑똑' }),
     opt.buttons ? el('div', { class: 'g-btns' }, ...opt.buttons.map(([t, fn, c]) => el('button', { class: 'g-b' + (c ? ' ' + c : ''), onclick: () => fn(V) }, t))) : null,
-    el('button', { class: 'g-b x', onclick: () => stop() }, '말로 채우기 끝내기'));
+    el('button', { class: 'g-b x', onclick: () => opt.onEnd ? opt.onEnd(V) : stop() }, '말로 채우기 끝내기'));
   document.body.append(bar);
   let wake = null; try { wake = await navigator.wakeLock.request('screen'); } catch {}
   const stopRec = () => { if (rec) { rec.onend = null; try { rec.abort(); } catch {} rec = null; } };
