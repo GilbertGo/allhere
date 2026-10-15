@@ -181,7 +181,9 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 .sheet.labmore .big.sec.on{border:2px solid var(--brown);background:var(--soft)}
 .cam .labbar .labtorch.on{background:#FFD24A;color:#2A2118;border-color:#FFD24A}
 .labdesc{font-weight:500;font-size:12px;color:var(--muted)}
-.cam .labear{position:absolute;left:12px;top:calc(62px + env(safe-area-inset-top,0px));background:rgba(0,0,0,.5);color:#fff;border-radius:999px;padding:6px 12px;font-size:12.5px;font-weight:700;white-space:nowrap;pointer-events:none}
+.cam .labear{position:absolute;left:12px;top:calc(62px + env(safe-area-inset-top,0px));background:linear-gradient(90deg,rgba(37,99,235,.92),rgba(14,124,134,.92));color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:999px;padding:8px 14px;font-size:14px;font-weight:600;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.3);letter-spacing:-.01em}
+.cam .labear b{font-weight:800;margin-right:2px}
+.cam .labear.paused{background:rgba(0,0,0,.6)}
 .labpick{display:flex;flex-direction:column;gap:10px}
 .labpick button{text-align:left;padding:14px 16px;border-radius:16px;border:1px solid var(--line);background:var(--card);color:var(--ink)}
 .labpick button.on{border:2px solid var(--brown);background:var(--soft)}
@@ -915,19 +917,20 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   const QUICK = CHECK || !!window.__quick;
   const LABC = LAB && !JOB;   // 실험실은 간편 찍기(작업 · 점검 사진첩이 아닐 때)만
   if (LABC && !ls.get('labInit')) { cfg.layout = 'table2'; saveCfg(); ls.set('labInit', 1); }
+  if (LABC && window.__userName && (!vals.who || isEx('who', vals.who))) { vals.who = window.__userName; saveCfg(); }   // R1015-42 담당 자동
   if (LABC && !ls.get('labInit2')) { cfg.size = 1.2; saveCfg(); ls.set('labInit2', 1); }   // 장남덕님 10-15 '동산보드 크기로' — 보드 선택에서 바꿈   // 장남덕님 10-15 '기본세팅 2단 표'
   const LABM = { after: '찍고 말하기', before: '말하고 찍기', classic: '기존 방식' };
   const LAB_SKIP = f => !['title', 'memo'].includes(f.id);   // 장남덕님 10-15: 제목 · 세부 내용만 말로, 날짜 · 장소 · 담당은 자동(묻지 않음)
   /* 확인 창: 말로 넣은 것(제목 · 내용)과 자동으로 든 것(일자 · 위치 · 담당)을 보여 주고 [저장] */
-  const labConfirm = (get, onSave, onRedo, onKbd, set, quiet) => { document.querySelectorAll('.sheet-bg.labcf').forEach(x => x.remove());
+  const labConfirm = (get, onSave, onRedo, onKbd, set, quiet, ui) => { ui = ui || {}; document.querySelectorAll('.sheet-bg.labcf').forEach(x => x.remove());
     const bg = el('div', { class: 'sheet-bg labcf' }), shown = f => { const v = get(f); return v && !isEx(f.id, v) ? v : '(없음)'; };
-    const inp = f => { const i = el('input', { type: 'text', class: 'labcfin', maxlength: f.id === 'memo' ? 60 : 30, value: isEx(f.id, get(f)) ? '' : (get(f) || ''), placeholder: (LAB_DESC[f.id] || [])[1] || '',
+    const inp = f => { const i = el('input', { type: 'text', class: 'labcfin', 'data-f': f.id, maxlength: f.id === 'memo' ? 60 : 30, value: isEx(f.id, get(f)) ? '' : (get(f) || ''), placeholder: (LAB_DESC[f.id] || [])[1] || '',
       onfocus: () => { if (voiceKill) voiceKill(); }, oninput: () => set(f, i.value) }); return i; };   // 손으로 고치기 시작하면 말로 듣기는 멈춤
     const rows = cfg.fields.filter(f => f.on).map(f => el('div', { class: 'labcfrow' }, el('span', {}, labOf(f) + (LAB_SKIP(f) ? ' · 자동' : '')), set && !LAB_SKIP(f) ? inp(f) : el('b', {}, shown(f))));
     const go = fn => () => { bg.remove(); fn && fn(); };
-    bg.append(el('div', { class: 'sheet labmore' }, el('h2', {}, '이렇게 넣을까요?'), ...rows,
+    bg.append(el('div', { class: 'sheet labmore' }, el('h2', {}, ui.title || '이렇게 넣을까요?'), ...rows,
       el('button', { class: 'big pri', onclick: go(onSave) }, '저장'),
-      el('div', { class: 'row2' }, el('button', { class: 'big sec', onclick: go(onRedo) }, '다시 말하기'), el('button', { class: 'big sec', onclick: go(onKbd) }, '자판으로 고치기'))));
+      el('div', { class: 'row2' }, el('button', { class: 'big sec', onclick: go(onKbd) }, ui.kbd || '자판으로 고치기'), el('button', { class: 'big sec', onclick: go(onRedo) }, '다시 말하기'))));
     document.body.append(bg); if (!quiet) speak(cfg.fields.filter(f => f.on && !LAB_SKIP(f)).map(f => labOf(f) + ' ' + shown(f)).join(', ') + '. 저장할까요?'); return bg; };
   const labMode = () => { const m = ls.get('labVoice', 'after'); return LABM[m] ? m : 'after'; };   // after = 찍고 말하기, before = 말하고 찍기, classic = 기존(찍으면 바로 저장)
   /* 비교 기록(ChatGPT 10-15): 방식마다 저장한 장 수 · 걸린 시간(앞 사진 저장 ~ 이 사진 저장) · 누른 횟수 · 말로 고친 횟수 · 저장 실패 */
@@ -1209,7 +1212,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
       const row = f => { const i = el('input', { type: 'text', id: 'r-' + f.id, maxlength: f.id === 'memo' ? 60 : 30, placeholder: PH[f.id] || '', value: valOf(p, f),
           oninput: () => { putVal(p, f, i.value); if (!f.per) saveCfg(); draw(); } });
         return el('label', { class: 'f', for: 'r-' + f.id }, labOf(f), el('div', { class: 'inrow' }, i, micBtn(i, f))); };
-      bg.append(el('div', { class: 'sheet' }, el('h2', { text: '이 사진 글 수정' }), ...cfg.fields.filter(f => f.on).map(row), el('button', { class: 'big pri', onclick: () => bg.remove() }, '다 고쳤어요')));
+      bg.append(el('div', { class: 'sheet' }, el('h2', { text: '이 사진 글 수정' }), ...cfg.fields.filter(f => f.on).map(row), LAB && !JOB ? el('button', { class: 'big pri', onclick: () => { bg.remove(); keep(); } }, '수정내용 저장') : el('button', { class: 'big pri', onclick: () => bg.remove() }, '다 고쳤어요')));
       document.body.append(bg);
     };
     let ckEl = null;
@@ -1237,27 +1240,38 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   const labOk = () => { const o = el('div', { class: 'labok', role: 'status' }, '✓ 저장됐어요 · ' + shots.length + '장째'); wrap.append(o); setTimeout(() => o.remove(), 1400); };
   const labKeep = async () => { if (!review) return; await review.keep(); speak('저장했어요. ' + shots.length + '장째'); };
   const afterVoice = () => { if (!review) return; const p = review.p;
+    const cf = () => document.querySelectorAll('.sheet-bg.labcf').forEach(x => x.remove());
+    const setP = (f, t) => { putVal(p, f, t); if (!f.per) saveCfg(); if (review && review.p === p) review.draw(); };
+    const fix = () => { if (voiceKill) voiceKill(); cf(); if (review) review.edit(); };   // [수정] → 고치는 창([수정내용 저장]이 바로 저장)
+    const popup = () => labConfirm(f => valOf(p, f), () => { if (voiceKill) voiceKill(); labKeep(); }, () => { if (voiceKill) voiceKill(); afterVoice(); }, fix, setP, true, { title: '이대로 저장할까요?', kbd: '수정' });
+    popup();   // R1015-40: 찍자마자 입력 팝업
     const base = {};   // 위치: 처음 값(저절로 든 동네) 뒤에 덧붙임
-    voiceFill({ get: f => valOf(p, f), set: (f, t) => { if (f.id === 'place' && cfg.mode !== 'fire') { if (base.place == null) base.place = isEx('place', valOf(p, f)) ? '' : valOf(p, f); t = (base.place + ' ' + t).trim().slice(0, 30); } putVal(p, f, t); if (!f.per) saveCfg(); labVoiceN++; }, changed: () => { if (review && review.p === p) review.draw(); },
-      skip: LAB_SKIP, byLabel: true, fast: true,
+    voiceFill({ get: f => valOf(p, f), set: (f, t) => { if (f.id === 'place' && cfg.mode !== 'fire') { if (base.place == null) base.place = isEx('place', valOf(p, f)) ? '' : valOf(p, f); t = (base.place + ' ' + t).trim().slice(0, 30); } putVal(p, f, t); if (!f.per) saveCfg(); labVoiceN++; }, changed: () => { if (review && review.p === p) review.draw(); document.querySelectorAll('.labcf .labcfin').forEach(i => { const f = cfg.fields.find(x => x.id === i.dataset.f); if (f && document.activeElement !== i) i.value = isEx(f.id, valOf(p, f)) ? '' : (valOf(p, f) || ''); }); },
+      skip: LAB_SKIP, byLabel: true, fast: true, startSay: '찍었습니다',
+      // R1015-40: 첫 장은 길게 안내, 다음 장부터 짧게(한 장마다 5~6초 늘지 않게)
+      askText: (f, cur) => shots.length === 0
+        ? (f.id === 'title' ? '새 제목, 또는 그대로 라고 말씀하세요' : '세부 입력 사항을 말씀하세요') + (cur ? '. 지금은 ' + cur + ' 로 되어 있습니다' : '')
+        : (f.id === 'title' ? '제목?' : '세부 내용?') + (cur ? ' 지금은 ' + cur : ''),
       onEnd: v => { v.stop(); labConfirm(f => valOf(p, f), labKeep, () => afterVoice(), () => review && review.edit(), (f, t) => { putVal(p, f, t); if (!f.per) saveCfg(); if (review && review.p === p) review.draw(); }); },
       help: '말하고 "다음" → 다음 칸 · "저장" · "같음" 그대로 · "다시" 처음부터 · "그만" 끝 · "다시 찍기"',
-      buttons: [['다시 찍기', v => { v.stop(); if (review) review.drop(); }, 'x'], ['자판으로', v => { v.stop(); if (review) review.edit(); }, 'x'], ['저장하고 계속 찍기', v => { v.stop(); labKeep(); }]],
-      confirmQ: sum => sum + '. 저장할까요?',
-      onConfirm: () => labConfirm(f => valOf(p, f), () => { if (voiceKill) voiceKill(); labKeep(); }, () => { if (voiceKill) voiceKill(); afterVoice(); }, () => { if (voiceKill) voiceKill(); if (review) review.edit(); },
-        (f, t) => { putVal(p, f, t); if (!f.per) saveCfg(); if (review && review.p === p) review.draw(); }, true),
+      buttons: [['다시 찍기', v => { v.stop(); cf(); if (review) review.drop(); }, 'x'], ['저장하고 계속 찍기', v => { v.stop(); cf(); labKeep(); }]],   // 작업 멈춤은 위 'AI 비서' 띠로(R1015-44, 버튼을 늘리지 않음)
+      confirmQ: () => '이대로 저장할까요, 수정할까요?',
+      onConfirm: popup,
       confirm: async (n, v) => {
         if (/다시\s?찍|버려|취소|지워/.test(n)) { document.querySelectorAll('.sheet-bg.labcf').forEach(x => x.remove()); v.stop(); if (review) review.drop(); return speak('지웠어요. 다시 찍어 주세요'); }
-        const cf = () => document.querySelectorAll('.sheet-bg.labcf').forEach(x => x.remove());
-        if (SAY.redo.test(n)) { cf(); return v.restart(); }
+        if (/수정|고칠|고쳐/.test(n)) { v.stop(); return fix(); }   // R1015-42: [수정] → 고치는 창
+        if (SAY.redo.test(n)) { return v.restart(); }
         if (SAY.save.test(n)) { cf(); v.stop(); return labKeep(); }
-        return v.ask('저장, 다시, 다시 찍기 중에 말씀하세요');
+        return v.ask('저장, 또는 수정 이라고 말씀하세요');
       } }); };
-  let idleRec = null, idleT = 0; const ear = el('div', { class: 'labear' }, '🎤 음성 자동인식 "찍어"'); ear.style.display = 'none';
-  const sayShoot = () => LABC && SR && labMode() === 'after' && ls.get('labSayShoot', true);   // 장남덕님 시안: 기본 켬
+  let idleRec = null, idleT = 0; let labPause = false; const ear = el('button', { class: 'labear', 'aria-label': '음성 듣기 멈춤 · 다시 시작', onclick: () => { labPause = !labPause; if (labPause) idleStop(); drawEar(); toast(labPause ? '작업 멈춤 — 띠를 다시 누르면 "찍어"를 들어요' : 'AI 비서가 다시 들어요'); } }); ear.style.display = 'none';
+  const drawEar = () => { ear.replaceChildren(labPause ? el('span', {}, '⏸ 작업 멈춤 — 눌러서 다시 시작') : el('span', {}, el('b', {}, 'AI 비서 듣는 중'), ' ▶ [찍어]라고 말하세요!')); ear.classList.toggle('paused', labPause); };
+  drawEar();
+  const sayShoot = () => LABC && SR && labMode() === 'after' && ls.get('labSayShoot', true);
+  const listenOk = () => sayShoot() && !labPause;   // 장남덕님 시안: 기본 켬
   const idleStop = () => { if (idleRec) { idleRec.onend = null; try { idleRec.abort(); } catch {} idleRec = null; } };
   const idleListen = () => { ear.style.display = sayShoot() ? '' : 'none';
-    if (idleRec || !sayShoot() || !wrap.isConnected || review || voiceStop || document.querySelector('.sheet-bg')) return;
+    if (idleRec || !listenOk() || !wrap.isConnected || review || voiceStop || document.querySelector('.sheet-bg')) return;
     const r = new SR(); r.lang = 'ko-KR'; r.interimResults = false; r.continuous = false; let heard = '';
     r.onresult = ev => { heard = [...ev.results].map(x => x[0].transcript).join(''); };
     r.onerror = ev => { if (ev.error === 'not-allowed') { ls.set('labSayShoot', false); toast('마이크를 쓸 수 없어 "찍어" 듣기를 껐어요'); } };
@@ -1281,9 +1295,16 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     const pre = [1, 2, 4].filter(v => v <= zMax() + 0.01);
     bg.append(el('div', { class: 'sheet labmore' }, el('h2', { text: '옵션 안내' }),
       el('div', { class: 'hint', style: 'text-align:left;white-space:pre-line;font-size:14px;line-height:1.6;color:var(--ink)' },
-        '음성 입력 순서: 찍기 → 제목 → 세부 내용 → 저장 (일자 · 위치 · 담당은 자동)\n' +
-        '명령어: "찍어" 찍기 · 말 끝에 "다음" 다음 칸 · "저장" · "같음" 그대로 · "다시" 처음부터 · "다시 찍기" · "그만" 끝\n' +
-        '"내용 계단 청소"처럼 칸 이름부터 말하면 그 칸만 바뀌어요'),
+        '[ 말로 하는 순서 ]\n' +
+        '① "찍어" → 찍힘 ("찍었습니다")\n' +
+        '② 제목: 새 제목을 말하거나 "그대로"\n' +
+        '③ 세부 내용: 새 내용을 말하거나 "그대로"\n' +
+        '④ "저장" → 저장 · "수정" → 고치는 창\n' +
+        '일자 · 위치 · 담당은 자동이에요\n\n' +
+        '[ 그 밖의 말 ]\n' +
+        '말 끝에 "다음" → 바로 다음 칸 · "다시" → 제목부터 · "다시 찍기" → 사진 지우고 다시 · "그만" → 끝\n' +
+        '"내용 계단 청소"처럼 칸 이름부터 말하면 그 칸만 바뀌어요\n' +
+        '위 "AI 비서 듣는 중" 띠를 누르면 작업 멈춤 / 다시 시작 · 말하는 중에는 [말로 채우기 끝내기]'),
       el('div', { class: 'hint', style: 'text-align:left;margin-bottom:-4px', text: '찍는 방식 (옵션 — 기본은 찍고 말하기)' }),
       el('div', { class: 'labpick' }, pick('after', '찍고 말하기', '찍으면 바로 제목부터 말로 — 저장하면 다음 사진'), pick('before', '말하고 찍기', '글을 말로 먼저 채우고 "찍어"'), pick('classic', '기존 방식', '찍으면 바로 저장 — 비교용')),
       labMode() === 'after' ? el('button', { class: 'big sec', onclick: () => { ls.set('labAskEach', !askEach()); bg.remove(); openMore(); } }, askEach() ? '찍을 때마다 설명 묻기: 켬' : '찍을 때마다 설명 묻기: 끔 (계속 찍기 — 글은 그대로)') : null,
@@ -1953,7 +1974,9 @@ async function voiceFill(opt = {}) {   // opt: 카메라 화면처럼 다른 곳
   const josa = w => { const c = (w || '').charCodeAt(w.length - 1); return c >= 0xAC00 && c <= 0xD7A3 && (c - 0xAC00) % 28 ? '을' : '를'; };
   const askNext = () => {
     const fs = fields(); if (qi >= fs.length) { state = 'confirm'; if (opt.onConfirm) opt.onConfirm(V); const sum = fs.map(f => `${f.label} ${getV(f) || '없음'}`).join(', '); return ask(opt.confirmQ ? opt.confirmQ(sum) : `${sum}. 저장할까요?`); }
-    const f = fs[qi], v = getV(f); ask(`${f.label}${josa(f.label)} 말씀하세요${v && !(LAB && isEx(f.id, v)) ? '. 지금은 ' + v : ''}`);
+    const f = fs[qi], v = getV(f), cur = v && !(LAB && isEx(f.id, v)) ? v : '';
+    if (opt.askText) return ask(opt.askText(f, cur));
+    ask(`${f.label}${josa(f.label)} 말씀하세요${cur ? '. 지금은 ' + cur : ''}`);
   };
   async function handle(t) {
     if (opt.fast && state === 'ask') { const t2 = t.replace(/[\s.,!?~]*(다음|넘어가)[\s.,!?~]*$/, '').trim(); if (t2 !== t.trim()) t = t2 || '같음'; }
@@ -1981,8 +2004,8 @@ async function voiceFill(opt = {}) {   // opt: 카메라 화면처럼 다른 곳
   }
   V = { ask, stop, restart: () => { state = 'ask'; qi = 0; return askNext(); } };
   if (navigator.vibrate) navigator.vibrate(200);
-  toast('음성 입력을 시작해요 · 끝낼 때 "그만" 또는 다시 똑똑똑');
-  await speak('음성 입력을 시작해요');
+  if (opt.startSay) await speak(opt.startSay);   // 실험실(R1015-40): "찍었습니다"로 바로 — '음성 입력을 시작해요' 없앰
+  else { toast('음성 입력을 시작해요 · 끝낼 때 "그만" 또는 다시 똑똑똑'); await speak('음성 입력을 시작해요'); }
   askNext();
 }
 // ---------- 실험실: 갤러리 사진 한 장씩 말로 라벨링(장남덕님 10-15 순회 서비스) ----------
