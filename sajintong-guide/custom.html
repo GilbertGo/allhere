@@ -141,6 +141,7 @@ svg text{font-family:'Noto Sans KR',sans-serif}
 .its span.now{background:var(--card);border:2px solid var(--blue);color:var(--blue-d)}
 .sp small{display:block;color:var(--sub);margin-top:8px;font-size:12.5px}
 .nx{flex:none;margin:0 auto;background:var(--blue);color:#fff;font-weight:700;border-radius:12px;padding:10px 14px}
+.mk-what.hlw{outline:2.5px solid var(--red);outline-offset:2px;border-radius:9px;margin-bottom:2px}
 footer{color:var(--dim);font-size:13px;text-align:center;margin-top:28px}
 @media (max-width:560px){ .goal{grid-template-columns:1fr} h1{font-size:25px} section{padding:20px 14px} }
 
@@ -225,6 +226,7 @@ k{display:inline-block;font-weight:700;color:var(--blue-d);background:var(--blue
       <div class="bar"><span>9:41</span><span>▮▮▮ 100%</span></div>
       <div class="top">← 시설 · 점검 기록</div>
       <div class="pad">
+        <div class="mk-what hlw"><div>사진보드<small>1장씩 라벨링</small></div><div class="on">사진대지<small>칸에 넣어 문서로</small></div></div>
         <div class="mk-q"><i>1</i>무슨 점검인가요?</div>
         <div class="mk-chips"><span>승강기</span><span class="on">소방</span><span>전기</span><span>기계</span><span>급배수</span></div>
         <div class="mk-q"><i>2</i>시설명</div>
@@ -238,11 +240,16 @@ k{display:inline-block;font-weight:700;color:var(--blue-d);background:var(--blue
     </div></div>
     <div class="txt">
       <div class="do"><b>이렇게</b>
-        <ol><li><k>소방</k>을 누릅니다 → 찍을 장비(수신기 · 감지기 · 소화기 · 유도등…)가 저절로 정해집니다.</li>
+        <ol><li>맨 위에서 <k>사진보드</k> 또는 <k>사진대지</k>를 고릅니다 (아래 상자 참고). 김 과장님은 점검 문서까지 낼 거라 <k>사진대지</k>.</li>
+        <li><k>소방</k>을 누릅니다 → 찍을 장비(수신기 · 감지기 · 소화기 · 유도등…)가 저절로 정해집니다.</li>
         <li>시설명에 <k>101동</k>을 적습니다. 안 적으면 '소방 10.16'처럼 저절로 붙습니다.</li>
         <li>형식은 <k>점검 사진첩</k> — 장비마다 양호 / 불량을 남기는 점검용 문서입니다.</li>
         <li>점검 순서를 고릅니다. 김 과장님은 층마다 돌아서 <k>공간 순</k>.</li>
         <li><k>카메라 열기</k>를 누르고 현장으로 갑니다.</li></ol></div>
+      <div class="choose" style="margin-bottom:10px">
+        <div><b>사진대지</b> — 찍은 사진이 점검 문서(사진대지)로 바로 정리됨<br><small>점검 결과를 문서로 내야 할 때 · 아래 ③④를 정함</small></div>
+        <div style="border-color:var(--line);background:none"><b>사진보드</b> — 보드판이 박힌 사진만 빠르게, 문서는 나중에<br><small>현장 기록만 먼저 남길 때 · ③④ 없이 바로 찍기</small></div>
+      </div>
       <div class="choose">
         <div><b>공간 순</b> — 한 층을 다 찍고 다음 층으로<br><small>층마다 돌며 점검할 때</small></div>
         <div><b>장비 순</b> — 한 장비 찍으면 다음 장비로 저절로<br><small>장비별로 돌며 점검할 때 · 찍을 순서를 ↑↓로 정함</small></div>
