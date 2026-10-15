@@ -198,6 +198,7 @@ k{display:inline-block;font-weight:700;color:var(--blue-d);background:var(--blue
 .sheetup .gl span{border:1px solid #E2E8F0;border-radius:99px;padding:2px 8px;font-size:10.5px}
 .sheetup .gl span.ck{background:#D1FAE5;border-color:#A7F3D0;color:#065F46}
 .sheetup .gl span.on{outline:2px solid #2563EB}
+.rule{background:var(--blue-s);border-radius:12px;padding:10px 14px;margin-bottom:12px;font-size:15px}
 .facts li{margin:6px 0}
 
 .design{margin-top:14px;background:var(--amber-s);border-radius:12px;padding:10px 14px;font-size:14.5px}
@@ -261,7 +262,7 @@ k{display:inline-block;font-weight:700;color:var(--blue-d);background:var(--blue
     <ol><li>맨 위 <k>사진보드</k>.</li>
     <li><k>소방</k>. 공간 순이면 장비는 현장에서 고르니 미리 정할 것이 없습니다. 장비 순이면 2-5에서 찍을 순서를 정합니다.</li>
     <li>어떻게 돌아요: 층마다 돌면 <k>공간 순</k>, 장비별로 돌면 <k>장비 순</k>.</li>
-    <li>시작 위치: 건물 <k>101동</k> · 층 <k>1층</k>. 보드판의 시설명과 위치가 됩니다. <span class="new">새로</span></li></ol></div>
+    <li>시작 위치: 건물 <k>101동</k> · 층 <k>1층</k>. 보드판의 시설명과 위치가 됩니다. 처음 한 번만 이 건물의 층수(지상 · 지하)를 묻고 기억합니다 — 층 · 공간 목록이 여기서 만들어집니다. <span class="new">새로</span></li></ol></div>
   <p class="aside" style="text-align:center;font-weight:700;color:var(--ink)">↓ 2-3에서 고른 것에 따라 2-5가 달라집니다</p>
   <div class="pvs" style="margin:10px 0 16px">
     <div class="pv"><p class="pl">공간 순을 고르면</p><div class="phone"><div class="scr" style="height:470px">
@@ -309,19 +310,25 @@ k{display:inline-block;font-weight:700;color:var(--blue-d);background:var(--blue
 
 <section id="b3" class="step" style="--s:'3'">
   <div class="sh"><span class="n">3</span><div><h2>찍기</h2><p class="when">장비 하나 3초 · 손이 바쁘면 말로</p></div></div>
-  <div class="row">
-    <div class="pvs"><div class="pv"><p class="pl">공간 순</p><div class="phone"><div class="scr cam">
-      <div class="view"></div>
-      <div class="board"><div><b>시설명</b><span>101동</span></div><div><b>점검</b><span>소화기</span></div><div><b>위치</b><span>1층</span></div><div><b>일자</b><span>26/10/16/목</span></div></div>
+  <div class="rule"><b>규칙은 하나</b> — 하나는 <b>고정</b>, 하나는 <b>[▾]로 골라</b> 찍고, 다 찍으면 <b>[다음 ▶]</b>.</div>
+  <table class="cmp" style="margin-bottom:14px">
+    <tr><th></th><th>공간 순</th><th>장비 순</th></tr>
+    <tr><td>고정</td><td>공간 <b>1층</b></td><td>장비 <b>소화기</b></td></tr>
+    <tr><td>현장에서 고르기</td><td><k>소화기 ▾</k> → 소방장비 전체</td><td><k>1층 ▾</k> → 이 건물 공간 전체<br><small>층은 ▲▼로 한 층씩도</small></td></tr>
+    <tr><td>넘어가기</td><td><k>다음 공간 ▶</k> "다음 층"</td><td><k>다음 장비 ▶</k> "다음 장비"</td></tr>
+    <tr><td>위 표시</td><td>1층 · 3장</td><td>소화기 · 3 / 6 장비</td></tr>
+  </table>
+  <div class="pvs">
+    <div class="pv"><p class="pl">공간 순</p><div class="phone"><div class="scr cam">
+      <div class="view"></div><div class="board"><div><b>시설명</b><span>101동</span></div><div><b>점검</b><span>소화기</span></div><div><b>위치</b><span>1층</span></div><div><b>일자</b><span>26/10/16/목</span></div></div>
       <div class="prog">1층 · 3장</div>
       <div class="eqc">소화기 <small>×2</small> ▾</div>
       <div class="loc"><div class="v">위치<b>1층</b></div><div class="k on">다음<br>공간 ▶</div></div>
       <div class="shut">찍어</div>
     </div></div></div>
-    <div class="pv"><p class="pl">공간 순 · 장비 목록 꺼냄</p><div class="phone"><div class="scr cam">
+    <div class="pv"><p class="pl">공간 순 · [▾] 누르면</p><div class="phone"><div class="scr cam">
       <div class="view" style="inset:0"></div>
-      <div class="sheetup">
-        <div class="grip"></div>
+      <div class="sheetup"><div class="grip"></div>
         <div class="gt">이 공간에서 찍은 것</div><div class="gl"><span class="ck">수신기 ✓</span><span class="ck">감지기 ✓</span><span class="ck on">소화기 ×2</span></div>
         <div class="gt">자주 찍는 것</div><div class="gl"><span>유도등</span><span>옥내소화전</span><span>스프링클러</span></div>
         <div class="gt">경보</div><div class="gl"><span>발신기</span><span>경종</span><span>시각경보기</span></div>
@@ -331,47 +338,46 @@ k{display:inline-block;font-weight:700;color:var(--blue-d);background:var(--blue
       </div>
     </div></div></div>
     <div class="pv"><p class="pl">장비 순</p><div class="phone"><div class="scr cam">
-      <div class="view"></div>
-      <div class="board"><div><b>시설명</b><span>101동</span></div><div><b>점검</b><span>소화기</span></div><div><b>위치</b><span>1층</span></div><div><b>일자</b><span>26/10/16/목</span></div></div>
-      <div class="prog">소화기 · 3 / 6</div>
-      <div class="items"><span class="done">수신기 ✓</span><span class="done">감지기 ✓</span><span class="now">소화기</span><span>스프링클러</span><span>유도등</span></div>
-      <div class="loc"><div class="v">위치<b>1층</b></div><div class="k">▲</div><div class="k">▼</div></div>
+      <div class="view"></div><div class="board"><div><b>시설명</b><span>101동</span></div><div><b>점검</b><span>소화기</span></div><div><b>위치</b><span>1층</span></div><div><b>일자</b><span>26/10/16/목</span></div></div>
+      <div class="prog">소화기 · 3 / 6 장비</div>
+      <div class="eqc">1층 <small>×2</small> ▾</div>
+      <div class="loc"><div class="k">▲</div><div class="k">▼</div><div class="v" style="text-align:center">장비<b>소화기</b></div><div class="k on">다음<br>장비 ▶</div></div>
       <div class="shut">찍어</div>
     </div></div></div>
-    </div>
-    <div class="txt">
-      <div class="do"><b>이렇게</b>
-        <ol><li>찍을 장비를 확인합니다. <b>공간 순</b>은 아래 <k>소화기 ▾</k>를 누르면 소방장비 전체 목록이 올라오고, 고르면 다시 들어갑니다. 말로 "감지기"라고 해도 바뀝니다. <span class="new">새로</span> <b>장비 순</b>은 아래 줄의 흰 장비가 지금 찍을 것입니다.</li>
-        <li>장비를 비추고 <k>찍어</k> — 또는 말로 "찍어". <span class="new">새로</span></li>
-        <li>찍은 뒤 <k>양호</k>는 그냥 넘어가고, 문제가 있으면 <k>불량</k>을 누르고 한마디("압력 미달").</li>
-        <li><b>공간 순</b>은 찍은 뒤에도 같은 장비에 머뭅니다. 한 층에 소화기가 여러 대면 바로 다음 대를 찍습니다(×2, ×3으로 셈).</li>
-        </ol></div>
-      <table class="cmp">
-        <tr><th></th><th>공간 순</th><th>장비 순</th></tr>
-        <tr><td>넘어가기</td><td>장비: <k>소화기 ▾</k>에서 고름<br>공간: <k>다음 공간 ▶</k> 또는 "다음 층"</td><td>찍으면 다음 장비로 <b>저절로</b><br><small>버튼 없음 · 층은 ▲▼</small></td></tr>
-        <tr><td>위 표시</td><td>1층 · 3장</td><td>소화기 · 3 / 6</td></tr>
-        <tr><td>장비 목록</td><td>소방장비 <b>전체</b> — 현장에서 고름</td><td>2-5에서 정한 순서</td></tr>
-        <tr><td>빠진 것 알림</td><td>다음 공간 누를 때 — 이전 층 · 지난달 같은 층과 비교</td><td>마칠 때 — 정한 목록과 비교</td></tr>
-      </table>
-      <div class="then"><b>그러면</b> 사진마다 보드판이 박혀 갤러리의 <b>사진통 › 101동 소방 10.16</b> 폴더에 저장됩니다. <span class="new">새로</span> 화면 위에 어디까지 찍었는지 보입니다(위 표). <span class="new">새로</span></div>
-    </div>
+    <div class="pv"><p class="pl">장비 순 · [▾] 누르면</p><div class="phone"><div class="scr cam">
+      <div class="view" style="inset:0"></div>
+      <div class="sheetup"><div class="grip"></div>
+        <div class="gt">소화기를 찍은 곳</div><div class="gl"><span class="ck on">1층 ×2</span></div>
+        <div class="gt">지난달 찍은 곳</div><div class="gl"><span>지하1층</span><span>2층</span><span>3층</span><span>기계실</span></div>
+        <div class="gt">층</div><div class="gl"><span>지하2층</span><span>지하1층</span><span class="on">1층</span><span>2층</span><span>3층</span><span>4층</span><span>5층</span><span>옥상</span></div>
+        <div class="gt">다른 공간</div><div class="gl"><span>기계실</span><span>전기실</span><span>주차장</span><span>관리사무소</span><span>+ 직접 추가</span></div>
+      </div>
+    </div></div></div>
   </div>
+  <div class="do" style="margin-top:14px"><b>이렇게</b>
+    <ol><li>무엇을 찍을지 확인합니다. 바꾸려면 아래 <k>[ ▾ ]</k>를 눌러 목록에서 고르고, 고르면 목록은 다시 들어갑니다. 말로 "감지기" · "3층"이라고 해도 바뀝니다. <span class="new">새로</span></li>
+      <li>비추고 <k>찍어</k> — 또는 말로 "찍어". <span class="new">새로</span></li>
+      <li>찍은 뒤 <k>양호</k>는 그냥 넘어가고, 문제가 있으면 <k>불량</k>을 누르고 한마디("압력 미달").</li>
+      <li>찍어도 그대로 머뭅니다. 한 곳에 소화기가 여러 대면 바로 다음 대를 찍습니다(×2, ×3으로 셈). 장비 순에서 다음 층은 <k>▲</k> 한 번.</li></ol></div>
+  <div class="then"><b>그러면</b> 사진마다 보드판이 박혀 갤러리의 <b>사진통 › 101동 소방 10.16</b> 폴더에 저장됩니다. <span class="new">새로</span> 화면 위에 어디까지 찍었는지 보입니다. <span class="new">새로</span></div>
 </section>
 
 <section id="b4" class="step" style="--s:'4'">
-  <div class="sh"><span class="n">4</span><div><h2>다음 층으로 <small style="font-size:14px;color:var(--sub);font-weight:500">공간 순일 때</small></h2><p class="when">계단 오르며 한 번</p></div></div>
-  <div class="row">
-    <div class="phone"><div class="scr cam">
+  <div class="sh"><span class="n">4</span><div><h2>다음으로 넘어가기</h2><p class="when">공간 순은 다음 층 · 장비 순은 다음 장비</p></div></div>
+  <div class="pvs">
+    <div class="pv"><p class="pl">공간 순 · [다음 공간 ▶]</p><div class="phone"><div class="scr cam">
       <div class="view"></div>
       <div class="pop"><b>1층에선 유도등을 찍었는데<br>2층에선 안 찍었어요</b><div><span class="b1">지금 찍기</span><span class="b2">넘어가기</span></div></div>
-    </div></div>
-    <div class="txt">
-      <div class="do"><b>이렇게</b>
-        <ol><li><k>다음 공간 ▶</k> — 또는 말로 "다음 층". <span class="new">새로</span></li>
-        <li>빠뜨린 것 같은 장비를 알려 줍니다 → <k>지금 찍기</k> 또는 <k>넘어가기</k>. <span class="new">새로</span><br><small style="color:var(--sub)">기준: 이전 층에서 찍은 장비, 다음 달부터는 지난달 같은 층에서 찍은 장비. 없는 장비면 넘어가기 — 다음부터는 묻지 않습니다.</small></li></ol></div>
-      <div class="then"><b>그러면</b> 보드판 위치가 <b>3층</b>으로 바뀌고, 장비는 [▾]에서 다시 고릅니다.</div>
-    </div>
+    </div></div></div>
+    <div class="pv"><p class="pl">장비 순 · [다음 장비 ▶]</p><div class="phone"><div class="scr cam">
+      <div class="view"></div>
+      <div class="pop"><b>감지기는 1~5층에서 찍었는데<br>소화기는 4층을 안 찍었어요</b><div><span class="b1">지금 찍기</span><span class="b2">넘어가기</span></div></div>
+    </div></div></div>
   </div>
+  <div class="do" style="margin-top:14px"><b>이렇게</b>
+    <ol><li><b>공간 순</b>: 계단을 오르며 <k>다음 공간 ▶</k> — 또는 말로 "다음 층". 보드판 위치가 다음 층으로 바뀌고, 장비는 [▾]에서 다시 고릅니다. <span class="new">새로</span></li>
+      <li><b>장비 순</b>: 한 장비를 다 돌면 <k>다음 장비 ▶</k> — 또는 말로 "다음 장비". 2-5에서 정한 다음 장비로 바뀌고, 위치는 시작 위치(1층)로 돌아갑니다. <span class="new">새로</span></li>
+      <li>빠뜨린 것 같으면 알려 줍니다 → <k>지금 찍기</k> 또는 <k>넘어가기</k>. <span class="new">새로</span><br><small style="color:var(--sub)">기준 — 공간 순: 이전 층에서 찍은 장비 · 장비 순: 앞 장비가 다녀간 공간. 다음 달부터는 지난달 기록도. 원래 없는 것이면 넘어가기 — 다음부터 묻지 않습니다.</small></li></ol></div>
 </section>
 
 <section id="b5" class="step" style="--s:'5'">
@@ -451,10 +457,11 @@ k{display:inline-block;font-weight:700;color:var(--blue-d);background:var(--blue
     <tr><td>4</td><td>사진보드에도 양호 / 불량(점검일 때)</td><td>A-3</td></tr>
     <tr><td>5</td><td>진행 표시(공간 순 '1층 · 3장' · 장비 순 '소화기 · 3 / 6')</td><td>A-3</td></tr>
     <tr><td>6</td><td>작업별 갤러리 폴더 '사진통 › 101동 소방 10.16'</td><td>A-3</td></tr>
-    <tr><td>7</td><td>빠진 장비 알림 — 공간 순은 이전 층 · 지난달 같은 층과 비교</td><td>A-4</td></tr>
+    <tr><td>7</td><td>빠진 것 알림 — 공간 순은 이전 층, 장비 순은 앞 장비가 다녀간 공간, 다음 달부터 지난달 기록과 비교</td><td>A-4</td></tr>
     <tr><td>8</td><td>마치기 요약 + [사진 보내기] [사진대지로 묶기]</td><td>A-5</td></tr>
     <tr><td>9</td><td>'조치할 것 N' · '지난달처럼' 바로 시작</td><td>A-6</td></tr>
     <tr><td>10</td><td>공간 순: 장비 줄 대신 [소화기 ▾] 하나 + 소방장비 전체 목록(찍은 것 · 자주 · 종류별), 찍어도 같은 장비 유지(×2), 말로 장비 바꾸기</td><td>A-3</td></tr>
+    <tr><td>11</td><td>장비 순: 장비 줄 대신 [1층 ▾] 하나 + 건물 공간 전체 목록, ▲▼ 한 층씩, [다음 장비 ▶] · "다음 장비", 건물 층수 한 번 묻고 기억</td><td>A-2 · 3 · 4</td></tr>
   </table>
 </section>
 
