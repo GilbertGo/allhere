@@ -183,6 +183,10 @@ k{display:inline-block;font-weight:700;color:var(--blue-d);background:var(--blue
 .ordl{display:grid;gap:4px}
 .ordl > span{display:flex;align-items:center;gap:8px;background:var(--bg);border-radius:8px;padding:3px 9px;font-size:13.5px}
 .ordl i{font-style:normal;font-weight:700;color:var(--blue-d)} .ordl em{margin-left:auto;font-style:normal;color:var(--blue)}
+.pvs{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;flex:1 1 100%}
+.pv .pl{text-align:center;font-weight:900;margin:0 0 6px;color:var(--blue-d)}
+.cmp{margin-top:12px;font-size:14px}
+.cmp td small{color:var(--sub)}
 .facts li{margin:6px 0}
 
 .design{margin-top:14px;background:var(--amber-s);border-radius:12px;padding:10px 14px;font-size:14.5px}
@@ -280,26 +284,41 @@ k{display:inline-block;font-weight:700;color:var(--blue-d);background:var(--blue
 <section id="b3" class="step" style="--s:'3'">
   <div class="sh"><span class="n">3</span><div><h2>찍기</h2><p class="when">장비 하나 3초 · 손이 바쁘면 말로</p></div></div>
   <div class="row">
-    <div class="phone"><div class="scr cam">
+    <div class="pvs"><div class="pv"><p class="pl">공간 순</p><div class="phone"><div class="scr cam">
       <div class="view"></div>
       <div class="board"><div><b>시설명</b><span>101동</span></div><div><b>점검</b><span>소화기</span></div><div><b>위치</b><span>1층</span></div><div><b>일자</b><span>26/10/16/목</span></div></div>
       <div class="prog">1층 · 2 / 4</div>
       <div class="items"><span class="done">수신기 ✓</span><span class="done">감지기 ✓</span><span class="now">소화기</span><span>유도등</span></div>
       <div class="loc"><div class="v">위치<b>1층</b></div><div class="k on">다음<br>공간 ▶</div></div>
       <div class="shut">찍어</div>
-    </div></div>
+    </div></div></div>
+    <div class="pv"><p class="pl">장비 순</p><div class="phone"><div class="scr cam">
+      <div class="view"></div>
+      <div class="board"><div><b>시설명</b><span>101동</span></div><div><b>점검</b><span>소화기</span></div><div><b>위치</b><span>1층</span></div><div><b>일자</b><span>26/10/16/목</span></div></div>
+      <div class="prog">소화기 · 3 / 6</div>
+      <div class="items"><span class="done">수신기 ✓</span><span class="done">감지기 ✓</span><span class="now">소화기</span><span>스프링클러</span><span>유도등</span></div>
+      <div class="loc"><div class="v">위치<b>1층</b></div><div class="k">▲</div><div class="k">▼</div></div>
+      <div class="shut">찍어</div>
+    </div></div></div>
+    </div>
     <div class="txt">
       <div class="do"><b>이렇게</b>
         <ol><li>아래 줄의 흰 장비(지금 찍을 것)를 비추고 <k>찍어</k> — 또는 말로 "찍어". <span class="new">새로</span></li>
         <li>찍은 뒤 <k>양호</k>는 그냥 넘어가고, 문제가 있으면 <k>불량</k>을 누르고 한마디("압력 미달").</li>
-        <li>장비 순이면 다음 장비로 저절로 넘어갑니다. 공간 순이면 층 안에서 아래 줄을 눌러 고릅니다.</li></ol></div>
-      <div class="then"><b>그러면</b> 사진마다 보드판이 박혀 갤러리의 <b>사진통 › 101동 소방 10.16</b> 폴더에 저장됩니다. <span class="new">새로</span> 위에 <b>1층 · 2 / 4</b>로 어디까지 찍었는지 보입니다. <span class="new">새로</span></div>
+        </ol></div>
+      <table class="cmp">
+        <tr><th></th><th>공간 순</th><th>장비 순</th></tr>
+        <tr><td>넘어가기</td><td><k>다음 공간 ▶</k> 또는 "다음 층"<br><small>층 안에서는 아래 줄을 눌러 장비를 고름</small></td><td>찍으면 다음 장비로 <b>저절로</b><br><small>버튼 없음 · 층은 ▲▼</small></td></tr>
+        <tr><td>위 표시</td><td>1층 · 2 / 4</td><td>소화기 · 3 / 6</td></tr>
+        <tr><td>빠진 것 알림</td><td>다음 공간 누를 때</td><td>마칠 때</td></tr>
+      </table>
+      <div class="then"><b>그러면</b> 사진마다 보드판이 박혀 갤러리의 <b>사진통 › 101동 소방 10.16</b> 폴더에 저장됩니다. <span class="new">새로</span> 화면 위에 어디까지 찍었는지 보입니다(위 표). <span class="new">새로</span></div>
     </div>
   </div>
 </section>
 
 <section id="b4" class="step" style="--s:'4'">
-  <div class="sh"><span class="n">4</span><div><h2>다음 층으로</h2><p class="when">계단 오르며 한 번</p></div></div>
+  <div class="sh"><span class="n">4</span><div><h2>다음 층으로 <small style="font-size:14px;color:var(--sub);font-weight:500">공간 순일 때</small></h2><p class="when">계단 오르며 한 번</p></div></div>
   <div class="row">
     <div class="phone"><div class="scr cam">
       <div class="view"></div>
