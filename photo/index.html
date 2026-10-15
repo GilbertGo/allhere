@@ -184,6 +184,21 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 .cam .labear{position:absolute;left:12px;top:calc(62px + env(safe-area-inset-top,0px));background:linear-gradient(90deg,rgba(37,99,235,.92),rgba(14,124,134,.92));color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:999px;padding:8px 14px;font-size:14px;font-weight:600;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.3);letter-spacing:-.01em}
 .cam .labear b{font-weight:800;margin-right:2px}
 .cam .labear.paused{background:rgba(0,0,0,.6)}
+.cam .labresume{position:absolute;left:12px;top:calc(110px + env(safe-area-inset-top,0px));background:#fff;color:#1D4ED8;border-radius:999px;padding:9px 16px;font-size:15px;font-weight:800;box-shadow:0 4px 14px rgba(0,0,0,.35);max-width:calc(100% - 24px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cam .labear.ord{top:auto;bottom:66px;left:12px;font-size:13px;padding:6px 12px}
+.cam .ordpick{position:absolute;left:12px;bottom:12px;background:#fff;color:#0F172A;border-radius:999px;padding:10px 20px;font-size:18px;font-weight:900;box-shadow:0 4px 14px rgba(0,0,0,.4);white-space:nowrap;max-width:90%;overflow:hidden;text-overflow:ellipsis}
+.cam .ordpick small{color:#2563EB;font-weight:800;margin-left:4px}
+.cam .ordprog{position:absolute;right:62px;top:calc(14px + env(safe-area-inset-top,0px));background:rgba(15,23,42,.78);color:#fff;border-radius:10px;padding:6px 10px;font-size:14px;font-weight:800}
+.cam .nloc .nx{width:76px;height:50px;border-radius:12px;background:#2563EB;color:#fff;font-size:13px;font-weight:800;line-height:1.2;flex:none;white-space:pre-line}
+.ordsheet h3{margin:12px 0 6px;font-size:13px;color:#64748B;font-weight:700;text-align:left}
+.ordsheet .gl{display:flex;flex-wrap:wrap;gap:6px}
+.ordsheet .gl button{border:1px solid #CBD5E1;background:#fff;color:#0F172A;border-radius:999px;padding:8px 14px;font-size:15px;font-weight:600}
+.ordsheet .gl button.ck{background:#D1FAE5;border-color:#6EE7B7;color:#065F46}
+.ordsheet .gl button.on{outline:2.5px solid #2563EB}
+.ordsheet .gl button.add{border-style:dashed;color:#2563EB}
+.ordsum{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:6px 0 10px}
+.ordsum div{background:#F1F5F9;border-radius:12px;padding:10px 4px;text-align:center;font-size:13px;color:#475569}
+.ordsum b{display:block;font-size:22px;color:#0F172A}
 .labpick{display:flex;flex-direction:column;gap:10px}
 .labpick button{text-align:left;padding:14px 16px;border-radius:16px;border:1px solid var(--line);background:var(--card);color:var(--ink)}
 .labpick button.on{border:2px solid var(--brown);background:var(--soft)}
@@ -976,7 +991,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   const addStep = () => {
     const inp = el('input', { type: 'text', maxlength: PAIR ? 60 : 12, placeholder: PAIR ? PL.ex : '예: 승강장 버튼' });
     const bg = el('div', { class: 'sheet-bg', onclick: e => { if (e.target === bg) bg.remove(); } });
-    const ok = () => { const t = inp.value.trim(); bg.remove(); if (!t) return; JOB.steps.push(t); jobCnt.push(0); if (CHECK) ckRes.push(''); if (PAIR) { pairCnt.push({ b: 0, a: 0 }); jobPh = 'b'; } jobAt = JOB.steps.length - 1; drawSteps(); jobPost({ t: 'job-steps', steps: JOB.steps }); };
+    const ok = () => { const t = inp.value.trim(); bg.remove(); if (!t) return; JOB.steps.push(t); jobCnt.push(0); if (CHECK) ckRes.push(''); if (PAIR) { pairCnt.push({ b: 0, a: 0 }); jobPh = 'b'; } jobAt = JOB.steps.length - 1; drawSteps(); if (ORD) drawLoc(); jobPost({ t: 'job-steps', steps: JOB.steps }); };
     inp.onkeydown = e => { if (e.key === 'Enter') ok(); };
     bg.append(el('div', { class: 'sheet' }, el('h2', { text: PAIR ? PL.item + ' 더하기' : '칸 더하기' }),
       PAIR ? el('div', { class: 'hint', style: 'text-align:left', text: '어디의 무엇이 어떤지 한 줄로 — 사진대지의 ' + PL.item + ' 줄이 돼요' }) : null,
@@ -1128,6 +1143,75 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   /* 새 화면: 카메라 아래 위치 줄 [▲][▼] — 층별 점검은 ▼ 한 번 → 셔터 */
   const locF = () => cfg.fields.find(x => x.on && x.id === 'place') || cfg.fields.find(x => x.on && !['title', 'date'].includes(x.id) && stepNum(camGet(x), 1) != null);
   const locEl = el('div', { class: 'nloc' });
+  /* 실험실(R1016-06 설명서): 공간 순 · 장비 순 — 하나는 고정, 하나는 [▾]로 골라 찍고, 다 찍으면 [다음 ▶] */
+  const ORD = LAB && CHECK && (JOB.order === 'space' || JOB.order === 'equip') ? JOB.order : '';
+  const ordSp = ORD ? (JOB.sp || []).map(x => ({ i: x[0], at: x[1] || '', res: x[2] || 'ok' })) : [];   // 찍은 것: 장비 번호 · 곳 · 결과(이어 찍기 포함)
+  const ordPrev = ORD ? (JOB.prev || []) : [];   // 지난번 같은 점검: [장비 이름, 곳]
+  const ordSkip = new Set(ls.get('ordSkip:' + (JOB && JOB.name || ''), []));
+  const ordPlace = () => { const f = locF(); return f ? (camGet(f) || '') : ''; };
+  const ordSetPlace = v => { const f = locF(); if (!f) return toast('보드판에 위치 칸이 없어요 — [글자 수정]에서 켜 주세요'); camSet(f, v); drawLoc(); };
+  const ordCnt = (i, at) => ordSp.filter(x => x.i === i && x.at === at).length;
+  const ordPlacesOf = i => [...new Set(ordSp.filter(x => x.i === i).map(x => x.at))];
+  const ordVisited = () => [...new Set(ordSp.map(x => x.at))];
+  const ordProg = el('div', { class: 'ordprog' }), ordPick = el('button', { class: 'ordpick', onclick: () => ordSheet() });
+  const ordDraw = () => { if (!ORD) return; const at = ordPlace(), i = jobAt, n = ordCnt(i, at);
+    if (ORD === 'space') { ordProg.textContent = (at || '위치?') + ' · ' + ordSp.filter(x => x.at === at).length + '장'; ordPick.replaceChildren((JOB.steps[i] || '장비 고르기'), n ? el('small', {}, '×' + n) : '', ' ▾'); }
+    else { ordProg.textContent = (JOB.steps[i] || '') + ' · ' + (i + 1) + ' / ' + JOB.steps.length + ' 장비'; ordPick.replaceChildren(at || '공간 고르기', n ? el('small', {}, '×' + n) : '', ' ▾'); } };
+  const ordPickStep = i => { jobAt = i; drawSteps(); drawLoc(); };
+  /* [▾] 목록 — 공간 순: 소방장비 전체 · 장비 순: 이 건물 공간 전체 */
+  const ordSheet = () => { document.querySelectorAll('.sheet-bg.ord').forEach(x => x.remove());
+    const bg = el('div', { class: 'sheet-bg ord', onclick: e => { if (e.target === bg) bg.remove(); } }), at = ordPlace(), close = () => bg.remove();
+    const grp = (t, items) => items.length ? [el('h3', {}, t), el('div', { class: 'gl' }, ...items)] : [];
+    let body = [];
+    if (ORD === 'space') {
+      const b = (i, ck) => el('button', { class: (ck ? 'ck' : '') + (i === jobAt ? ' on' : ''), onclick: () => { close(); ordPickStep(i); } }, JOB.steps[i] + (ck && ordCnt(i, at) ? ' ×' + ordCnt(i, at) : ''));
+      const here = JOB.steps.map((_, i) => i).filter(i => ordCnt(i, at));
+      const tot = i => ordSp.filter(x => x.i === i).length + ordPrev.filter(x => x[0] === JOB.steps[i]).length;
+      const often = JOB.steps.map((_, i) => i).filter(i => !here.includes(i) && tot(i)).sort((a, c) => tot(c) - tot(a)).slice(0, 6);
+      const used = new Set([...here, ...often]);
+      const groups = (JOB.groups && JOB.groups.length ? JOB.groups : [{ g: '장비', items: JOB.steps }]);
+      body = [...grp('이 공간에서 찍은 것', here.map(i => b(i, true))), ...grp('자주 찍는 것', often.map(i => b(i)))];
+      groups.forEach(g => { body.push(...grp(g.g, g.items.map(t => JOB.steps.indexOf(t)).filter(i => i >= 0 && !used.has(i)).map(i => b(i)))); });
+      const rest = JOB.steps.map((_, i) => i).filter(i => !used.has(i) && !groups.some(g => g.items.includes(JOB.steps[i])));
+      body.push(...grp('직접 더한 것', rest.map(i => b(i))), el('div', { class: 'gl', style: 'margin-top:10px' }, el('button', { class: 'add', onclick: () => { close(); addStep(); } }, '+ 직접 추가')));
+    } else {
+      const eq = JOB.steps[jobAt] || '', mine = ordPlacesOf(jobAt);
+      const b = (v, ck) => el('button', { class: (ck ? 'ck' : '') + (v === at ? ' on' : ''), onclick: () => { close(); ordSetPlace(v); } }, v + (ck && ordCnt(jobAt, v) ? ' ×' + ordCnt(jobAt, v) : ''));
+      const last = [...new Set(ordPrev.filter(x => x[0] === eq).map(x => x[1]))].filter(v => v && !mine.includes(v));
+      const floors = (JOB.floors || []).filter(v => !mine.includes(v) && !last.includes(v)), rooms = (JOB.rooms || ['기계실', '전기실', '주차장', '관리사무소']).filter(v => !mine.includes(v) && !last.includes(v));
+      const add = el('button', { class: 'add', onclick: () => { const inp = el('input', { type: 'text', maxlength: 20, placeholder: '예: 방재실' }); const bg2 = el('div', { class: 'sheet-bg', onclick: e => { if (e.target === bg2) bg2.remove(); } }); const ok = () => { const t = inp.value.trim(); bg2.remove(); if (t) { JOB.rooms = [...(JOB.rooms || ['기계실', '전기실', '주차장', '관리사무소']), t]; ordSetPlace(t); } }; inp.onkeydown = e => { if (e.key === 'Enter') ok(); }; close(); bg2.append(el('div', { class: 'sheet' }, el('h2', {}, '공간 더하기'), el('label', { class: 'f' }, '공간 이름', inp), el('button', { class: 'big pri', onclick: ok }, '더하기'))); document.body.append(bg2); setTimeout(() => inp.focus(), 50); } }, '+ 직접 추가');
+      body = [...grp(eq + '를 찍은 곳', mine.map(v => b(v, true))), ...grp('지난번에 찍은 곳', last.map(v => b(v))), ...grp('층', floors.map(v => b(v))), ...grp('다른 공간', rooms.map(v => b(v))), el('div', { class: 'gl', style: 'margin-top:10px' }, add)];
+    }
+    bg.append(el('div', { class: 'sheet ordsheet' }, el('h2', {}, ORD === 'space' ? '무엇을 찍을까요?' : '어디를 찍을까요?'), ...body, el('button', { class: 'big sec', style: 'margin-top:12px', onclick: close }, '닫기')));
+    document.body.append(bg); };
+  /* 빠진 것 알림 — 공간 순: 앞 공간에서 찍은 장비 · 장비 순: 앞 장비가 다녀간 공간. 지난번 같은 점검도. 넘어가면 다음부터 묻지 않음 */
+  const ordAsk = (msg, onShoot, onSkip) => { const bg = el('div', { class: 'sheet-bg' }); bg.append(el('div', { class: 'sheet' }, el('h2', {}, msg), el('div', { class: 'row2' }, el('button', { class: 'big pri', onclick: () => { bg.remove(); onShoot(); } }, '지금 찍기'), el('button', { class: 'big sec', onclick: () => { bg.remove(); onSkip(); } }, '넘어가기')))); document.body.append(bg); if (typeof speak === 'function') speak(msg.replace(/\n/g, ' ')); };
+  const jo = (w, a, b) => { const t = String(w), c = t.charCodeAt(t.length - 1); return t + (c >= 0xAC00 && c <= 0xD7A3 && (c - 0xAC00) % 28 ? a : b); };   // 받침 따라 을/를 · 은/는
+  const ordSkipAdd = k => { ordSkip.add(k); ls.set('ordSkip:' + (JOB.name || ''), [...ordSkip]); };
+  const ordNextSpace = (force) => { const f = locF(), at = ordPlace(); if (!f) return toast('보드판에 위치 칸이 없어요');
+    if (!force) { const vis = ordVisited().filter(v => v !== at), prevAt = vis[vis.length - 1];
+      const fromPrev = prevAt != null ? ordSp.filter(x => x.at === prevAt).map(x => JOB.steps[x.i]) : [], want = [...new Set([...fromPrev, ...ordPrev.filter(x => x[1] === at).map(x => x[0])])];
+      const miss = want.filter(t => t && !ordSp.some(x => x.at === at && JOB.steps[x.i] === t) && !ordSkip.has(at + '|' + t))[0];
+      if (miss) return ordAsk((fromPrev.includes(miss) ? prevAt + '에선 ' : '지난번 ' + at + '에선 ') + jo(miss, '을', '를') + ' 찍었는데\n' + (fromPrev.includes(miss) ? at + '에선' : '이번엔') + ' 안 찍었어요', () => ordPickStep(JOB.steps.indexOf(miss)), () => { ordSkipAdd(at + '|' + miss); ordNextSpace(); }); }
+    const v = stepNum(at, floorDir); if (v == null) { toast(labOf(f) + "에 '1층'처럼 넣어 주세요 — 그다음부터 [다음 공간]으로 넘어가요"); editText(); return; }
+    camSet(f, v); drawLoc(); toast('다음 공간: ' + v + ' — 찍을 장비는 [▾]에서'); if (typeof speak === 'function') speak(v); };
+  const ordNextEquip = (force) => { const at0 = JOB.place0 || '';
+    if (!force) { const eq = JOB.steps[jobAt], before = [...new Set(ordSp.filter(x => x.i < jobAt).map(x => x.at))], last = ordPrev.filter(x => x[0] === eq).map(x => x[1]);
+      const miss = [...new Set([...before, ...last])].filter(v => v && !ordCnt(jobAt, v) && !ordSkip.has(v + '|' + eq))[0];
+      if (miss) return ordAsk((before.includes(miss) ? '앞 장비는 ' + miss + '에서 찍었는데' : '지난번엔 ' + miss + '에서 찍었는데') + '\n' + jo(eq, '은', '는') + ' ' + miss + '에서 안 찍었어요', () => ordSetPlace(miss), () => { ordSkipAdd(miss + '|' + eq); ordNextEquip(); }); }
+    if (jobAt >= JOB.steps.length - 1) { toast('마지막 장비예요 — 다 찍었으면 왼쪽 아래 [마치기]'); return; }
+    ordPickStep(jobAt + 1); if (at0) ordSetPlace(at0); toast('다음 장비: ' + JOB.steps[jobAt] + (at0 ? ' — ' + at0 + '부터' : '')); if (typeof speak === 'function') speak(JOB.steps[jobAt]); };
+  /* [마치기] — 요약 + 사진보드면 [사진 보내기] [사진대지로 묶기], 사진대지면 [사진대지 만들기] */
+  const ordDone = () => { const n = ordSp.length; if (!n) return jobPost({ t: 'job-back' });
+    const ok = ordSp.filter(x => x.res === 'ok').length, ng = ordSp.filter(x => x.res === 'ng').length;
+    const bg = el('div', { class: 'sheet-bg', onclick: e => { if (e.target === bg) bg.remove(); } });
+    bg.append(el('div', { class: 'sheet' }, el('h2', {}, (JOB.name || '') + ' ' + (JOB.kind || '') + ' 점검'),
+      el('div', { class: 'ordsum' }, el('div', {}, el('b', {}, String(n)), '사진'), el('div', {}, el('b', {}, String(ok)), '양호'), el('div', { style: ng ? 'color:#DC2626' : '' }, el('b', { style: ng ? 'color:#DC2626' : '' }, String(ng)), '불량')),
+      el('div', { class: 'hint', style: 'text-align:left', text: '찍은 곳 ' + ordVisited().length + '곳 · 장비 ' + new Set(ordSp.map(x => x.i)).size + '가지' }),
+      JOB.board ? el('button', { class: 'big pri', onclick: () => { bg.remove(); jobPost({ t: 'job-share' }); } }, '사진 보내기 (카톡 등)') : null,
+      el('button', { class: 'big ' + (JOB.board ? 'sec' : 'pri'), onclick: () => { bg.remove(); jobPost({ t: 'job-done' }); } }, JOB.board ? '사진대지로 묶기' : '사진대지 만들기'),
+      el('button', { class: 'big sec', onclick: () => bg.remove() }, '계속 찍기')));
+    document.body.append(bg); };
   /* 찍으면 자동으로 넘기기(2026-10-14 고성식 님 '추천대로 자동 넘기기 넣어') — 끔 · 층(한 시설을 층별로) · 항목(한 층의 시설을 다 찍고 다음 층, 점검 항목이 있을 때만). 기본 끔.
      층은 마지막으로 손으로 누른 방향(▲ · ▼, 처음은 ▼)으로 */
   let floorDir = ls.get('floorDir', -1);
@@ -1135,7 +1219,8 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   const autoMode = () => { const m = ls.get('autoStep', 'off'); return AUTO_OPTS().includes(m) ? m : 'off'; };
   const AUTO_T = LAB ? { off: '자유\n롭게', equip: '장비 순\n다음 장비', space: '공간 순', floor: '찍으면\n층 ', item: '찍으면\n다음 항목' } : { off: '자동\n넘김 끔', floor: '찍으면\n층 ', item: '찍으면\n다음 항목' };   // 실험실(R1016-05): 장비 순 / 공간 순
   if (LAB && CHECK && JOB.order) ls.set('autoStep', { equip: 'equip', space: 'space', free: 'off' }[JOB.order] || 'off');   // 점검 시작 때 고른 순서
-  const autoNext = at => { const m = autoMode(); if (!QUICK || m === 'off') return;
+  if (ORD) { if (JOB.dir === 1 || JOB.dir === -1) floorDir = JOB.dir; const f0 = locF(), p0 = JOB.lastPlace || JOB.place0; if (f0 && p0) camSet(f0, p0); }   // R1016-06 시작 위치 · 어느 쪽으로
+  const autoNext = at => { if (ORD) { drawLoc(); return; } const m = autoMode(); if (!QUICK || m === 'off') return;
     const f = locF(), stepF = () => { if (!f) return ''; const v = stepNum(camGet(f), floorDir); if (v == null) return ''; camSet(f, v); return v; };
     let say = '';
     if (m === 'floor') say = stepF();
@@ -1143,6 +1228,11 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     if (m === 'item') { let n = (at == null ? jobAt : at) + 1; if (n >= JOB.steps.length) { n = 0; const v = stepF(); say = v ? v + ' · ' : ''; } jobAt = n; drawSteps(); say += JOB.steps[n] || ''; }
     drawLoc(); if (say) setTimeout(() => toast('다음: ' + say), 1300); };
   const drawLoc = () => { if (!QUICK) return; const f = locF(); if (!f){ locEl.style.display = 'none'; return; } locEl.style.display = '';
+    if (ORD) { ordDraw();
+      const stp = d => { floorDir = d; const v = stepNum(camGet(f), d); if (v == null) { toast(labOf(f) + "에 '1층'처럼 넣어 주세요"); editText(); return; } camSet(f, v); drawLoc(); };
+      if (ORD === 'space') locEl.replaceChildren(el('button', { class: 'v', onclick: editText, 'aria-label': '위치 고치기' }, el('small', {}, '공간'), el('b', {}, camGet(f) || '눌러서 넣기')), el('button', { class: 'nx', onclick: () => ordNextSpace() }, '다음\n공간 ▶'));
+      else locEl.replaceChildren(el('button', { class: 'st', 'aria-label': '위층', onclick: () => stp(1) }, '▲'), el('button', { class: 'st', 'aria-label': '아래층', onclick: () => stp(-1) }, '▼'), el('button', { class: 'v', style: 'text-align:center', onclick: () => ordSheet() }, el('small', {}, '장비'), el('b', {}, JOB.steps[jobAt] || '')), el('button', { class: 'nx', onclick: () => ordNextEquip() }, '다음\n장비 ▶'));
+      return; }
     const am = autoMode(), autoBtn = el('button', { class: 'auto' + (am !== 'off' ? ' on' : ''), 'aria-label': '찍으면 자동으로 넘기기', onclick: () => { const o = AUTO_OPTS(); ls.set('autoStep', o[(o.indexOf(am) + 1) % o.length]); drawLoc();
         const n = autoMode(); if (n === 'equip') return toast('장비 순 — 찍을 때마다 다음 장비로 넘어가요'); if (n === 'space') return toast('공간 순 — 이 공간에서 다 찍고 [다음 공간 ▶]을 눌러요'); toast(n === 'off' ? (LAB ? '자유롭게 — 층 · 항목을 ▲▼와 위 칸으로 직접 골라요' : '자동 넘김 끔 — ▲▼로 직접 바꿔요') : n === 'floor' ? (LAB ? '장비 순 — ' : '') + '찍을 때마다 층이 ' + (floorDir > 0 ? '올라가요' : '내려가요') + ' (한 시설을 층별로)' : (LAB ? '공간 순 — ' : '') + '찍을 때마다 다음 항목, 다 찍으면 다음 층 (한 층을 다 찍고 이동)'); } }, AUTO_T[am] + (am === 'floor' ? (floorDir > 0 ? '▲' : '▼') : ''));
     const step = d => { floorDir = d; ls.set('floorDir', d); const v = stepNum(camGet(f), d); if (v == null){ toast(labOf(f) + "에 '5층'처럼 층을 넣어 주세요 — 그다음부터 ▲▼로 바꿔요"); editText(); setTimeout(() => { const i = document.getElementById('c-' + f.id); if (i){ i.focus(); i.select(); } }, 150); return; } camSet(f, v); drawLoc(); };
@@ -1232,6 +1322,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
         if (CHECK) {
           jobPost({ t: 'job-shot', step: at, res: p.res || 'ok', note: p.note || '', cap: JOB.steps[at] || '', place: p.place && p.place !== EX.place ? p.place : '', date: p.date || '', name: f.name, data });
           ckRes[at] = worse(ckRes[at], p.res || 'ok'); jobCnt[at] = (jobCnt[at] || 0) + 1; drawSteps(); drawLeft();
+          if (ORD) { const pl = p.place && p.place !== EX.place ? p.place : ordPlace(); ordSp.push({ i: at, at: pl, res: p.res || 'ok' }); drawLoc(); drawLeft(); toast((JOB.steps[at] || '') + ' ' + CK[p.res || 'ok'] + ' · ' + pl + ' ×' + ordCnt(at, pl)); return; }
           const nx = JOB.steps.findIndex((_, i) => !jobCnt[i]);
           toast((JOB.steps[at] || '') + ' ' + CK[p.res || 'ok'] + (nx >= 0 ? ' — 다음: ' + JOB.steps[nx] + ' (위에서 눌러요)' : ' — 모든 항목을 찍었어요'));
           return;
@@ -1261,6 +1352,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
       const drawCk = () => { btns.replaceChildren(...RES3.map(k => el('button', { class: k + (p.res === k ? ' on' : ''), onclick: () => { p.res = k; drawCk(); } }, CK[k])));
         noteRow.style.display = p.res === 'ng' || p.res === 'fx' ? '' : 'none'; noteIn.placeholder = p.res === 'fx' ? '조치 내용 (예: 3번 회로 차단기 교체)' : '불량 내용 (예: 2번 밸브 미세 누수)'; };
       drawCk(); ckEl = el('div', {}, btns, noteRow);
+      if (ORD) { const tm = setTimeout(() => { if (review && review.p === p && p.res === 'ok') keep(); }, 2500); btns.addEventListener('pointerdown', () => clearTimeout(tm), true); noteIn.addEventListener('focus', () => clearTimeout(tm)); setTimeout(() => { msg.textContent = (JOB.steps[jobAt] || '') + ' — 양호로 저장해요 · 문제가 있으면 [불량]'; }, 30); }
       setTimeout(() => { msg.textContent = (JOB.steps[jobAt] || '이 항목') + ' — 결과는?'; }, 0);
     }
     const box = el('div', { class: 'review' }, rc, msg, ckEl, el('div', { class: 'rv-bar' },
@@ -1315,6 +1407,25 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     r.onend = () => { idleRec = null; if (/찍어|찰칵|촬영/.test(norm(heard)) && !review && !voiceStop) shoot(); };
     try { r.start(); idleRec = r; } catch {} };
   if (LABC) idleT = setInterval(idleListen, 1200);
+  if (ORD && SR) { ear.classList.add('ord'); ear.style.display = '';
+    const drawOrdEar = () => ear.replaceChildren(labPause ? el('span', {}, '⏸ 듣기 멈춤 — 눌러서 다시') : el('span', {}, el('b', {}, 'AI 비서 듣는 중'), ORD === 'space' ? ' "찍어" · "다음 층" · "끝"' : ' "찍어" · "다음 장비" · "끝"'));
+    drawOrdEar(); ear.onclick = () => { labPause = !labPause; if (labPause) idleStop(); drawOrdEar(); };
+    const ordHear = t => { const n = norm(t); if (!n) return;
+      if (review) { const rp = review.p; if (/불량/.test(n)) { rp.res = 'ng'; rp.note = t.replace(/.*불량\s*/, '').trim(); return review.keep(); } if (/양호|저장|좋아|이상\s?없/.test(n)) { rp.res = 'ok'; return review.keep(); } if (/해당\s?없/.test(n)) { rp.res = 'na'; return review.keep(); } if (/다시/.test(n)) return review.drop(); return; }
+      if (document.querySelector('.sheet-bg')) return;
+      if (/찍어|찰칵|촬영/.test(n)) return shoot();
+      if (/다음(층|공간)/.test(n) && ORD === 'space') return ordNextSpace();
+      if (/다음장비/.test(n) && ORD === 'equip') return ordNextEquip();
+      if (/^(끝|마치기|다찍었)/.test(n) || /다찍었|마칠게|끝내/.test(n)) return ordDone();
+      const si = JOB.steps.findIndex(x => norm(x) && n.includes(norm(x))); if (si >= 0) { ordPickStep(si); return toast(JOB.steps[si]); }
+      const pm = t.match(/(지하\s?\d+\s?층|\d+\s?층|옥상|기계실|전기실|주차장|관리사무소|방재실)/); if (pm) { ordSetPlace(pm[1].replace(/\s/g, '')); return toast(pm[1].replace(/\s/g, '')); } };
+    const ordListen = () => { if (idleRec || labPause || !wrap.isConnected || voiceStop) return; if (document.querySelector('.sheet-bg') && !review) return;
+      const r = new SR(); r.lang = 'ko-KR'; r.interimResults = false; r.continuous = false; let heard = '';
+      r.onresult = ev => { heard = [...ev.results].map(x => x[0].transcript).join(''); };
+      r.onerror = ev => { if (ev.error === 'not-allowed') { labPause = true; drawOrdEar(); } };
+      r.onend = () => { idleRec = null; try { ordHear(heard); } catch {} };
+      try { r.start(); idleRec = r; } catch {} };
+    idleT = setInterval(ordListen, 1200); }
   const zBtn = el('button', { 'aria-label': '배율', onclick: () => { const pre = [1, 2, 4].filter(v => v <= zMax() + 0.01), i = pre.findIndex(v => Math.abs(v - zoom) < 0.05); setZoom(pre[(i + 1) % pre.length]); zBtn.textContent = Math.round(zoom) + '×'; } }, '1×');
   const flipCam = () => { facing = facing === 'environment' ? 'user' : 'environment'; start(); };
   const LABN = { after: 'before', before: 'classic', classic: 'after' };
@@ -1383,6 +1494,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     leftBtn.textContent = shots.length ? `찍은 사진 · ${shots.length}장` : photos.length ? '돌아가기' : '갤러리에서\n고르기'; leftBtn.onclick = shots.length || photos.length ? done : openPick;
     if (LABC && !shots.length && !photos.length) { leftBtn.textContent = '옵션\n안내'; leftBtn.onclick = () => openMore(true); }   // 장남덕님 시안: 명령어 · 음성 순서 · 설정(갤러리도 여기)
     if (JOB) { const n = jobTotal(); leftBtn.textContent = n ? `다 찍음\n사진대지 (${n}장)` : '처음으로'; leftBtn.onclick = () => jobPost({ t: n ? 'job-done' : 'job-back' }); }
+    if (ORD) { const n = ordSp.length; leftBtn.textContent = n ? `마치기\n(${n}장)` : '처음으로'; leftBtn.onclick = ordDone; }
     // 2026-10-09 단계 줄이기: 사진대지 · 팀에서 찍으러 왔으면 왼쪽 버튼이 바로 [사진대지에 넣기] — '찍은 사진 → 완료' 두 번을 한 번으로
     if (window.__toSheet && !JOB && shots.length) { leftBtn.textContent = (window.__toSheetLabel || '사진대지에 넣기') + '\n(' + shots.length + '장)'; leftBtn.onclick = () => { stop(); photos = shots.slice(); cur = 0; toSheet(); }; } };
   drawLeft();
@@ -1470,8 +1582,9 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   }, 600);
   const view = el('div', { class: 'view' }, video, PAIR ? ghostImg : null, ov, PAIR ? ghostBtn : null,
       LABC ? labModeBtn : null, LABC ? ear : null,
+      LABC && window.__resume ? el('button', { class: 'labresume', onclick: () => { try { window.ReactNativeWebView.postMessage(JSON.stringify({ t: 'resume-job' })); } catch {} } }, '▶ ' + [window.__resume.name, window.__resume.kind].filter(Boolean).join(' ') + ' · 이어서 찍기') : null,
       LABC ? el('button', { class: 'gear more', 'aria-label': '더보기', onclick: openMore }, '⋯') : el('button', { class: 'gear', 'aria-label': '설정', onclick: openSet }, ui('sliders', 20)),
-      LABC ? null : zoomEl, PAIR ? phEl : null, LABC || (window.ReactNativeWebView && !window.__nativeCam) ? null : el('button', { class: 'ncam', onclick: nativeShot }, ui('camera', 16), '기본 카메라\n광학줌 · 고화질'), nIn, JOB ? stepsEl : null);
+      LABC ? null : zoomEl, PAIR ? phEl : null, LABC || (window.ReactNativeWebView && !window.__nativeCam) ? null : el('button', { class: 'ncam', onclick: nativeShot }, ui('camera', 16), '기본 카메라\n광학줌 · 고화질'), nIn, JOB && !ORD ? stepsEl : null, ORD ? ordProg : null, ORD ? ordPick : null, ORD ? ear : null);
   view.addEventListener('pointerdown', e => { onPt(e); if (pts.size === 2) pinch = { d: pdist(), z: zoom }; });
   view.addEventListener('pointermove', e => { if (!pts.has(e.pointerId)) return; onPt(e); if (pinch && pts.size === 2) setZoom(pinch.z * pdist() / pinch.d); });
   const ptUp = e => { pts.delete(e.pointerId); if (pts.size < 2) pinch = null; };
@@ -1484,7 +1597,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
       el('button', { onclick: openLook }, ui('layout'), '보드 선택'),
       el('button', { onclick: editText }, ui('pen'), '글자 수정'),
       el('button', { onclick: async () => { await allowMotion(); camVoice(); } }, ui('mic'), '음성 입력')),
-    LABC ? null : el('div', { class: 'tools-hint' }, ui('mic', 14), '터치 없이 음성 입력: 휴대폰을 3회 톡톡톡 두드리세요!'),   // 2026-10-08 장남덕님 문구(고성식 님 승인)
+    LABC || ORD ? null : el('div', { class: 'tools-hint' }, ui('mic', 14), '터치 없이 음성 입력: 휴대폰을 3회 톡톡톡 두드리세요!'),   // 2026-10-08 장남덕님 문구(고성식 님 승인)
     LABC ? el('div', { class: 'labbar' }, homeBtn, el('button', { 'aria-label': '갤러리에서 불러와 한 장씩 라벨링', onclick: () => { labGal = true; openPick(); } }, '🖼'), torchBtn,
       zBtn, el('button', { 'aria-label': '앞 · 뒤 카메라', onclick: () => flipCam() }, '↻'), el('button', { 'aria-label': '설정', onclick: () => openSet() }, '⚙')) : null,
     el('div', { class: 'bar' },
