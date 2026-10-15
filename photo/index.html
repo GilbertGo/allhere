@@ -172,6 +172,8 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 .sheet.labmore .row2 .big{flex:1}
 .labcfrow{display:flex;gap:10px;align-items:baseline;padding:8px 2px;border-bottom:1px solid var(--line)}
 .labcfrow span{flex:none;width:92px;font-size:13px;color:var(--muted)}
+.cam .shut.labshut{color:#2A2118;font-size:18px;font-weight:800}
+.labcfin{flex:1;height:42px;border-radius:10px;border:1px solid var(--line);background:#fff;padding:0 10px;font-size:16px;color:var(--ink)}
 .labcfrow b{flex:1;font-size:16px;word-break:keep-all}
 .vbar .g-help.big{font-size:16px;line-height:1.45;color:#FFD9B5;font-weight:700}
 .cam .labbar{display:flex;justify-content:center;gap:12px;padding:8px 12px 0}
@@ -915,14 +917,16 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   const LABM = { after: '찍고 말하기', before: '말하고 찍기', classic: '기존 방식' };
   const LAB_SKIP = f => !['title', 'memo'].includes(f.id);   // 장남덕님 10-15: 제목 · 세부 내용만 말로, 날짜 · 장소 · 담당은 자동(묻지 않음)
   /* 확인 창: 말로 넣은 것(제목 · 내용)과 자동으로 든 것(일자 · 위치 · 담당)을 보여 주고 [저장] */
-  const labConfirm = (get, onSave, onRedo, onKbd) => { document.querySelectorAll('.sheet-bg.labcf').forEach(x => x.remove());
+  const labConfirm = (get, onSave, onRedo, onKbd, set, quiet) => { document.querySelectorAll('.sheet-bg.labcf').forEach(x => x.remove());
     const bg = el('div', { class: 'sheet-bg labcf' }), shown = f => { const v = get(f); return v && !isEx(f.id, v) ? v : '(없음)'; };
-    const rows = cfg.fields.filter(f => f.on).map(f => el('div', { class: 'labcfrow' }, el('span', {}, labOf(f) + (LAB_SKIP(f) ? ' · 자동' : '')), el('b', {}, shown(f))));
+    const inp = f => { const i = el('input', { type: 'text', class: 'labcfin', maxlength: f.id === 'memo' ? 60 : 30, value: isEx(f.id, get(f)) ? '' : (get(f) || ''), placeholder: (LAB_DESC[f.id] || [])[1] || '',
+      onfocus: () => { if (voiceKill) voiceKill(); }, oninput: () => set(f, i.value) }); return i; };   // 손으로 고치기 시작하면 말로 듣기는 멈춤
+    const rows = cfg.fields.filter(f => f.on).map(f => el('div', { class: 'labcfrow' }, el('span', {}, labOf(f) + (LAB_SKIP(f) ? ' · 자동' : '')), set && !LAB_SKIP(f) ? inp(f) : el('b', {}, shown(f))));
     const go = fn => () => { bg.remove(); fn && fn(); };
     bg.append(el('div', { class: 'sheet labmore' }, el('h2', {}, '이렇게 넣을까요?'), ...rows,
       el('button', { class: 'big pri', onclick: go(onSave) }, '저장'),
       el('div', { class: 'row2' }, el('button', { class: 'big sec', onclick: go(onRedo) }, '다시 말하기'), el('button', { class: 'big sec', onclick: go(onKbd) }, '자판으로 고치기'))));
-    document.body.append(bg); speak(cfg.fields.filter(f => f.on && !LAB_SKIP(f)).map(f => labOf(f) + ' ' + shown(f)).join(', ') + '. 저장할까요?'); };
+    document.body.append(bg); if (!quiet) speak(cfg.fields.filter(f => f.on && !LAB_SKIP(f)).map(f => labOf(f) + ' ' + shown(f)).join(', ') + '. 저장할까요?'); return bg; };
   const labMode = () => { const m = ls.get('labVoice', 'after'); return LABM[m] ? m : 'after'; };   // after = 찍고 말하기, before = 말하고 찍기, classic = 기존(찍으면 바로 저장)
   /* 비교 기록(ChatGPT 10-15): 방식마다 저장한 장 수 · 걸린 시간(앞 사진 저장 ~ 이 사진 저장) · 누른 횟수 · 말로 고친 횟수 · 저장 실패 */
   let labT = Date.now(), labTaps = 0, labVoiceN = 0;
@@ -1234,14 +1238,17 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     const base = {};   // 위치: 처음 값(저절로 든 동네) 뒤에 덧붙임
     voiceFill({ get: f => valOf(p, f), set: (f, t) => { if (f.id === 'place' && cfg.mode !== 'fire') { if (base.place == null) base.place = isEx('place', valOf(p, f)) ? '' : valOf(p, f); t = (base.place + ' ' + t).trim().slice(0, 30); } putVal(p, f, t); if (!f.per) saveCfg(); labVoiceN++; }, changed: () => { if (review && review.p === p) review.draw(); },
       skip: LAB_SKIP, byLabel: true, fast: true,
-      onEnd: v => { v.stop(); labConfirm(f => valOf(p, f), labKeep, () => afterVoice(), () => review && review.edit()); },
+      onEnd: v => { v.stop(); labConfirm(f => valOf(p, f), labKeep, () => afterVoice(), () => review && review.edit(), (f, t) => { putVal(p, f, t); if (!f.per) saveCfg(); if (review && review.p === p) review.draw(); }); },
       help: '말하고 "다음" → 다음 칸 · "저장" · "같음" 그대로 · "다시" 처음부터 · "그만" 끝 · "다시 찍기"',
       buttons: [['다시 찍기', v => { v.stop(); if (review) review.drop(); }, 'x'], ['자판으로', v => { v.stop(); if (review) review.edit(); }, 'x'], ['저장하고 계속 찍기', v => { v.stop(); labKeep(); }]],
       confirmQ: sum => sum + '. 저장할까요?',
+      onConfirm: () => labConfirm(f => valOf(p, f), () => { if (voiceKill) voiceKill(); labKeep(); }, () => { if (voiceKill) voiceKill(); afterVoice(); }, () => { if (voiceKill) voiceKill(); if (review) review.edit(); },
+        (f, t) => { putVal(p, f, t); if (!f.per) saveCfg(); if (review && review.p === p) review.draw(); }, true),
       confirm: async (n, v) => {
-        if (/다시\s?찍|버려|취소|지워/.test(n)) { v.stop(); if (review) review.drop(); return speak('지웠어요. 다시 찍어 주세요'); }
-        if (SAY.redo.test(n)) return v.restart();
-        if (SAY.save.test(n)) { v.stop(); return labKeep(); }
+        if (/다시\s?찍|버려|취소|지워/.test(n)) { document.querySelectorAll('.sheet-bg.labcf').forEach(x => x.remove()); v.stop(); if (review) review.drop(); return speak('지웠어요. 다시 찍어 주세요'); }
+        const cf = () => document.querySelectorAll('.sheet-bg.labcf').forEach(x => x.remove());
+        if (SAY.redo.test(n)) { cf(); return v.restart(); }
+        if (SAY.save.test(n)) { cf(); v.stop(); return labKeep(); }
         return v.ask('저장, 다시, 다시 찍기 중에 말씀하세요');
       } }); };
   let idleRec = null, idleT = 0; const ear = el('div', { class: 'labear' }, '🎤 음성 자동인식 "찍어"'); ear.style.display = 'none';
@@ -1280,8 +1287,8 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
       labMode() === 'after' ? el('button', { class: 'big sec', onclick: () => { ls.set('labAskEach', !askEach()); bg.remove(); openMore(); } }, askEach() ? '찍을 때마다 설명 묻기: 켬' : '찍을 때마다 설명 묻기: 끔 (계속 찍기 — 글은 그대로)') : null,
       labMode() === 'after' && SR ? el('button', { class: 'big sec', onclick: () => { ls.set('labSayShoot', !ls.get('labSayShoot', true)); bg.remove(); idleStop(); openMore(); } }, ls.get('labSayShoot', true) ? '음성 자동인식 "찍어": 켬' : '음성 자동인식 "찍어": 끔') : null,
       el('div', { class: 'hint', style: 'text-align:left;margin-bottom:-4px', text: '방식별 비교 기록 (한 장 평균)' }), labTable(),
-      el('div', { class: 'hint', style: 'text-align:left;margin-bottom:-4px', text: '갤러리 사진 — 나중에 한꺼번에 라벨링' }),
-      el('div', { class: 'row2' }, el('button', { class: 'big sec', onclick: go(() => { labToSheet = false; openPick(); }) }, '한 장씩 라벨링'), el('button', { class: 'big sec', onclick: go(() => { labToSheet = true; openPick(); }) }, '여러 장 사진대지로')),
+      el('div', { class: 'hint', style: 'text-align:left;margin-bottom:-4px', text: '갤러리 사진 라벨링 (사진대지는 사무실에서 — 앱 홈 › 사진대지)' }),
+      el('div', { class: 'row2' }, el('button', { class: 'big sec', onclick: go(() => { labToSheet = false; openPick(); }) }, '한 장씩 라벨링'), null),
       el('div', { class: 'hint', style: 'text-align:left;margin-bottom:-4px', text: '보드판 글' }),
       el('div', { class: 'row2' }, el('button', { class: 'big sec', onclick: go(openLook) }, '보드 선택'), el('button', { class: 'big sec', onclick: go(editText) }, '글자 수정')),
       el('div', { class: 'row2' }, el('button', { class: 'big sec' + (cfg.layout === 'table2' ? ' on' : ''), onclick: go(() => { cfg.layout = 'table2'; saveCfg(); toast('보드판: 2단 표'); }) }, '2단 표'), el('button', { class: 'big sec' + (cfg.layout === 'column' ? ' on' : ''), onclick: go(() => { cfg.layout = 'column'; saveCfg(); toast('보드판: 세로형'); }) }, '세로형')),
@@ -1311,7 +1318,8 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   // 왼쪽 아래 버튼: 찍기 전 = 앨범에서 고르기, 찍은 뒤 = 다 찍음(장 수). 2026-10-04 사용자: '앨범' → '앨범에서 사진 불러오기'(두 줄)
   const leftBtn = el('button', { class: 'side' });
   let thumb = null;
-  const drawLeft = () => { if (shots.length) { const q = shots[shots.length - 1]; if (!thumb) { const c = document.createElement('canvas'), k = 120 / Math.max(q.W, q.H); c.width = Math.round(q.W * k); c.height = Math.round(q.H * k); drawNote(c.getContext('2d'), q.bmp, c.width, c.height, { ...noteFor(q), at: null }); thumb = c.toDataURL('image/jpeg', .7); } leftBtn.style.cssText = `background:#222 url(${thumb}) center/cover;padding-left:52px;background-size:44px 44px;background-position:6px center;background-repeat:no-repeat`; } else leftBtn.style.cssText = '';
+  const homeBtn = el('button', { 'aria-label': '메인으로', style: 'display:none', onclick: () => { try { window.ReactNativeWebView.postMessage(JSON.stringify({ t: 'go-home' })); } catch {} } }, '⌂ 메인');
+  const drawLeft = () => { if (LABC && window.ReactNativeWebView) homeBtn.style.display = shots.length ? '' : 'none'; if (shots.length) { const q = shots[shots.length - 1]; if (!thumb) { const c = document.createElement('canvas'), k = 120 / Math.max(q.W, q.H); c.width = Math.round(q.W * k); c.height = Math.round(q.H * k); drawNote(c.getContext('2d'), q.bmp, c.width, c.height, { ...noteFor(q), at: null }); thumb = c.toDataURL('image/jpeg', .7); } leftBtn.style.cssText = `background:#222 url(${thumb}) center/cover;padding-left:52px;background-size:44px 44px;background-position:6px center;background-repeat:no-repeat`; } else leftBtn.style.cssText = '';
     leftBtn.textContent = shots.length ? `찍은 사진 · ${shots.length}장` : photos.length ? '돌아가기' : '갤러리에서\n고르기'; leftBtn.onclick = shots.length || photos.length ? done : openPick;
     if (LABC && !shots.length && !photos.length) { leftBtn.textContent = '옵션\n안내'; leftBtn.onclick = () => openMore(true); }   // 장남덕님 시안: 명령어 · 음성 순서 · 설정(갤러리도 여기)
     if (JOB) { const n = jobTotal(); leftBtn.textContent = n ? `다 찍음\n사진대지 (${n}장)` : '처음으로'; leftBtn.onclick = () => jobPost({ t: n ? 'job-done' : 'job-back' }); }
@@ -1417,11 +1425,11 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
       el('button', { onclick: editText }, ui('pen'), '글자 수정'),
       el('button', { onclick: async () => { await allowMotion(); camVoice(); } }, ui('mic'), '음성 입력')),
     LABC ? null : el('div', { class: 'tools-hint' }, ui('mic', 14), '터치 없이 음성 입력: 휴대폰을 3회 톡톡톡 두드리세요!'),   // 2026-10-08 장남덕님 문구(고성식 님 승인)
-    LABC ? el('div', { class: 'labbar' }, torchBtn,
+    LABC ? el('div', { class: 'labbar' }, homeBtn, torchBtn,
       zBtn, el('button', { 'aria-label': '앞 · 뒤 카메라', onclick: () => flipCam() }, '↻'), el('button', { 'aria-label': '설정', onclick: () => openSet() }, '⚙')) : null,
     el('div', { class: 'bar' },
       leftBtn,
-      el('button', { class: 'shut', 'aria-label': '찍기', onclick: shoot }),
+      el('button', { class: 'shut' + (LABC ? ' labshut' : ''), 'aria-label': '찍기', onclick: shoot }, LABC ? '찍어' : null),
       LABC ? labRight : el('button', { class: 'side', onclick: e => { facing = facing === 'environment' ? 'user' : 'environment'; e.currentTarget.textContent = facing === 'user' ? '뒤 카메라' : '셀카 모드'; start(); } }, facing === 'user' ? '뒤 카메라' : '셀카 모드')));
   document.body.append(wrap);
   drawLoc();
@@ -1942,7 +1950,7 @@ async function voiceFill(opt = {}) {   // opt: 카메라 화면처럼 다른 곳
   const ask = async t => { stopRec(); stEl.textContent = t; heard.textContent = ''; await speak(t); listen(); };
   const josa = w => { const c = (w || '').charCodeAt(w.length - 1); return c >= 0xAC00 && c <= 0xD7A3 && (c - 0xAC00) % 28 ? '을' : '를'; };
   const askNext = () => {
-    const fs = fields(); if (qi >= fs.length) { state = 'confirm'; const sum = fs.map(f => `${f.label} ${getV(f) || '없음'}`).join(', '); return ask(opt.confirmQ ? opt.confirmQ(sum) : `${sum}. 저장할까요?`); }
+    const fs = fields(); if (qi >= fs.length) { state = 'confirm'; if (opt.onConfirm) opt.onConfirm(V); const sum = fs.map(f => `${f.label} ${getV(f) || '없음'}`).join(', '); return ask(opt.confirmQ ? opt.confirmQ(sum) : `${sum}. 저장할까요?`); }
     const f = fs[qi], v = getV(f); ask(`${f.label}${josa(f.label)} 말씀하세요${v && !(LAB && isEx(f.id, v)) ? '. 지금은 ' + v : ''}`);
   };
   async function handle(t) {
