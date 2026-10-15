@@ -1,0 +1,114 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta property="og:title" content="사진통 개선 요청 처리현황 (10/15)"><meta property="og:description" content="개선 요청 37건 — 번호 · 요청자 · 상태 · 상세내용"><meta name="robots" content="noindex"><style>body{margin:0}</style>
+<title>사진통 개선 요청 처리현황</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* 현장 업무 보드: 위에 업무 순서 띠(0건도), 아래 번호 순 표(폰에선 카드) */
+:root{--bg:#f4f6f8;--card:#ffffff;--ink:#16202a;--sub:#5b6875;--line:#dde3e9;--accent:#1f5fbf;
+--a:#8a96a3;--b:#c27a12;--c:#7a52c7;--d:#1f6fd1;--e:#1b8a5a;--f:#0e7c86;--g:#14532d;--x:#c2410c;--y:#6b7280;--z:#9f1239;
+--f-body:'IBM Plex Sans KR','Apple SD Gothic Neo','Malgun Gothic',sans-serif;--f-mono:'IBM Plex Mono',ui-monospace,Consolas,monospace}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#11161b;--card:#1a2129;--ink:#e6ebf0;--sub:#9aa7b4;--line:#2b3540;--accent:#6ea8ff;
+--a:#9aa7b4;--b:#e0a24a;--c:#b096f0;--d:#6ea8ff;--e:#4cc38a;--f:#3cc6cf;--g:#86efac;--x:#fb8a5a;--y:#a3aab3;--z:#f2789a;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#11161b;--card:#1a2129;--ink:#e6ebf0;--sub:#9aa7b4;--line:#2b3540;--accent:#6ea8ff;
+--a:#9aa7b4;--b:#e0a24a;--c:#b096f0;--d:#6ea8ff;--e:#4cc38a;--f:#3cc6cf;--g:#86efac;--x:#fb8a5a;--y:#a3aab3;--z:#f2789a;color-scheme:dark}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.55}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:16px;padding-block:20px 40px;display:flex;flex-direction:column;gap:22px}
+header h1{font-size:24px;margin:0;text-wrap:balance}
+header p{margin:4px 0 0;color:var(--sub);font-size:14px}
+.ver{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.ver span{font-family:var(--f-mono);font-size:13px;background:var(--card);border:1px solid var(--line);border-radius:6px;padding:3px 8px}
+h2{font-size:16px;margin:0 0 10px;letter-spacing:.02em}
+.flow,.out{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:8px;align-items:stretch}
+.step{background:var(--card);border:1px solid var(--line);border-top:4px solid var(--c0,var(--a));border-radius:8px;padding:8px 12px;display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;column-gap:8px;min-width:104px}
+.step .ord{grid-row:1/3;font-family:var(--f-mono);font-size:12px;color:var(--sub);align-self:start}
+.step .nm{font-weight:600;font-size:14px}
+.step .n{font-size:26px;line-height:1.1;font-variant-numeric:tabular-nums}
+.step.zero{opacity:.55}
+.arrow{align-self:center;color:var(--sub);font-weight:700}
+.out{margin-top:10px}
+.st-a{--c0:var(--a)}.st-b{--c0:var(--b)}.st-c{--c0:var(--c)}.st-d{--c0:var(--d)}.st-e{--c0:var(--e)}.st-f{--c0:var(--f)}.st-g{--c0:var(--g)}.st-x{--c0:var(--x)}.st-y{--c0:var(--y)}.st-z{--c0:var(--z)}
+.total{margin-top:8px;color:var(--sub);font-size:14px}
+.legend{margin:8px 0 0;color:var(--sub);font-size:13px}
+.tbl{overflow-x:auto;background:var(--card);border:1px solid var(--line);border-radius:10px}
+table{border-collapse:collapse;width:100%;min-width:960px}
+th,td{text-align:left;vertical-align:top;padding:9px 10px;border-bottom:1px solid var(--line);font-size:14px}
+th{position:sticky;top:0;background:var(--card);font-size:12.5px;color:var(--sub);letter-spacing:.04em}
+tr:last-child td{border-bottom:0}
+.no{font-family:var(--f-mono);white-space:nowrap}
+.who{white-space:nowrap}
+.where{white-space:nowrap;color:var(--sub)}
+.det{color:var(--sub);min-width:300px}
+.pill{display:inline-block;white-space:nowrap;font-size:13px;font-weight:600;padding:2px 9px;border-radius:999px;border:1px solid var(--c0);color:var(--c0)}
+@media (max-width:720px){
+  table,thead,tbody,tr,td{display:block;min-width:0}
+  thead{display:none}
+  .tbl{background:transparent;border:0;overflow:visible}
+  tr{background:var(--card);border:1px solid var(--line);border-radius:10px;margin-bottom:10px;padding:10px 12px;display:grid;grid-template-columns:auto 1fr auto;gap:2px 10px}
+  td{border:0;padding:0}
+  td.no{grid-column:1}td.who{grid-column:2;color:var(--sub)}td:nth-child(4){grid-column:3;grid-row:1}
+  td.req{grid-column:1/-1;font-weight:600;margin-top:4px}
+  td.where{grid-column:1/-1;white-space:normal;font-size:13px}
+  td.where::before{content:'어디에 · ';}
+  td.det{grid-column:1/-1;min-width:0;font-size:13.5px}
+  .step{min-width:0;flex:1 1 30%}
+  .arrow{display:none}
+}
+</style>
+<div class="wrap">
+<header>
+  <h1>사진통 개선 요청 처리현황 · 2026-10-15</h1>
+  <p>AI고프로 정리 · 고성식 지시 · 번호 R1015-○○ · 요청자는 별도 칸</p>
+  <div class="ver"><span>사진통 3.0 · 97</span><span>사진통 실험실 · 9</span><span>실험실 받기 sisultong.web.app/lab</span></div>
+</header>
+<section>
+  <h2>처리 현황 (업무 순서)</h2>
+  <ul class="flow"><li class="step st-a zero"><span class="ord">1</span><span class="nm">검토중</span><b class="n">0</b></li><li class="arrow" aria-hidden="true">→</li><li class="step st-b zero"><span class="ord">2</span><span class="nm">개발중</span><b class="n">0</b></li><li class="arrow" aria-hidden="true">→</li><li class="step st-c zero"><span class="ord">3</span><span class="nm">개발완료</span><b class="n">0</b></li><li class="arrow" aria-hidden="true">→</li><li class="step st-d zero"><span class="ord">4</span><span class="nm">배포완료</span><b class="n">0</b></li><li class="arrow" aria-hidden="true">→</li><li class="step st-f"><span class="ord">5</span><span class="nm">써보시는 중</span><b class="n">22</b></li><li class="arrow" aria-hidden="true">→</li><li class="step st-e"><span class="ord">6</span><span class="nm">평가완료</span><b class="n">9</b></li><li class="arrow" aria-hidden="true">→</li><li class="step st-g"><span class="ord">7</span><span class="nm">3.0 적용완료</span><b class="n">2</b></li></ul>
+  <ul class="out"><li class="step st-x"><span class="ord">밖</span><span class="nm">결정대기</span><b class="n">1</b></li><li class="step st-y"><span class="ord">밖</span><span class="nm">보류</span><b class="n">2</b></li><li class="step st-z"><span class="ord">밖</span><span class="nm">불가</span><b class="n">1</b></li></ul>
+  <p class="total">합계 37건</p>
+  <p class="legend">개발완료 = 다 만들었고 배포 전 · 배포완료 = 앱에 올렸고 아직 써 보기 전 · 써보시는 중 = 시험하시는 분들이 폰에서 써 보는 중 · 평가완료 = 써 보고 된다고 확인됨 · 3.0 적용완료 = 정식 버전(사진통 3.0)에 들어감 · 결정대기 = 고성식 결정 필요 · 보류 = 나중에 · 불가 = 앱 안에서는 안 됨(대안 안내)</p>
+</section>
+<section>
+  <h2>요청 리스트</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>번호</th><th>요청자</th><th>요청</th><th>상태</th><th>어디에</th><th>상세내용</th></tr></thead>
+    <tbody>
+<tr><td class="no">R1015-01</td><td class="who">고성식</td><td class="req">시험판 앱 따로 — 새 기능 먼저 받아 보기</td><td><span class="pill st-e">평가완료</span></td><td class="where">실험실 1 · PR #224</td><td class="det">3.0 옆에 따로 깔리는 앱(com.sisultong.photo.test). 3.0과 같은 서버 · 계정, 업데이트 알림은 따로(updatePhotoTest), 번호도 따로 셈</td></tr>
+<tr><td class="no">R1015-02</td><td class="who">고성식</td><td class="req">이름 '시험판' → '사진통 실험실'(3.0 시험판과 헷갈림), 아이콘 '실험'</td><td><span class="pill st-e">평가완료</span></td><td class="where">실험실 1</td><td class="det">3.0도 '시험판'으로 불려 헷갈려 이름 변경. 아이콘에 주황 '실험' 표시, 앱 정보에 '사진통 실험실 N'</td></tr>
+<tr><td class="no">R1015-03</td><td class="who">고성식 · ChatGPT</td><td class="req">장남덕 간결 수정안(10-14) 반영 계획 · 이슈 정리</td><td><span class="pill st-e">평가완료</span></td><td class="where">이슈 #225</td><td class="det">문서 요구사항 18개를 반영 예정 / 확인 필요 / 보류로 나눠 이슈 #225에 정리, ChatGPT 보완 4가지 반영</td></tr>
+<tr><td class="no">R1015-04</td><td class="who">장남덕 · ChatGPT</td><td class="req">찍고 말하기 · 말하고 찍기 고르기</td><td><span class="pill st-f">써보시는 중</span></td><td class="where">실험실 2</td><td class="det">처음엔 방식을 묻고, 위 왼쪽 단추 · 옵션에서 바꿈. 비교용 '기존 방식'(찍으면 바로 저장)도 있음</td></tr>
+<tr><td class="no">R1015-05</td><td class="who">장남덕</td><td class="req">촬영 화면 비우기 — 배율 · 기본 카메라 · 도구 줄 · 셀카는 더보기로</td><td><span class="pill st-f">써보시는 중</span></td><td class="where">실험실 2</td><td class="det">1×2×4 · 기본 카메라 · 보드 선택/글자 수정/음성 입력 줄 · 톡톡톡 안내 · 셀카를 겉에서 빼서 옵션으로 옮김(기능은 그대로)</td></tr>
+<tr><td class="no">R1015-06</td><td class="who">장남덕 · ChatGPT</td><td class="req">말한 칸만 바꾸기 · 나머지 유지</td><td><span class="pill st-f">써보시는 중</span></td><td class="where">실험실 2</td><td class="det">칸 이름부터 말하면("내용 계단 청소") 그 칸만 바뀜. 말하지 않은 칸은 그대로</td></tr>
+<tr><td class="no">R1015-07</td><td class="who">장남덕 · ChatGPT</td><td class="req">저장 알림 · 연속 촬영(계속 찍기 / 설명 넣기)</td><td><span class="pill st-f">써보시는 중</span></td><td class="where">실험실 2</td><td class="det">저장하면 '✓ 저장됐어요 · N장째' 표시 후 바로 다음 사진. '찍을 때마다 설명 묻기'를 끄면 글 그대로 계속 찍기</td></tr>
+<tr><td class="no">R1015-08</td><td class="who">ChatGPT</td><td class="req">원본 보존 · 저장 실패 시 글 남기기</td><td><span class="pill st-f">써보시는 중</span></td><td class="where">실험실 2</td><td class="det">실험실은 '보드판 없는 원본도 함께 저장' 기본 켬. 저장 실패 시 사진 · 글을 그대로 두고 다시 [저장]</td></tr>
+<tr><td class="no">R1015-09</td><td class="who">ChatGPT</td><td class="req">3.0 보호 — 실험 화면은 실험실 앱에서만</td><td><span class="pill st-e">평가완료</span></td><td class="where">window.__lab</td><td class="det">실험 화면은 window.__lab 표시가 있을 때만 켜짐(실험실 앱만 넣음). 3.0 화면 그대로인 것 브라우저로 확인</td></tr>
+<tr><td class="no">R1015-10</td><td class="who">ChatGPT</td><td class="req">방식별 비교 기록(시간 · 누름 · 말로 고침 · 실패)</td><td><span class="pill st-f">써보시는 중</span></td><td class="where">실험실 2</td><td class="det">방식마다 저장 장 수 · 한 장 평균 시간 · 누른 횟수 · 말로 고친 횟수 · 실패를 쌓아 옵션 안내에 표시, 지우기 가능</td></tr>
+<tr><td class="no">R1015-11</td><td class="who">장남덕</td><td class="req">기본 보드판 2단 표</td><td><span class="pill st-f">써보시는 중</span></td><td class="where">실험실 3</td><td class="det">실험실을 처음 열 때 보드판 모양을 '표·두 칸'으로 맞춤(보드 선택에서 바꿀 수 있음)</td></tr>
+<tr><td class="no">R1015-12</td><td class="who">장남덕</td><td class="req">보드판 고치기 — 음성 먼저, [자판으로 입력] 작게</td><td><span class="pill st-f">써보시는 중</span></td><td class="where">실험실 3</td><td class="det">보드판 고치기를 열면 바로 음성 입력 시작, 위 작은 [⌨ 자판으로 입력]을 누르거나 칸을 누르면 자판</td></tr>
+<tr><td class="no">R1015-13</td><td class="who">장남덕</td><td class="req">칸마다 설명 · 예시</td><td><span class="pill st-f">써보시는 중</span></td><td class="where">실험실 3</td><td class="det">제목(명칭/장소, 핵심 활동) · 내용(세부 내용) · 위치(구·동 자동 + 덧붙이기) · 담당(본인/함께한 사람)에 설명과 예시</td></tr>
+<tr><td class="no">R1015-14</td><td class="who">장남덕</td><td class="req">앱 열면 바로 카메라, 메인은 1장 찍은 뒤 [메인]</td><td><span class="pill st-f">써보시는 중</span></td><td class="where">실험실 3 · 7</td><td class="det">앱을 열고 처음 홈에 오면 한 번 바로 찍는 화면. 사진 1장 찍은 뒤 아래 줄에 [⌂ 메인]</td></tr>
+<tr><td class="no">R1015-15</td><td class="who">장남덕</td><td class="req">공사·작업 기록 화면 줄이기(안내 칸 삭제 · 세부 작업명 · 최근 한 줄 · 1장씩 라벨링 · 찍고 사진보드 만들기)</td><td><span class="pill st-f">써보시는 중</span></td><td class="where">실험실 3</td><td class="det">사진보드 화면: '새로 만들기' 안내 칸 삭제, 작업명 → 세부 작업명, 최근 이름 한 줄, '1장씩 라벨링', [찍고 사진보드 만들기]</td></tr>
+<tr><td class="no">R1015-16</td><td class="who">장남덕</td><td class="req">사진대지 칸 아래 기본 버튼 [갤러리에서 가져오기]</td><td><span class="pill st-f">써보시는 중</span></td><td class="where">실험실 3</td><td class="det">사진대지 화면 아래 [갤러리에서 가져오기]를 진한 기본 버튼으로, [카메라 열기]는 옅게</td></tr>
+<tr><td class="no">R1015-17</td><td class="who">고성식</td><td class="req">짧은 받기 링크 — sisultong.web.app/lab</td><td><span class="pill st-e">평가완료</span></td><td class="where">Hosting</td><td class="det">sisultong.web.app/lab → 실험실 최신 APK로 바로 연결(번호가 바뀌어도 링크 그대로)</td></tr>
+<tr><td class="no">R1015-18</td><td class="who">고성식</td><td class="req">안내문 — 정체 밝히기, 이름 'AI고프로', "고성식 지시로"</td><td><span class="pill st-e">평가완료</span></td><td class="where">메모리</td><td class="det">남에게 보내는 글 첫 줄에 '[AI고프로 정리] … 사진통 개발을 맡은 AI고프로입니다', 고성식과의 관계는 '지시로'</td></tr>
+<tr><td class="no">R1015-19</td><td class="who">고성식</td><td class="req">원격(폰)에서 "배포해" — 실험실 · 3.0 배포 스크립트 허락</td><td><span class="pill st-e">평가완료</span></td><td class="where">settings.local.json</td><td class="det">실험실-배포.ps1 · 3.0-배포.ps1 실행만 허락 규칙에 넣어, 폰에서 "배포해"면 Claude가 올리고 받는 링크까지 확인</td></tr>
+<tr><td class="no">R1015-20</td><td class="who">장남덕</td><td class="req">말로는 제목 · 세부 내용만, 날짜 · 장소 · 담당은 자동</td><td><span class="pill st-f">써보시는 중</span></td><td class="where">실험실 4</td><td class="det">음성은 제목 → 세부 내용 두 칸만 묻고, 날짜 · 장소 · 담당은 자동으로 넣고 묻지 않음</td></tr>
+<tr><td class="no">R1015-21</td><td class="who">장남덕</td><td class="req">[말로 채우기 끝내기] → 확인 팝업(말로 넣은 것) → 저장</td><td><span class="pill st-f">써보시는 중</span></td><td class="where">실험실 4</td><td class="det">[말로 채우기 끝내기] 또는 "그만" → 확인 창에 말로 넣은 것과 자동으로 든 것 → [저장] / [다시 말하기] / [자판으로 고치기]</td></tr>
+<tr><td class="no">R1015-22</td><td class="who">고성식 · 장남덕</td><td class="req">넘어가는 · 완료 명령어 — 말 끝 "다음", "저장", 시끄러울 때 2.5초, 명령어 크게</td><td><span class="pill st-f">써보시는 중</span></td><td class="where">실험실 5</td><td class="det">말 끝에 "다음"이면 바로 다음 칸, "저장" · "다시" · "찍어"는 듣는 즉시, 말소리가 2.5초 그대로면 들은 대로 넘어감. 명령어를 음성창에 큰 글씨로</td></tr>
+<tr><td class="no">R1015-23</td><td class="who">고성식</td><td class="req">보드 저장했는데 보드·대지 함에 안 보임</td><td><span class="pill st-g">3.0 적용완료</span></td><td class="where">실험실 6·7 · 3.0 96(#226) (폰 확인 전)</td><td class="det">원인: 사진 '저장' 권한만 받고 '보기' 권한이 없어 갤러리에서 방금 파일을 못 찾아 기록을 못 남김. 저장 때 보기 권한까지 묻고, 못 읽어도 한 줄은 남김. 원본(_orig)은 한 줄로</td></tr>
+<tr><td class="no">R1015-24</td><td class="who">정인수</td><td class="req">플래시</td><td><span class="pill st-f">써보시는 중</span></td><td class="where">실험실 7 ⚡</td><td class="det">아래 카메라 줄 ⚡ 버튼으로 켜고 끔. 폰이 허락하지 않으면 '기본 카메라로 찍어 주세요' 안내</td></tr>
+<tr><td class="no">R1015-25</td><td class="who">정인수</td><td class="req">찍은 뒤 보드판 위치 바꾸기 — 이미 됨 + 안내</td><td><span class="pill st-f">써보시는 중</span></td><td class="where">실험실 7</td><td class="det">찍기 전: 카메라 화면에서 보드판을 끌어 옮김. 찍은 뒤: [찍은 사진]에서 끌어 옮기고 다시 저장. 처음 한 번 안내 표시</td></tr>
+<tr><td class="no">R1015-26</td><td class="who">고성식 · 정인수</td><td class="req">잠금 해제 전에 바로 찍기</td><td><span class="pill st-f">써보시는 중</span></td><td class="where">실험실 7 (폰마다 확인 필요)</td><td class="det">잠긴 채로 열리면 찍는 화면만 보임. 홈 · 함 · 사진대지 · 갤러리는 잠금 해제(지문·얼굴)부터. 평소 화면은 잠그면 가려짐. 삼성: 설정 › 잠금화면 › 바로가기에 사진통 실험실</td></tr>
+<tr><td class="no">R1015-27</td><td class="who">장남덕</td><td class="req">찍고 말하기 기본(처음 묻지 않음), 말하고 찍기는 옵션으로</td><td><span class="pill st-f">써보시는 중</span></td><td class="where">실험실 7</td><td class="det">처음에 방식을 묻지 않고 찍고 말하기로 시작. 말하고 찍기 · 기존 방식은 [옵션 안내]에서 고름(위 왼쪽 단추는 기본이 아닐 때만 보임)</td></tr>
+<tr><td class="no">R1015-28</td><td class="who">장남덕</td><td class="req">시안: 음성 자동인식 "찍어" 기본 · [옵션 안내](명령어 · 음성 순서 · 설정) · 아래 카메라 줄 · 동산보드 크기 · 세로형</td><td><span class="pill st-f">써보시는 중</span></td><td class="where">실험실 7</td><td class="det">"찍어" 음성 듣기 기본 켬 + 왼쪽 위 '🎤 음성 자동인식 "찍어"'. 아래 [옵션 안내](명령어 · 음성 순서 · 설정 · 갤러리) [찍어] [글자 수정], 그 위 ⚡ · 1× · ↻ · ⚙ 줄, 보드판 기본 크게, 2단 표 / 세로형 바로 고르기</td></tr>
+<tr><td class="no">R1015-29</td><td class="who">장남덕</td><td class="req">두 칸 마치면 결과 팝업 저절로 · 손으로 고치기 · 셔터 '찍어' · 카메라에서 사진대지 빼기</td><td><span class="pill st-f">써보시는 중</span></td><td class="where">실험실 7</td><td class="det">제목 · 세부 내용을 말하면 결과 팝업이 저절로 뜨고 그 자리에서 손으로 고치기 · 말로 "저장". 가운데 셔터에 '찍어' 글씨. 찍는 화면에서 '여러 장 사진대지로' 뺌</td></tr>
+<tr><td class="no">R1015-30</td><td class="who">고성식 · 장남덕</td><td class="req">카메라에서 갤러리 불러와 한 장씩 라벨링해 보내기 — 순회 서비스</td><td><span class="pill st-f">써보시는 중</span></td><td class="where">실험실 8 🖼</td><td class="det">카메라 줄 🖼 → 사진 여러 장 고르기 → 한 장씩 제목 · 세부 내용을 말로(일자 · 위치는 사진에서) → [저장하고 다음 사진] · "건너뛰기" → 끝나면 [보내기]</td></tr>
+<tr><td class="no">R1015-31</td><td class="who">고성식</td><td class="req">밀린 배포 — 3.0 94 → 96</td><td><span class="pill st-e">평가완료</span></td><td class="where">3.0 96</td><td class="det">3.0 사용자 94 → 96: 95 내용(간편 모드 시험 스위치 정리 등) + 보드 기록 고침. 실험실 기능은 들어가지 않음 확인</td></tr>
+<tr><td class="no">R1015-32</td><td class="who">고성식</td><td class="req">오늘 요청 리스트 · 번호로 관리</td><td><span class="pill st-e">평가완료</span></td><td class="where">이 표</td><td class="det">번호 R+월일+순번, 요청자 따로 칸, 상태 5단계(검토중 → 개발중 → 개발완료 → 배포완료 → 평가완료), 이슈 #228 · 요청목록에 같이 관리</td></tr>
+<tr><td class="no">R1015-33</td><td class="who">장남덕</td><td class="req">사진 한 장당 포인트(하루 100 · 쿠폰)</td><td><span class="pill st-y">보류</span></td><td class="where">따로 기획</td><td class="det">장당 10포인트 · 하루 100 · 커피 쿠폰 · 300만 원 마케팅 — 돈과 부정 사용 방지가 걸려 따로 기획</td></tr>
+<tr><td class="no">R1015-34</td><td class="who">장남덕</td><td class="req">"사진통"이라고 말해 앱 켜기</td><td><span class="pill st-z">불가</span></td><td class="where">"헤이 구글, 사진통 실험실 열어"</td><td class="det">앱 안에서는 음성으로 앱을 켤 수 없음. 대신 "헤이 구글, 사진통 실험실 열어"</td></tr>
+<tr><td class="no">R1015-35</td><td class="who">고성식</td><td class="req">실험실 Google 로그인(Firebase에 실험실 등록)</td><td><span class="pill st-x">결정대기</span></td><td class="where">운영 설정 — 결정 대기</td><td class="det">Google 로그인을 쓰려면 Firebase에 실험실 패키지 · 서명을 등록해야 함(운영 설정 변경). 그 전까지 이메일 로그인만</td></tr>
+<tr><td class="no">R1015-36</td><td class="who">고성식</td><td class="req">실험실 기능을 3.0에 옮기기</td><td><span class="pill st-y">보류</span></td><td class="where">실기기 시험 뒤</td><td class="det">고성식 '아직 3.0에 넣지마'. 실험실에서 평가완료된 것부터 골라 3.0에 옮김</td></tr>
+<tr><td class="no">R1015-37</td><td class="who">정인수</td><td class="req">찍을 때 화면과 실제 찍힌 모습이 같게 — 미리보기는 반투명, 저장은 불투명이라 숫자가 가려짐</td><td><span class="pill st-g">3.0 적용완료</span></td><td class="where">실험실 9 · 3.0 97 · 웹 2026-10-15a (폰 확인 전)</td><td class="det">원인: 미리보기만 보드판을 55% 투명하게 그렸음. 실험실은 미리보기도 저장 모습 그대로(불투명) — 가려지면 화면에서 바로 보여 보드판을 옮기면 됨. 3.0도 같은 문제라 함께 배포(고성식 '3.0 둘다 배포해') — 3.0은 앱을 다시 열면 웹 화면으로 바로, 앱 안 사본은 97</td></tr>
+    </tbody>
+  </table></div>
+</section>
+</div></html>
