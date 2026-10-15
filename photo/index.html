@@ -1133,7 +1133,8 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   let floorDir = ls.get('floorDir', -1);
   const AUTO_OPTS = () => CHECK && JOB.steps.length ? ['off', 'floor', 'item'] : ['off', 'floor'];
   const autoMode = () => { const m = ls.get('autoStep', 'off'); return AUTO_OPTS().includes(m) ? m : 'off'; };
-  const AUTO_T = { off: '자동\n넘김 끔', floor: '찍으면\n층 ', item: '찍으면\n다음 항목' };
+  const AUTO_T = LAB ? { off: '자유\n롭게', floor: '장비 순\n층 ', item: '공간 순\n다음 장비' } : { off: '자동\n넘김 끔', floor: '찍으면\n층 ', item: '찍으면\n다음 항목' };   // 실험실(R1016-05): 장비 순 / 공간 순
+  if (LAB && CHECK && JOB.order) ls.set('autoStep', { equip: 'floor', space: 'item', free: 'off' }[JOB.order] || 'off');   // 점검 시작 때 고른 순서
   const autoNext = at => { const m = autoMode(); if (!QUICK || m === 'off') return;
     const f = locF(), stepF = () => { if (!f) return ''; const v = stepNum(camGet(f), floorDir); if (v == null) return ''; camSet(f, v); return v; };
     let say = '';
@@ -1142,7 +1143,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     drawLoc(); if (say) setTimeout(() => toast('다음: ' + say), 1300); };
   const drawLoc = () => { if (!QUICK) return; const f = locF(); if (!f){ locEl.style.display = 'none'; return; } locEl.style.display = '';
     const am = autoMode(), autoBtn = el('button', { class: 'auto' + (am !== 'off' ? ' on' : ''), 'aria-label': '찍으면 자동으로 넘기기', onclick: () => { const o = AUTO_OPTS(); ls.set('autoStep', o[(o.indexOf(am) + 1) % o.length]); drawLoc();
-        const n = autoMode(); toast(n === 'off' ? '자동 넘김 끔 — ▲▼로 직접 바꿔요' : n === 'floor' ? '찍을 때마다 층이 ' + (floorDir > 0 ? '올라가요' : '내려가요') + ' (한 시설을 층별로)' : '찍을 때마다 다음 항목, 다 찍으면 다음 층 (한 층을 다 찍고 이동)'); } }, AUTO_T[am] + (am === 'floor' ? (floorDir > 0 ? '▲' : '▼') : ''));
+        const n = autoMode(); toast(n === 'off' ? (LAB ? '자유롭게 — 층 · 항목을 ▲▼와 위 칸으로 직접 골라요' : '자동 넘김 끔 — ▲▼로 직접 바꿔요') : n === 'floor' ? (LAB ? '장비 순 — ' : '') + '찍을 때마다 층이 ' + (floorDir > 0 ? '올라가요' : '내려가요') + ' (한 시설을 층별로)' : (LAB ? '공간 순 — ' : '') + '찍을 때마다 다음 항목, 다 찍으면 다음 층 (한 층을 다 찍고 이동)'); } }, AUTO_T[am] + (am === 'floor' ? (floorDir > 0 ? '▲' : '▼') : ''));
     const step = d => { floorDir = d; ls.set('floorDir', d); const v = stepNum(camGet(f), d); if (v == null){ toast(labOf(f) + "에 '5층'처럼 층을 넣어 주세요 — 그다음부터 ▲▼로 바꿔요"); editText(); setTimeout(() => { const i = document.getElementById('c-' + f.id); if (i){ i.focus(); i.select(); } }, 150); return; } camSet(f, v); drawLoc(); };
     locEl.replaceChildren(el('button', { class: 'v', onclick: editText, 'aria-label': labOf(f) + ' 고치기' }, el('small', {}, labOf(f)), el('b', {}, camGet(f) || '눌러서 넣기')), autoBtn,
       el('button', { class: 'st', 'aria-label': '위층 · 번호 올리기', onclick: () => step(1) }, '▲'), el('button', { class: 'st', 'aria-label': '아래층 · 번호 내리기', onclick: () => step(-1) }, '▼')); };
