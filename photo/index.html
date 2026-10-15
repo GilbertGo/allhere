@@ -991,12 +991,42 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   const stop = () => { camClose = null; if (typeof idleT !== 'undefined' && idleT) { clearInterval(idleT); idleStop(); } if (voiceStop) voiceStop(); if (camStream) camStream.getTracks().forEach(t => t.stop()); camStream = null; cancelAnimationFrame(loop); wrap.remove(); };
   const start = async () => {
     if (camStream) camStream.getTracks().forEach(t => t.stop());
-    try { camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facing, width: { ideal: 1920 }, height: { ideal: 1440 } }, audio: false }); }
+    const torchId = LAB && facing === 'environment' ? ls.get('labTorchCam', '') : '';   // 실험실(R1016-03): 지난번에 찾은 '플래시 되는 뒤 렌즈'
+    try { camStream = await navigator.mediaDevices.getUserMedia({ video: torchId ? { deviceId: { exact: torchId }, width: { ideal: 1920 }, height: { ideal: 1440 } } : { facingMode: facing, width: { ideal: 1920 }, height: { ideal: 1440 } }, audio: false }); }
+    catch { if (torchId) { ls.set('labTorchCam', ''); return start(); } camStream = null; }
+    try { if (!camStream) throw 0; }
     catch { stop(); if (auto) { if (!photos.length) homeOld(); toast('카메라를 열 수 없어요. 카메라 사용을 허락하거나 아래 버튼으로 찍어 주세요'); return; } toast('카메라를 열 수 없어 휴대폰 카메라로 찍어요'); return camIn.click(); }
     video.srcObject = camStream;
     const tr = camStream.getVideoTracks()[0], cp = tr && tr.getCapabilities ? tr.getCapabilities() : {};
     hw = cp.zoom && cp.zoom.max > 1 ? cp.zoom : null; setZoom(1);   // 앞/뒤를 바꾸면 1× 부터
     torchOk = !!cp.torch; torchOn = false; if (typeof drawTorch === 'function') drawTorch();   // 실험실 플래시(정인수님 10-15) — 카메라를 다시 켜면 꺼진 채로
+    if (LAB && facing === 'environment' && !torchOk && !torchId && !ls.get('labTorchNone')) findTorchCam(tr);
+  };
+  /* 실험실(R1016-03): 뒤 카메라가 여러 개인 폰은 플래시 없는 렌즈(광각 등)가 열릴 때가 있다 — 뒤 렌즈를 하나씩 열어 플래시 되는 것을 찾아 바꾸고 기억 */
+  let torchHunt = false;
+  const findTorchCam = async cur => {
+    if (torchHunt) return; torchHunt = true;
+    try {
+      const curId = cur && cur.getSettings ? cur.getSettings().deviceId : '';
+      const devs = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput' && d.deviceId && d.deviceId !== curId && !/front|전면|user/i.test(d.label || ''));
+      if (!devs.length) { ls.set('labTorchNone', 1); return; }
+      if (camStream) camStream.getTracks().forEach(x => x.stop());   // 안드로이드는 카메라를 한 번에 하나만 연다 — 지금 렌즈를 닫고 하나씩
+      for (const d of devs) {
+        let st = null;
+        try { st = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: d.deviceId }, width: { ideal: 1920 }, height: { ideal: 1440 } }, audio: false }); } catch { continue; }
+        const t2 = st.getVideoTracks()[0], c2 = t2 && t2.getCapabilities ? t2.getCapabilities() : {}, set = t2 && t2.getSettings ? t2.getSettings() : {};
+        if (c2.torch && set.facingMode !== 'user') {
+          if (!wrap.isConnected || facing !== 'environment') { st.getTracks().forEach(x => x.stop()); return; }
+          if (camStream) camStream.getTracks().forEach(x => x.stop());
+          camStream = st; video.srcObject = st; ls.set('labTorchCam', d.deviceId);
+          hw = c2.zoom && c2.zoom.max > 1 ? c2.zoom : null; setZoom(1); torchOk = true; torchOn = false; drawTorch();
+          toast('플래시 되는 카메라로 바꿨어요 ⚡'); return;
+        }
+        st.getTracks().forEach(x => x.stop());
+      }
+      ls.set('labTorchNone', 1);   // 플래시 되는 뒤 렌즈가 없다 — 다음부터 찾지 않음, 원래 카메라로
+      if (wrap.isConnected) await start();
+    } catch { if (wrap.isConnected && !(camStream && camStream.active)) start(); } finally { torchHunt = false; }
   };
   // 줌(2026-10-04 사용자: 찍기 화면에서 줌 되게): 두 손가락으로 벌리고 오므리기 · 1× 2× 4× 버튼.
   // 카메라가 줌을 알려 주면 카메라 줌(화질 그대로), 아니면 가운데를 잘라 키우는 디지털 줌(찍은 사진도 화면에 보이던 부분만)
