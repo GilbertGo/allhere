@@ -175,6 +175,14 @@ k{display:inline-block;font-weight:700;color:var(--blue-d);background:var(--blue
 .step .do ol{list-style:none;padding-left:0;counter-reset:i}
 .step .do ol > li{counter-increment:i;position:relative;padding-left:40px}
 .step .do ol > li::before{content:var(--s) "-" counter(i);position:absolute;left:0;top:1px;font-size:12.5px;font-weight:700;color:var(--blue-d);background:var(--blue-s);border-radius:6px;padding:0 5px}
+.fork{display:grid;gap:6px;margin:8px 0 2px}
+.fork > div{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:8px 10px;font-size:14px}
+.fork b{display:block;margin-bottom:5px}
+.fork small{display:block;color:var(--sub);font-size:12.5px;margin-top:4px}
+.fork .mk-chips span{font-size:12.5px;padding:2px 9px}
+.ordl{display:grid;gap:4px}
+.ordl > span{display:flex;align-items:center;gap:8px;background:var(--bg);border-radius:8px;padding:3px 9px;font-size:13.5px}
+.ordl i{font-style:normal;font-weight:700;color:var(--blue-d)} .ordl em{margin-left:auto;font-style:normal;color:var(--blue)}
 .facts li{margin:6px 0}
 
 .design{margin-top:14px;background:var(--amber-s);border-radius:12px;padding:10px 14px;font-size:14.5px}
@@ -244,10 +252,10 @@ k{display:inline-block;font-weight:700;color:var(--blue-d);background:var(--blue
         <div class="mk-chips"><span>승강기</span><span class="on">소방</span><span>전기</span><span>기계</span></div>
         <div class="mk-q"><i>2</i>어떻게 돌아요?</div>
         <div class="mk-chips"><span class="on">층마다 (공간 순)</span><span>장비마다 (장비 순)</span><span>자유롭게</span></div>
-        <div class="mk-q"><i>3</i>어디?</div>
-        <div class="mk-in" style="color:var(--ink)">101동</div>
-        <div class="mk-q"><i>4</i>어디부터? <span class="new sm">새로</span></div>
+        <div class="mk-q"><i>3</i>어디부터? <span class="new sm">새로</span></div>
         <div class="mk-chips"><span class="on">1층</span><span>지하1층</span><span>옥상</span><span>+ 직접</span></div>
+        <div class="mk-q"><i>4</i>어디?</div>
+        <div class="mk-in" style="color:var(--ink)">101동</div>
       </div>
       <div class="mk-bot"><div class="mk-btn">찍기 시작</div></div>
     </div></div>
@@ -256,8 +264,13 @@ k{display:inline-block;font-weight:700;color:var(--blue-d);background:var(--blue
         <ol><li>맨 위 <k>사진보드</k>.</li>
         <li><k>소방</k> → 찍을 장비가 저절로 들어갑니다(장비 목록은 눌러서 빼거나 더함).</li>
         <li>어떻게 돌아요: 층마다 돌면 <k>공간 순</k>, 장비별로 돌면 <k>장비 순</k>(찍을 순서를 ↑↓로).</li>
+        <li>고른 순서에 따라 <b>시작점</b>을 정합니다. <span class="new">새로</span>
+          <div class="fork">
+            <div><b>공간 순 → 어디부터?</b><span class="mk-chips"><span class="on">1층</span><span>지하1층</span><span>옥상</span><span>+ 직접</span></span><small>위로 갈지 아래로 갈지도 같이 정해집니다</small></div>
+            <div><b>장비 순 → 어떤 장비부터?</b><span class="ordl"><span><i>1</i>수신기<em>↑↓</em></span><span><i>2</i>감지기<em>↑↓</em></span><span><i>3</i>소화기<em>↑↓</em></span></span><small>맨 위가 첫 장비 · ↑↓로 찍을 순서를 정합니다</small></div>
+            <div><b>자유롭게</b><small>시작점 없이 그때그때 고릅니다</small></div>
+          </div></li>
         <li>어디: <k>101동</k>.</li>
-        <li>어디부터: <k>1층</k>. 위로 갈지 아래로 갈지도 여기서 정해집니다. <span class="new">새로</span></li>
         <li><k>찍기 시작</k>.</li></ol></div>
       <div class="then"><b>그러면</b> 보드판에 시설명 · 장비 · 층 · 날짜 · 점검자(내 이름)가 모두 미리 채워져 있습니다. 현장에서 글을 쓸 일이 없습니다.</div>
     </div>
