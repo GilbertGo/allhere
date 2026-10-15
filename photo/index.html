@@ -1064,9 +1064,11 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   const pdist = () => { const [a, b] = [...pts.values()]; return Math.hypot(a.x - b.x, a.y - b.y) || 1; };
   const onPt = e => { pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); };
   let loop = 0;
+  /* 실험실(R1016-04): 디지털 줌(2×·4×)이면 잘라 낸 부분이 작아(예: 4× → 480px) 보드판 글씨가 흐렸다 — 보드판은 늘 1920px 폭 이상으로 그린다(화면 · 저장 사진 모두) */
+  const upK = q => LAB ? Math.max(1, 1920 / q.w) : 1;
   const tick = () => {
     const q = crop();
-    if (q) { if (ov.width !== q.w || ov.height !== q.h) { ov.width = q.w; ov.height = q.h; } box = drawNote(ov.getContext('2d'), null, q.w, q.h, noteFor(ghostP()), true); clipVideo(); }
+    if (q) { const k = upK(q), ow = Math.round(q.w * k), oh = Math.round(q.h * k); if (ov.width !== ow || ov.height !== oh) { ov.width = ow; ov.height = oh; } box = drawNote(ov.getContext('2d'), null, ow, oh, noteFor(ghostP()), true); clipVideo(); }
     loop = requestAnimationFrame(tick);
   };
     // 글상자를 누르거나 '글 고치기' → 찍기 전에 글을 고쳐요(고치는 대로 화면 글상자도 바로 바뀜)
@@ -1145,11 +1147,11 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     locEl.replaceChildren(el('button', { class: 'v', onclick: editText, 'aria-label': labOf(f) + ' 고치기' }, el('small', {}, labOf(f)), el('b', {}, camGet(f) || '눌러서 넣기')), autoBtn,
       el('button', { class: 'st', 'aria-label': '위층 · 번호 올리기', onclick: () => step(1) }, '▲'), el('button', { class: 'st', 'aria-label': '아래층 · 번호 내리기', onclick: () => step(-1) }, '▼')); };
   const noteRecent = () => { if (!QUICK) return; const r = ls.get('recent', {}); cfg.fields.filter(x => x.on && !['title', 'date'].includes(x.id)).forEach(x => { const v = camGet(x); if (v && v !== EX[x.id]) r[x.id] = pushRecent(r[x.id], v); }); ls.set('recent', r); };
-  dragBox(ov, () => box, () => { const q = crop(); return q ? [q.w, q.h] : [1, 1]; }, () => {}, editText);
+  dragBox(ov, () => box, () => { const q = crop(); return q ? [Math.round(q.w * upK(q)), Math.round(q.h * upK(q))] : [1, 1]; }, () => {}, editText);
   const shoot = async () => {
     const q = crop(); if (!q) return;
     noteRecent();   // 사진 비율 · 디지털 줌대로 화면에 보이던 부분만
-    const c = document.createElement('canvas'); c.width = q.w; c.height = q.h; c.getContext('2d').drawImage(video, q.x, q.y, q.w, q.h, 0, 0, q.w, q.h);
+    const k = upK(q), c = document.createElement('canvas'); c.width = Math.round(q.w * k); c.height = Math.round(q.h * k); const cg = c.getContext('2d'); cg.imageSmoothingQuality = 'high'; cg.drawImage(video, q.x, q.y, q.w, q.h, 0, 0, c.width, c.height);
     const h = await Promise.race([here, new Promise(r => setTimeout(() => r(null), 50))]);
     const p = photoOf(await createImageBitmap(c), new Date(), h?.lat, h?.lng); if (placeNow && cfg.mode !== 'fire') p.place = placeNow; Object.assign(p, camVals);
     if (aiAuto) p.aiP = aiQueue(p);
