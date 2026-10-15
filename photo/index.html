@@ -258,7 +258,7 @@ const PHOTO_VER = '2026-10-14f';
 // 사진통 실험실(2026-10-15 장남덕님 간결 수정안 · 이슈 #225): 실험실 앱(com.sisultong.photo.test)이 window.__lab 을 줄 때만 —
 // 찍고 말하기 / 말하고 찍기 고르기 · 말한 칸만 바꾸기 · 저장 알림 · 촬영 화면 비우기(배율 · 기본 카메라 · 도구 줄 · 셀카는 [⋯ 더보기]로). 3.0 화면은 그대로
 const LAB = !!window.__lab;
-const GAL_DIR = LAB ? '사진통' : 'Download';   // 실험실(R1015-38 정인수): 갤러리 '사진통' 앨범에 따로 저장 — 앱(PhotoBox ALBUM)과 같게
+const GAL_DIR = window.__galDir || (LAB ? '사진통' : 'Download');   // 실험실(R1015-38 정인수): 갤러리 '사진통' 앨범에 따로 저장 — 앱(PhotoBox ALBUM)과 같게
 async function checkVer() {
   // 사진통 앱 안에서는 새로고침하지 않아요(2026-10-09): 새로고침하면 공개 주소로 바로 넘어가 앱이 넣어 준 연결(작업 칩 · 기본 카메라 · 사진대지에 넣기)이 빠진 채 열렸다.
   // 앱은 열 때마다 뒤에서 최신판을 받아 두고 다음에 그것으로 연다(PhotoBox.js refreshPage)
@@ -998,7 +998,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
       el('label', { class: 'f' }, PAIR ? PL.item : '칸 이름', PAIR && SR ? el('div', { class: 'inrow' }, inp, micBtn(inp, { label: PL.item })) : inp), el('button', { class: 'big pri', onclick: ok }, '더하기')));
     document.body.append(bg); setTimeout(() => inp.focus(), 50);
   };
-  if (JOB) { vals.title = JOB.name || ''; vals.who = JOB.who || ''; drawSteps(); }
+  if (JOB) { vals.title = JOB.name || ''; vals.who = JOB.who || (LAB && window.__userName) || ''; drawSteps(); }
   const chips = el('div', { class: 'chips' });
   let setBtn = null;
   const drawChips = () => { chips.replaceChildren(...LAYOUTS.map(([k, n]) => el('button', { class: cfg.layout === k ? 'on' : '', onclick: () => { cfg.layout = k; saveCfg(); drawChips(); } }, n))); if (setBtn) chips.append(setBtn); };
@@ -1202,11 +1202,21 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     if (jobAt >= JOB.steps.length - 1) { toast('마지막 장비예요 — 다 찍었으면 왼쪽 아래 [마치기]'); return; }
     ordPickStep(jobAt + 1); if (at0) ordSetPlace(at0); toast('다음 장비: ' + JOB.steps[jobAt] + (at0 ? ' — ' + at0 + '부터' : '')); if (typeof speak === 'function') speak(JOB.steps[jobAt]); };
   /* [마치기] — 요약 + 사진보드면 [사진 보내기] [사진대지로 묶기], 사진대지면 [사진대지 만들기] */
-  const ordDone = () => { const n = ordSp.length; if (!n) return jobPost({ t: 'job-back' });
+  /* 빠진 것 — 공간 순: 앞 공간에서 찍은 장비 · 지난번 같은 공간 / 장비 순: 앞 장비가 다녀간 공간 · 지난번 같은 장비. 넘어가기 한 것은 뺌 */
+  const ordMissing = () => { const out = [];
+    if (ORD === 'space') { const vis = ordVisited();
+      vis.forEach((at, k) => { const want = new Set([...(k ? ordSp.filter(x => x.at === vis[k - 1]).map(x => JOB.steps[x.i]) : []), ...ordPrev.filter(x => x[1] === at).map(x => x[0])]);
+        want.forEach(t => { if (t && !ordSp.some(x => x.at === at && JOB.steps[x.i] === t) && !ordSkip.has(at + '|' + t)) out.push({ at, t }); }); }); }
+    else { for (let i = 0; i <= jobAt && i < JOB.steps.length; i++) { const t = JOB.steps[i], want = new Set([...ordSp.filter(x => x.i < i).map(x => x.at), ...ordPrev.filter(x => x[0] === t).map(x => x[1])]);
+        want.forEach(at => { if (at && !ordCnt(i, at) && !ordSkip.has(at + '|' + t)) out.push({ at, t }); }); } }
+    return out; };
+  const ordDone = () => { const n = ordSp.length; if (!n) return jobPost({ t: 'job-back' }); const miss = ordMissing();
     const ok = ordSp.filter(x => x.res === 'ok').length, ng = ordSp.filter(x => x.res === 'ng').length;
     const bg = el('div', { class: 'sheet-bg', onclick: e => { if (e.target === bg) bg.remove(); } });
     bg.append(el('div', { class: 'sheet' }, el('h2', {}, (JOB.name || '') + ' ' + (JOB.kind || '') + ' 점검'),
-      el('div', { class: 'ordsum' }, el('div', {}, el('b', {}, String(n)), '사진'), el('div', {}, el('b', {}, String(ok)), '양호'), el('div', { style: ng ? 'color:#DC2626' : '' }, el('b', { style: ng ? 'color:#DC2626' : '' }, String(ng)), '불량')),
+      el('div', { class: 'ordsum', style: 'grid-template-columns:repeat(4,1fr)' }, el('div', {}, el('b', {}, String(n)), '사진'), el('div', {}, el('b', {}, String(ok)), '양호'), el('div', { style: ng ? 'color:#DC2626' : '' }, el('b', { style: ng ? 'color:#DC2626' : '' }, String(ng)), '불량'), el('div', { style: miss.length ? 'color:#B45309' : '' }, el('b', { style: miss.length ? 'color:#B45309' : '' }, String(miss.length)), '빠진 것')),
+      miss.length ? el('div', { class: 'hint', style: 'text-align:left;color:#B45309', text: '빠진 것: ' + miss.slice(0, 4).map(m => m.at + ' ' + m.t).join(' · ') + (miss.length > 4 ? ' 외 ' + (miss.length - 4) : '') }) : null,
+      miss.length ? el('button', { class: 'big sec', onclick: () => { bg.remove(); const m = miss[0], i = JOB.steps.indexOf(m.t); if (i >= 0) ordPickStep(i); ordSetPlace(m.at); toast('빠진 것: ' + m.at + ' ' + m.t); } }, '빠진 것 찍으러 가기') : null,
       el('div', { class: 'hint', style: 'text-align:left', text: '찍은 곳 ' + ordVisited().length + '곳 · 장비 ' + new Set(ordSp.map(x => x.i)).size + '가지' }),
       JOB.board ? el('button', { class: 'big pri', onclick: () => { bg.remove(); jobPost({ t: 'job-share' }); } }, '사진 보내기 (카톡 등)') : null,
       el('button', { class: 'big ' + (JOB.board ? 'sec' : 'pri'), onclick: () => { bg.remove(); jobPost({ t: 'job-done' }); } }, JOB.board ? '사진대지로 묶기' : '사진대지 만들기'),
