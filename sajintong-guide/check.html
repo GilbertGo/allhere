@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<title>사진통 시설·점검 설명서</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F4F6FA; --card:#FFFFFF; --ink:#0F172A; --sub:#475569; --dim:#94A3B8; --line:#E2E8F0;
+  --blue:#2563EB; --blue-d:#1D4ED8; --blue-s:#DBEAFE; --green:#059669; --green-s:#D1FAE5;
+  --red:#DC2626; --red-s:#FEE2E2; --amber:#D97706; --amber-s:#FEF3C7; --teal:#0E7490;
+  --phone:#0B1220; --screen:#F8FAFC;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0B1220; --card:#131C2E; --ink:#E5EAF3; --sub:#A7B2C5; --dim:#6B7891; --line:#24304A;
+  --blue:#60A5FA; --blue-d:#93C5FD; --blue-s:#1E3A5F; --green:#34D399; --green-s:#123C30;
+  --red:#F87171; --red-s:#45191C; --amber:#FBBF24; --amber-s:#3D2E0A; --teal:#22D3EE;
+  --phone:#000; --screen:#0F172A;
+}}
+:root[data-theme="dark"]{
+  --bg:#0B1220; --card:#131C2E; --ink:#E5EAF3; --sub:#A7B2C5; --dim:#6B7891; --line:#24304A;
+  --blue:#60A5FA; --blue-d:#93C5FD; --blue-s:#1E3A5F; --green:#34D399; --green-s:#123C30;
+  --red:#F87171; --red-s:#45191C; --amber:#FBBF24; --amber-s:#3D2E0A; --teal:#22D3EE;
+  --phone:#000; --screen:#0F172A;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:'Noto Sans KR',system-ui,sans-serif;line-height:1.65;font-size:16px;word-break:keep-all}
+.wrap{max-width:880px;margin:0 auto;padding:0 16px 64px}
+header.hero{padding:40px 0 24px}
+.badge{display:inline-block;font-size:13px;font-weight:700;color:var(--blue-d);background:var(--blue-s);padding:3px 10px;border-radius:99px}
+h1{font-size:30px;font-weight:900;margin:12px 0 6px;letter-spacing:-.5px}
+.lead{color:var(--sub);margin:0}
+h2{font-size:22px;font-weight:900;margin:0 0 4px;display:flex;align-items:center;gap:10px}
+h2 .n{flex:none;width:32px;height:32px;border-radius:10px;background:var(--blue);color:#fff;display:grid;place-items:center;font-size:16px}
+h3{font-size:17px;margin:22px 0 6px}
+section{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:24px 20px;margin:18px 0}
+section > p.sub{color:var(--sub);margin:4px 0 16px}
+.toc{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;margin:0;padding:0;list-style:none}
+.toc a{display:block;padding:10px 12px;border:1px solid var(--line);border-radius:12px;color:var(--ink);text-decoration:none;background:var(--card);font-weight:500}
+.toc a b{color:var(--blue);margin-right:6px}
+.goal{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.goal div{border-radius:14px;padding:16px;border:1px solid var(--line)}
+.goal .s{background:var(--green-s)} .goal .m{background:var(--blue-s)}
+.goal b{display:block;font-size:18px} .goal span{color:var(--sub);font-size:14px}
+.row{display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap}
+.row > .txt{flex:1 1 300px;min-width:0}
+ol.steps{padding-left:20px;margin:8px 0} ol.steps li{margin:4px 0}
+.note{background:var(--amber-s);border-radius:12px;padding:12px 14px;font-size:14.5px;margin:14px 0 0}
+.note b{color:var(--amber)}
+.tip{background:var(--blue-s);border-radius:12px;padding:12px 14px;font-size:14.5px;margin:14px 0 0}
+.lab{display:inline-block;font-size:11.5px;font-weight:700;color:#fff;background:#EA580C;padding:1px 7px;border-radius:6px;vertical-align:2px;margin-left:4px}
+table{width:100%;border-collapse:collapse;font-size:14.5px}
+th,td{border-bottom:1px solid var(--line);padding:9px 8px;text-align:left;vertical-align:top}
+th{color:var(--sub);font-weight:500;font-size:13px}
+
+/* ---------- 폰 그림 ---------- */
+.phone{flex:none;width:236px;border-radius:30px;background:var(--phone);padding:10px;box-shadow:0 10px 30px rgba(15,23,42,.18);margin:0 auto}
+.scr{background:var(--screen);border-radius:22px;overflow:hidden;height:440px;position:relative;font-size:11px;color:var(--ink)}
+.scr .bar{height:20px;display:flex;justify-content:space-between;padding:4px 14px 0;font-size:9px;color:var(--dim)}
+.scr .top{display:flex;align-items:center;gap:6px;padding:4px 12px 8px;font-weight:700;font-size:13px}
+.scr .pad{padding:0 12px}
+.mk-sec{font-weight:900;font-size:12px;margin:8px 0 6px;display:flex;align-items:center;gap:5px}
+.mk-big{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.mk-big div{height:54px;border-radius:10px;background:linear-gradient(135deg,#93C5FD,#2563EB);color:#fff;font-weight:700;display:flex;align-items:flex-end;padding:6px;font-size:11px}
+.mk-cat{display:flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--card);border-radius:10px;padding:5px;margin-bottom:5px}
+.mk-cat i{width:44px;height:34px;border-radius:7px;flex:none}
+.mk-cat b{flex:1;font-size:11.5px} .mk-cat em{font-style:normal;color:var(--dim)}
+.mk-cat.hl{outline:2.5px solid var(--red);outline-offset:1px}
+.mk-qr{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.mk-qr div{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:8px 6px;font-weight:700;font-size:10.5px}
+.mk-q{display:flex;align-items:center;gap:5px;font-weight:700;font-size:11px;margin:9px 0 4px}
+.mk-q i{font-style:normal;width:16px;height:16px;border-radius:50%;background:var(--blue);color:#fff;display:grid;place-items:center;font-size:9.5px}
+.mk-chips{display:flex;flex-wrap:wrap;gap:4px}
+.mk-chips span{border:1px solid var(--line);border-radius:99px;padding:2px 7px;background:var(--card);font-size:10px}
+.mk-chips span.on{background:var(--blue-s);border-color:var(--blue);color:var(--blue-d);font-weight:700}
+.mk-in{border:1px solid var(--line);border-radius:8px;padding:5px 7px;background:var(--card);color:var(--dim);font-size:10.5px}
+.mk-fm{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
+.mk-fm div{border:1px solid var(--line);border-radius:8px;padding:5px 3px;text-align:center;font-size:9.5px;font-weight:700;background:var(--card)}
+.mk-fm div.on{border-color:var(--blue);background:var(--blue-s);color:var(--blue-d)}
+.mk-ord{display:flex;align-items:center;gap:6px;background:var(--bg);border-radius:7px;padding:3px 7px;margin-top:3px;font-size:10.5px}
+.mk-ord b{color:var(--blue-d);width:12px} .mk-ord span{flex:1} .mk-ord em{font-style:normal;color:var(--blue)}
+.mk-bot{position:absolute;left:0;right:0;bottom:0;padding:8px 12px 12px;background:var(--card);border-top:1px solid var(--line);display:flex;gap:6px}
+.mk-btn{flex:1;border-radius:10px;padding:8px 4px;text-align:center;font-weight:700;font-size:11px;background:var(--blue);color:#fff}
+.mk-btn.soft{background:var(--blue-s);color:var(--blue-d)}
+.mk-what{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:6px}
+.mk-what div{border:1px solid var(--line);border-radius:9px;padding:5px 7px;background:var(--card);font-size:10.5px;font-weight:700}
+.mk-what div.on{border-color:var(--blue);background:var(--blue-s);color:var(--blue-d)}
+.mk-what small{display:block;font-weight:400;color:var(--dim);font-size:9px}
+
+/* 카메라 화면 */
+.cam{background:#111;height:440px;position:relative;color:#fff}
+.cam .view{position:absolute;inset:0 0 120px;background:linear-gradient(180deg,#5b6b7d 0%,#3b4654 60%,#2a313b 100%)}
+.cam .view::after{content:'';position:absolute;left:58%;top:40%;width:40px;height:62px;border-radius:6px;background:#C0392B;box-shadow:0 0 0 3px #7f1d1d inset}
+.board{position:absolute;left:10px;top:30px;width:150px;background:#fff;color:#0F172A;border-radius:6px;font-size:9px;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,.4)}
+.board div{display:flex;border-top:1px solid #CBD5E1} .board div:first-child{border-top:0}
+.board b{width:40px;background:#F1F5F9;padding:2px 4px;font-weight:700} .board span{flex:1;padding:2px 4px}
+.cam .items{position:absolute;left:0;right:0;bottom:120px;display:flex;gap:4px;padding:6px 8px;overflow:hidden;background:rgba(0,0,0,.45)}
+.cam .items span{flex:none;border-radius:99px;padding:3px 8px;font-size:10px;background:rgba(255,255,255,.18)}
+.cam .items span.now{background:#fff;color:#0F172A;font-weight:700}
+.cam .items span.done{background:rgba(16,185,129,.85)}
+.cam .loc{position:absolute;left:0;right:0;bottom:84px;display:flex;gap:4px;padding:4px 8px;align-items:stretch}
+.cam .loc .v{flex:1;background:rgba(255,255,255,.12);border-radius:8px;padding:3px 7px;font-size:9px;line-height:1.3}
+.cam .loc .v b{display:block;font-size:11px}
+.cam .loc .k{border-radius:8px;padding:3px 6px;font-size:9.5px;background:rgba(255,255,255,.12);display:grid;place-items:center;text-align:center;line-height:1.2}
+.cam .loc .k.on{background:var(--blue);font-weight:700}
+.cam .loc .k.hl{outline:2px solid #FBBF24}
+.cam .shut{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);width:58px;height:58px;border-radius:50%;background:#fff;border:4px solid #94A3B8;color:#0F172A;font-weight:900;display:grid;place-items:center;font-size:11px}
+.cam .res{position:absolute;left:12px;right:12px;bottom:14px;display:flex;gap:6px}
+.cam .res span{flex:1;text-align:center;border-radius:10px;padding:9px 0;font-weight:700;font-size:12px}
+
+/* 흐름 그림 */
+.flow{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:10px 0}
+.flow .b{border-radius:12px;padding:8px 12px;background:var(--card);border:1.5px solid var(--line);font-weight:700;font-size:14px}
+.flow .b small{display:block;font-weight:400;color:var(--sub);font-size:12px}
+.flow .b.blue{border-color:var(--blue);background:var(--blue-s);color:var(--blue-d)}
+.flow .a{color:var(--dim);font-weight:900}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
+.card2{border:1px solid var(--line);border-radius:14px;padding:14px;background:var(--bg)}
+.card2 h4{margin:0 0 6px;font-size:16px;display:flex;align-items:center;gap:6px}
+svg text{font-family:'Noto Sans KR',sans-serif}
+.svgbox{width:100%;overflow-x:auto}
+.svgbox svg{display:block;max-width:100%;height:auto}
+.fmt{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.fmt .card2 .pic{display:grid;gap:4px;margin-bottom:10px;height:92px}
+.pic i{display:block;border-radius:6px;background:var(--line)}
+.chain{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:8px 0}
+.eq{border:2px solid var(--blue);background:var(--blue-s);border-radius:12px;padding:8px 12px;text-align:center;min-width:104px}
+.eq b{display:block;color:var(--blue-d)} .eq small{color:var(--sub);font-size:12px}
+.ar{color:var(--dim);font-weight:900;font-size:18px}
+.cap{color:var(--sub);font-size:13.5px;margin:6px 0 0}
+.spaces{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:8px 0}
+.sp{flex:1 1 230px;border:1px solid var(--line);background:var(--bg);border-radius:14px;padding:12px}
+.sp.next{border-color:var(--blue)}
+.spt{font-weight:900;font-size:16px;margin-bottom:8px}
+.its{display:flex;flex-wrap:wrap;gap:6px}
+.its span{border-radius:9px;padding:5px 10px;font-size:13.5px;font-weight:700;background:var(--line);color:var(--sub)}
+.its span.ok{background:var(--green-s);color:var(--green)}
+.its span.now{background:var(--card);border:2px solid var(--blue);color:var(--blue-d)}
+.sp small{display:block;color:var(--sub);margin-top:8px;font-size:12.5px}
+.nx{flex:none;margin:0 auto;background:var(--blue);color:#fff;font-weight:700;border-radius:12px;padding:10px 14px}
+.mk-what.hlw{outline:2.5px solid var(--red);outline-offset:2px;border-radius:9px;margin-bottom:2px}
+footer{color:var(--dim);font-size:13px;text-align:center;margin-top:28px}
+@media (max-width:560px){ .goal{grid-template-columns:1fr} h1{font-size:25px} section{padding:20px 14px} }
+
+.map{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;margin-top:16px}
+.map a{text-decoration:none;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:99px;padding:4px 11px 4px 5px;font-size:14px;font-weight:500}
+.map a b{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--blue);color:#fff;font-size:11.5px;margin-right:5px}
+.map span{color:var(--dim)}
+.step .sh{display:flex;gap:12px;align-items:center;margin-bottom:16px}
+.step .sh .n{flex:none;width:44px;height:44px;border-radius:14px;background:var(--blue);color:#fff;display:grid;place-items:center;font-size:22px;font-weight:900}
+.step h2{margin:0;font-size:21px}
+.when{margin:0;color:var(--sub);font-size:14px}
+.do{background:var(--bg);border-radius:14px;padding:12px 14px}
+.do > b{color:var(--blue-d);font-size:14px}
+.do ol{margin:6px 0 0;padding-left:20px} .do li{margin:5px 0}
+.then{margin-top:10px;border-left:4px solid var(--green);padding:6px 12px;background:var(--green-s);border-radius:0 12px 12px 0;font-size:15px}
+.aside{color:var(--sub);font-size:14px;margin:10px 0 0}
+k{display:inline-block;font-weight:700;color:var(--blue-d);background:var(--blue-s);border-radius:7px;padding:0 7px;font-size:.95em;white-space:nowrap}
+.choose{display:grid;gap:6px;margin-top:10px}
+.choose div{border:1px solid var(--line);border-radius:12px;padding:8px 12px;font-size:14.5px}
+.choose div:first-child{border-color:var(--blue);background:var(--blue-s)}
+.choose small{color:var(--sub)}
+.sum{background:var(--blue-s);color:var(--blue-d);font-weight:700;border-radius:9px;padding:6px 8px;font-size:10.5px;margin:2px 0 8px}
+.sheet{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.sheet div{border:1px solid var(--line);border-radius:8px;background:var(--card);padding:4px}
+.sheet i,.pairs i{display:block;height:70px;border-radius:6px;background:linear-gradient(160deg,#94A3B8,#475569)}
+.sheet i.r,.pairs i.r{box-shadow:0 0 0 3px var(--red) inset} .sheet i.g{box-shadow:0 0 0 3px var(--green) inset}
+.pairs i.b{box-shadow:0 0 0 3px var(--blue) inset;background:linear-gradient(160deg,#93C5FD,#2563EB)}
+.sheet small{display:block;font-size:9.5px;margin-top:3px;font-weight:700}
+.pairs{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.pairs > div{flex:0 1 150px;text-align:center} .pairs b{display:block;margin-top:6px} .pairs small{color:var(--sub);font-size:12.5px}
+.step .do ol{list-style:none;padding-left:0;counter-reset:i}
+.step .do ol > li{counter-increment:i;position:relative;padding-left:40px}
+.step .do ol > li::before{content:var(--s) "-" counter(i);position:absolute;left:0;top:1px;font-size:12.5px;font-weight:700;color:var(--blue-d);background:var(--blue-s);border-radius:6px;padding:0 5px}
+.fork{display:grid;gap:6px;margin:8px 0 2px}
+.fork > div{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:8px 10px;font-size:14px}
+.fork b{display:block;margin-bottom:5px}
+.fork small{display:block;color:var(--sub);font-size:12.5px;margin-top:4px}
+.fork .mk-chips span{font-size:12.5px;padding:2px 9px}
+.ordl{display:grid;gap:4px}
+.ordl > span{display:flex;align-items:center;gap:8px;background:var(--bg);border-radius:8px;padding:3px 9px;font-size:13.5px}
+.ordl i{font-style:normal;font-weight:700;color:var(--blue-d)} .ordl em{margin-left:auto;font-style:normal;color:var(--blue)}
+.pvs{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;flex:1 1 100%}
+.pv .pl{text-align:center;font-weight:900;margin:0 0 6px;color:var(--blue-d)}
+.cmp{margin-top:12px;font-size:14px}
+.cmp td small{color:var(--sub)}
+.pv .sub2{margin-top:10px;max-width:256px}
+.mk-q.hlq{outline:2px solid var(--red);outline-offset:2px;border-radius:6px}
+.cam .eqc{position:absolute;left:50%;transform:translateX(-50%);bottom:124px;background:#fff;color:#0F172A;font-weight:900;font-size:13px;border-radius:99px;padding:6px 14px;box-shadow:0 2px 8px rgba(0,0,0,.4);white-space:nowrap}
+.cam .eqc small{color:#2563EB;font-weight:700}
+.sheetup{position:absolute;left:0;right:0;bottom:0;top:90px;background:#fff;color:#0F172A;border-radius:16px 16px 0 0;padding:6px 10px;overflow:hidden}
+.sheetup .grip{width:36px;height:4px;border-radius:2px;background:#CBD5E1;margin:0 auto 6px}
+.sheetup .gt{font-size:9.5px;color:#64748B;font-weight:700;margin:6px 0 3px}
+.sheetup .gl{display:flex;flex-wrap:wrap;gap:4px}
+.sheetup .gl span{border:1px solid #E2E8F0;border-radius:99px;padding:2px 8px;font-size:10.5px}
+.sheetup .gl span.ck{background:#D1FAE5;border-color:#A7F3D0;color:#065F46}
+.sheetup .gl span.on{outline:2px solid #2563EB}
+.rule{background:var(--blue-s);border-radius:12px;padding:10px 14px;margin-bottom:12px;font-size:15px}
+.facts li{margin:6px 0}
+
+.design{margin-top:14px;background:var(--amber-s);border-radius:12px;padding:10px 14px;font-size:14.5px}
+.new{display:inline-block;font-size:11.5px;font-weight:700;color:#fff;background:#EA580C;border-radius:6px;padding:0 6px;vertical-align:1px;white-space:nowrap}
+.new.sm{font-size:8.5px;padding:0 4px}
+.three{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-top:10px}
+.c3{display:block;text-decoration:none;color:var(--ink);border:1px solid var(--line);border-radius:14px;padding:12px;background:var(--bg)}
+.c3 i{display:block;height:8px;border-radius:4px;margin-bottom:8px}
+.c3 b{display:block;font-size:17px} .c3 small{display:block;color:var(--sub);font-size:13px} .c3 em{display:block;font-style:normal;color:var(--blue-d);font-size:13px;margin-top:4px;font-weight:700}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+.two > div{border-radius:14px;padding:12px;font-size:14.5px}
+.two b{display:block;font-size:16px;margin-bottom:2px}
+.pb{background:var(--blue-s)} .pd{background:var(--bg);border:1px solid var(--line)}
+.part{display:flex;align-items:center;gap:10px;font-size:22px;font-weight:900;margin:34px 0 4px}
+.part span{width:38px;height:38px;border-radius:50%;background:var(--ink);color:var(--bg);display:grid;place-items:center;font-size:18px}
+.part small{font-size:14px;font-weight:500;color:var(--sub)}
+.cam .prog{position:absolute;right:10px;top:30px;background:rgba(15,23,42,.75);border-radius:8px;padding:3px 8px;font-size:10.5px;font-weight:700}
+.cam .pop{position:absolute;left:14px;right:14px;top:150px;background:#fff;color:#0F172A;border-radius:14px;padding:14px;box-shadow:0 8px 24px rgba(0,0,0,.4);font-size:12px;text-align:center}
+.cam .pop div{display:flex;gap:6px;margin-top:10px} .cam .pop span{flex:1;border-radius:9px;padding:7px 0;font-weight:700}
+.cam .pop .b1{background:#2563EB;color:#fff} .cam .pop .b2{background:#E2E8F0}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <span class="badge">사진통 · 시설·점검 모드 · 검토용 설계안</span>
+  <h1>시설·점검, 이렇게 씁니다</h1>
+  <p class="lead">소방 · 승강기 · 전기 · 기계 정기 점검을 <b>내가 도는 순서대로</b> 찍고, 끝나면 바로 냅니다.<br>예) 101동 월간 소방 점검</p>
+  <div class="design"><b>검토 부탁드립니다.</b> 이 설명서는 <b>앞으로 만들 앱</b>을 기준으로 씁니다. 지금 앱에 아직 없는 부분은 <span class="new">새로</span> 표시를 했고, 앱을 이 설명서대로 고칩니다.</div>
+</header>
+
+<section>
+  <h2 style="font-size:19px">만드는 것은 두 가지</h2>
+  <div class="two">
+    <div class="pb"><b>🖼 사진보드</b>현장에서 빨리. 사진마다 보드판(시설명 · 장비 · 위치 · 날짜)이 박혀 저장됩니다. 그대로 카톡으로 보내도 됩니다.</div>
+    <div class="pd"><b>📄 사진대지</b>문서로 낼 때. 찍은 사진이 양식 칸에 정리된 PDF가 됩니다.</div>
+  </div>
+  <div class="tip"><b>순서:</b> 현장에서는 <b>사진보드로 찍고</b>, 문서가 필요하면 끝난 뒤 <b>[사진대지로 묶기]</b> 한 번. <span class="new">새로</span><br>처음부터 사진대지를 고르고 찍어도 됩니다(아래 B).</div>
+</section>
+
+<!-- ============ A. 사진보드 ============ -->
+<div class="part"><span>A</span>사진보드로 찍기</div>
+
+<section id="b1" class="step" style="--s:'1'">
+  <div class="sh"><span class="n">1</span><div><h2>들어가기</h2><p class="when">5초</p></div></div>
+  <div class="do"><b>이렇게</b>
+    <ol><li>메인 → <k>시설·점검</k>.</li>
+    <li>하던 점검이 있으면 앱을 열 때 카메라 위에 <k>101동 소방 · 이어서 찍기</k>가 뜹니다. 누르면 바로 3단계로. <span class="new">새로</span></li></ol></div>
+</section>
+
+<section id="b2" class="step" style="--s:'2'">
+  <div class="sh"><span class="n">2</span><div><h2>한 화면에서 정하기</h2><p class="when">20초 · 지난번 것이 미리 들어 있음</p></div></div>
+  <div class="do"><b>먼저 — 둘 다 같음</b>
+    <ol><li>맨 위 <k>사진보드</k>.</li>
+    <li><k>소방</k>. 공간 순이면 장비는 현장에서 고르니 미리 정할 것이 없습니다. 장비 순이면 2-5에서 찍을 순서를 정합니다.</li>
+    <li>어떻게 돌아요: 층마다 돌면 <k>공간 순</k>, 장비별로 돌면 <k>장비 순</k>.</li>
+    <li>시작 위치: 건물 <k>101동</k> · 층 <k>1층</k>. 보드판의 시설명과 위치가 됩니다. 처음 한 번만 이 건물의 층수(지상 · 지하)를 묻고 기억합니다 — 층 · 공간 목록이 여기서 만들어집니다. <span class="new">새로</span></li></ol></div>
+  <p class="aside" style="text-align:center;font-weight:700;color:var(--ink)">↓ 2-3에서 고른 것에 따라 2-5가 달라집니다</p>
+  <div class="pvs" style="margin:10px 0 16px">
+    <div class="pv"><p class="pl">공간 순을 고르면</p><div class="phone"><div class="scr" style="height:470px">
+      <div class="bar"><span>9:41</span><span>▮▮▮ 100%</span></div>
+      <div class="top">← 시설 · 점검</div>
+      <div class="pad">
+        <div class="mk-what"><div class="on">사진보드<small>현장에서 빨리</small></div><div>사진대지<small>문서로</small></div></div>
+        <div class="mk-q"><i>2</i>무슨 점검?</div>
+        <div class="mk-chips"><span>승강기</span><span class="on">소방</span><span>전기</span><span>기계</span></div>
+        <div class="mk-q"><i>3</i>어떻게 돌아요?</div>
+        <div class="mk-chips"><span class="on">공간 순</span><span>장비 순</span><span>자유롭게</span></div>
+        <div class="mk-q"><i>4</i>시작 위치</div>
+        <div style="display:flex;gap:4px"><div class="mk-in" style="color:var(--ink);flex:1">101동</div><div class="mk-in" style="color:var(--ink);width:56px;text-align:center;border-color:var(--blue)">1층 ▾</div></div>
+        <div class="mk-q hlq"><i>5</i>어느 쪽으로? <span class="new sm">새로</span></div>
+        <div class="mk-chips"><span class="on">▲ 올라가며</span><span>▼ 내려가며</span></div>
+      </div>
+      <div class="mk-bot"><div class="mk-btn">찍기 시작</div></div>
+    </div></div>
+    <div class="do sub2"><ol style="counter-reset:i 4"><li><b>어느 쪽으로?</b> <k>▲ 올라가며</k>(1층 → 2층) 또는 <k>▼ 내려가며</k>(1층 → 지하1층). <span class="new">새로</span></li></ol></div></div>
+    <div class="pv"><p class="pl">장비 순을 고르면</p><div class="phone"><div class="scr" style="height:470px">
+      <div class="bar"><span>9:41</span><span>▮▮▮ 100%</span></div>
+      <div class="top">← 시설 · 점검</div>
+      <div class="pad">
+        <div class="mk-what"><div class="on">사진보드<small>현장에서 빨리</small></div><div>사진대지<small>문서로</small></div></div>
+        <div class="mk-q"><i>2</i>무슨 점검?</div>
+        <div class="mk-chips"><span>승강기</span><span class="on">소방</span><span>전기</span><span>기계</span></div>
+        <div class="mk-q"><i>3</i>어떻게 돌아요?</div>
+        <div class="mk-chips"><span>공간 순</span><span class="on">장비 순</span><span>자유롭게</span></div>
+        <div class="mk-q"><i>4</i>시작 위치</div>
+        <div style="display:flex;gap:4px"><div class="mk-in" style="color:var(--ink);flex:1">101동</div><div class="mk-in" style="color:var(--ink);width:56px;text-align:center;border-color:var(--blue)">1층 ▾</div></div>
+        <div class="mk-q hlq"><i>5</i>어떤 장비부터?</div>
+        <div class="mk-ord"><b>1</b><span>수신기</span><em>↑↓</em></div>
+        <div class="mk-ord"><b>2</b><span>감지기</span><em>↑↓</em></div>
+        <div class="mk-ord"><b>3</b><span>소화기</span><em>↑↓</em></div>
+      </div>
+      <div class="mk-bot"><div class="mk-btn">찍기 시작</div></div>
+    </div></div>
+    <div class="do sub2"><ol style="counter-reset:i 4"><li><b>어떤 장비부터?</b> 맨 위가 첫 장비. <k>↑↓</k>로 찍을 순서를 정합니다.</li></ol></div></div>
+  </div>
+  <div class="do"><b>마무리</b>
+    <ol style="counter-reset:i 5"><li><k>찍기 시작</k>.</li></ol></div>
+  <p class="aside"><b>자유롭게</b>를 고르면 2-5 없이 바로 2-6으로 갑니다.</p>
+  <div class="then"><b>그러면</b> 보드판에 시설명 · 장비 · 층 · 날짜 · 점검자(내 이름)가 모두 미리 채워져 있습니다. 현장에서 글을 쓸 일이 없습니다.</div>
+</section>
+
+<section id="b3" class="step" style="--s:'3'">
+  <div class="sh"><span class="n">3</span><div><h2>찍기</h2><p class="when">장비 하나 3초 · 손이 바쁘면 말로</p></div></div>
+  <div class="rule"><b>규칙은 하나</b> — 하나는 <b>고정</b>, 하나는 <b>[▾]로 골라</b> 찍고, 다 찍으면 <b>[다음 ▶]</b>.</div>
+  <table class="cmp" style="margin-bottom:14px">
+    <tr><th></th><th>공간 순</th><th>장비 순</th></tr>
+    <tr><td>고정</td><td>공간 <b>1층</b></td><td>장비 <b>소화기</b></td></tr>
+    <tr><td>현장에서 고르기</td><td><k>소화기 ▾</k> → 소방장비 전체</td><td><k>1층 ▾</k> → 이 건물 공간 전체<br><small>층은 ▲▼로 한 층씩도</small></td></tr>
+    <tr><td>넘어가기</td><td><k>다음 공간 ▶</k> "다음 층"</td><td><k>다음 장비 ▶</k> "다음 장비"</td></tr>
+    <tr><td>위 표시</td><td>1층 · 3장</td><td>소화기 · 3 / 6 장비</td></tr>
+  </table>
+  <div class="pvs">
+    <div class="pv"><p class="pl">공간 순</p><div class="phone"><div class="scr cam">
+      <div class="view"></div><div class="board"><div><b>시설명</b><span>101동</span></div><div><b>점검</b><span>소화기</span></div><div><b>위치</b><span>1층</span></div><div><b>일자</b><span>26/10/16/목</span></div></div>
+      <div class="prog">1층 · 3장</div>
+      <div class="eqc">소화기 <small>×2</small> ▾</div>
+      <div class="loc"><div class="v">위치<b>1층</b></div><div class="k on">다음<br>공간 ▶</div></div>
+      <div class="shut">찍어</div>
+    </div></div></div>
+    <div class="pv"><p class="pl">공간 순 · [▾] 누르면</p><div class="phone"><div class="scr cam">
+      <div class="view" style="inset:0"></div>
+      <div class="sheetup"><div class="grip"></div>
+        <div class="gt">이 공간에서 찍은 것</div><div class="gl"><span class="ck">수신기 ✓</span><span class="ck">감지기 ✓</span><span class="ck on">소화기 ×2</span></div>
+        <div class="gt">자주 찍는 것</div><div class="gl"><span>유도등</span><span>옥내소화전</span><span>스프링클러</span></div>
+        <div class="gt">경보</div><div class="gl"><span>발신기</span><span>경종</span><span>시각경보기</span></div>
+        <div class="gt">소화</div><div class="gl"><span>소방펌프</span><span>소화전함</span></div>
+        <div class="gt">피난</div><div class="gl"><span>비상조명등</span><span>피난기구</span><span>방화문</span></div>
+        <div class="gt">기타</div><div class="gl"><span>제연설비</span><span>비상콘센트</span><span>+ 직접 추가</span></div>
+      </div>
+    </div></div></div>
+    <div class="pv"><p class="pl">장비 순</p><div class="phone"><div class="scr cam">
+      <div class="view"></div><div class="board"><div><b>시설명</b><span>101동</span></div><div><b>점검</b><span>소화기</span></div><div><b>위치</b><span>1층</span></div><div><b>일자</b><span>26/10/16/목</span></div></div>
+      <div class="prog">소화기 · 3 / 6 장비</div>
+      <div class="eqc">1층 <small>×2</small> ▾</div>
+      <div class="loc"><div class="k">▲</div><div class="k">▼</div><div class="v" style="text-align:center">장비<b>소화기</b></div><div class="k on">다음<br>장비 ▶</div></div>
+      <div class="shut">찍어</div>
+    </div></div></div>
+    <div class="pv"><p class="pl">장비 순 · [▾] 누르면</p><div class="phone"><div class="scr cam">
+      <div class="view" style="inset:0"></div>
+      <div class="sheetup"><div class="grip"></div>
+        <div class="gt">소화기를 찍은 곳</div><div class="gl"><span class="ck on">1층 ×2</span></div>
+        <div class="gt">지난달 찍은 곳</div><div class="gl"><span>지하1층</span><span>2층</span><span>3층</span><span>기계실</span></div>
+        <div class="gt">층</div><div class="gl"><span>지하2층</span><span>지하1층</span><span class="on">1층</span><span>2층</span><span>3층</span><span>4층</span><span>5층</span><span>옥상</span></div>
+        <div class="gt">다른 공간</div><div class="gl"><span>기계실</span><span>전기실</span><span>주차장</span><span>관리사무소</span><span>+ 직접 추가</span></div>
+      </div>
+    </div></div></div>
+  </div>
+  <div class="do" style="margin-top:14px"><b>이렇게</b>
+    <ol><li>무엇을 찍을지 확인합니다. 바꾸려면 아래 <k>[ ▾ ]</k>를 눌러 목록에서 고르고, 고르면 목록은 다시 들어갑니다. 말로 "감지기" · "3층"이라고 해도 바뀝니다. <span class="new">새로</span></li>
+      <li>비추고 <k>찍어</k> — 또는 말로 "찍어". <span class="new">새로</span></li>
+      <li>찍은 뒤 <k>양호</k>는 그냥 넘어가고, 문제가 있으면 <k>불량</k>을 누르고 한마디("압력 미달").</li>
+      <li>찍어도 그대로 머뭅니다. 한 곳에 소화기가 여러 대면 바로 다음 대를 찍습니다(×2, ×3으로 셈). 장비 순에서 다음 층은 <k>▲</k> 한 번.</li></ol></div>
+  <div class="then"><b>그러면</b> 사진마다 보드판이 박혀 갤러리의 <b>사진통 › 101동 소방 10.16</b> 폴더에 저장됩니다. <span class="new">새로</span> 화면 위에 어디까지 찍었는지 보입니다. <span class="new">새로</span></div>
+</section>
+
+<section id="b4" class="step" style="--s:'4'">
+  <div class="sh"><span class="n">4</span><div><h2>다음으로 넘어가기</h2><p class="when">공간 순은 다음 층 · 장비 순은 다음 장비</p></div></div>
+  <div class="pvs">
+    <div class="pv"><p class="pl">공간 순 · [다음 공간 ▶]</p><div class="phone"><div class="scr cam">
+      <div class="view"></div>
+      <div class="pop"><b>1층에선 유도등을 찍었는데<br>2층에선 안 찍었어요</b><div><span class="b1">지금 찍기</span><span class="b2">넘어가기</span></div></div>
+    </div></div></div>
+    <div class="pv"><p class="pl">장비 순 · [다음 장비 ▶]</p><div class="phone"><div class="scr cam">
+      <div class="view"></div>
+      <div class="pop"><b>감지기는 1~5층에서 찍었는데<br>소화기는 4층을 안 찍었어요</b><div><span class="b1">지금 찍기</span><span class="b2">넘어가기</span></div></div>
+    </div></div></div>
+  </div>
+  <div class="do" style="margin-top:14px"><b>이렇게</b>
+    <ol><li><b>공간 순</b>: 계단을 오르며 <k>다음 공간 ▶</k> — 또는 말로 "다음 층". 보드판 위치가 다음 층으로 바뀌고, 장비는 [▾]에서 다시 고릅니다. <span class="new">새로</span></li>
+      <li><b>장비 순</b>: 한 장비를 다 돌면 <k>다음 장비 ▶</k> — 또는 말로 "다음 장비". 2-5에서 정한 다음 장비로 바뀌고, 위치는 시작 위치(1층)로 돌아갑니다. <span class="new">새로</span></li>
+      <li>빠뜨린 것 같으면 알려 줍니다 → <k>지금 찍기</k> 또는 <k>넘어가기</k>. <span class="new">새로</span><br><small style="color:var(--sub)">기준 — 공간 순: 이전 층에서 찍은 장비 · 장비 순: 앞 장비가 다녀간 공간. 다음 달부터는 지난달 기록도. 원래 없는 것이면 넘어가기 — 다음부터 묻지 않습니다.</small></li></ol></div>
+</section>
+
+<section id="b5" class="step" style="--s:'5'">
+  <div class="sh"><span class="n">5</span><div><h2>마치기</h2><p class="when">현장에서 바로</p></div></div>
+  <div class="row">
+    <div class="phone"><div class="scr" style="height:400px">
+      <div class="bar"><span>9:41</span><span>▮▮▮ 100%</span></div>
+      <div class="top">101동 소방 점검 끝</div>
+      <div class="pad">
+        <div class="sum">사진 16장 · 양호 14 · <span style="color:var(--red)">불량 1</span> · 빠진 것 1</div>
+        <div class="sheet">
+          <div><i class="g"></i><small>1층 수신기</small></div>
+          <div><i class="r"></i><small style="color:var(--red)">1층 소화기 · 불량</small></div>
+        </div>
+      </div>
+      <div class="mk-bot" style="flex-direction:column"><div class="mk-btn">사진 보내기 (카톡)</div><div class="mk-btn soft">사진대지로 묶기</div></div>
+    </div></div>
+    <div class="txt">
+      <div class="do"><b>이렇게</b>
+        <ol><li><k>마치기</k> — 또는 말로 "끝". <span class="new">새로</span></li>
+        <li>요약을 봅니다: 찍은 장수 · 불량 · 빠진 것.</li>
+        <li>바로 공유하려면 <k>사진 보내기</k>, 문서가 필요하면 <k>사진대지로 묶기</k>. <span class="new">새로</span></li></ol></div>
+      <div class="then"><b>사진대지로 묶기</b>를 누르면 찍은 사진이 층 · 장비 순서대로 점검 사진대지에 들어가고, 양호 / 불량도 그대로 옮겨집니다. 다시 찍을 필요가 없습니다.</div>
+    </div>
+  </div>
+</section>
+
+<section id="b6" class="step" style="--s:'6'">
+  <div class="sh"><span class="n">6</span><div><h2>불량 조치 · 다음 달</h2><p class="when">나중에</p></div></div>
+  <div class="pairs">
+    <div><i class="r"></i><b>조치 전</b><small>점검 때 불량 사진</small></div>
+    <span class="ar">→</span>
+    <div><i class="b"></i><b>조치 후</b><small>고친 뒤 찍기</small></div>
+  </div>
+  <div class="do" style="margin-top:12px"><b>이렇게</b>
+    <ol><li><b>불량 조치</b>: 시설·점검 → 맨 위 <k>조치할 것 1</k> → 고친 모습 찍기 → 조치 전·후가 나란히 붙음. <span class="new">새로</span></li>
+    <li><b>다음 달</b>: 시설·점검 → <k>지난달처럼 101동 소방</k> 한 번 → 2단계가 모두 채워진 채로 바로 찍기. <span class="new">새로</span></li></ol></div>
+</section>
+
+<!-- ============ B. 사진대지 ============ -->
+<div class="part"><span>B</span>처음부터 사진대지로</div>
+<section class="step">
+  <p style="margin-top:0">문서 양식이 정해져 있으면 2단계에서 <k>사진대지</k>를 고릅니다. 흐름은 A와 같고 두 가지만 다릅니다.</p>
+  <div class="two">
+    <div class="pd"><b>형식 고르기</b>칸별 · 점검 사진첩(양호 / 불량) · 조치 전·후 중 하나.</div>
+    <div class="pd"><b>끝나면 바로 문서</b>마치기 → 사진대지가 완성되어 <k>보내기</k>(PDF).</div>
+  </div>
+  <p class="aside">갤러리에 이미 찍어 둔 사진이 있으면 <k>갤러리에서 가져오기</k>로 칸 순서대로 넣습니다.</p>
+</section>
+
+<footer>사진통 · AI고프로 정리 · 고성식 님 지시로 작성 · 2026-10-16 · 검토용 설계안</footer>
+</div>
+
+</body>
+</html>
