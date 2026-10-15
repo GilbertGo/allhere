@@ -172,6 +172,9 @@ k{display:inline-block;font-weight:700;color:var(--blue-d);background:var(--blue
 .sheet small{display:block;font-size:9.5px;margin-top:3px;font-weight:700}
 .pairs{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .pairs > div{flex:0 1 150px;text-align:center} .pairs b{display:block;margin-top:6px} .pairs small{color:var(--sub);font-size:12.5px}
+.step .do ol{list-style:none;padding-left:0;counter-reset:i}
+.step .do ol > li{counter-increment:i;position:relative;padding-left:40px}
+.step .do ol > li::before{content:var(--s) "-" counter(i);position:absolute;left:0;top:1px;font-size:12.5px;font-weight:700;color:var(--blue-d);background:var(--blue-s);border-radius:6px;padding:0 5px}
 .facts li{margin:6px 0}
 
 .design{margin-top:14px;background:var(--amber-s);border-radius:12px;padding:10px 14px;font-size:14.5px}
@@ -222,14 +225,14 @@ k{display:inline-block;font-weight:700;color:var(--blue-d);background:var(--blue
 <!-- ============ A. 사진보드 ============ -->
 <div class="part"><span>A</span>사진보드로 찍기 <small>예) 101동 월간 소방 점검</small></div>
 
-<section id="b1" class="step">
+<section id="b1" class="step" style="--s:'1'">
   <div class="sh"><span class="n">1</span><div><h2>들어가기</h2><p class="when">5초</p></div></div>
   <div class="do"><b>이렇게</b>
     <ol><li>메인 → <k>시설·점검</k>.</li>
     <li>하던 점검이 있으면 앱을 열 때 카메라 위에 <k>101동 소방 · 이어서 찍기</k>가 뜹니다. 누르면 바로 3단계로. <span class="new">새로</span></li></ol></div>
 </section>
 
-<section id="b2" class="step">
+<section id="b2" class="step" style="--s:'2'">
   <div class="sh"><span class="n">2</span><div><h2>한 화면에서 정하기</h2><p class="when">20초 · 지난번 것이 미리 들어 있음</p></div></div>
   <div class="row">
     <div class="phone"><div class="scr" style="height:470px">
@@ -239,12 +242,12 @@ k{display:inline-block;font-weight:700;color:var(--blue-d);background:var(--blue
         <div class="mk-what"><div class="on">사진보드<small>현장에서 빨리</small></div><div>사진대지<small>문서로</small></div></div>
         <div class="mk-q"><i>1</i>무슨 점검?</div>
         <div class="mk-chips"><span>승강기</span><span class="on">소방</span><span>전기</span><span>기계</span></div>
-        <div class="mk-q"><i>2</i>어디?</div>
-        <div class="mk-in" style="color:var(--ink)">101동</div>
-        <div class="mk-q"><i>3</i>어디부터? <span class="new sm">새로</span></div>
-        <div class="mk-chips"><span class="on">1층</span><span>지하1층</span><span>옥상</span><span>+ 직접</span></div>
-        <div class="mk-q"><i>4</i>어떻게 돌아요?</div>
+        <div class="mk-q"><i>2</i>어떻게 돌아요?</div>
         <div class="mk-chips"><span class="on">층마다 (공간 순)</span><span>장비마다 (장비 순)</span><span>자유롭게</span></div>
+        <div class="mk-q"><i>3</i>어디?</div>
+        <div class="mk-in" style="color:var(--ink)">101동</div>
+        <div class="mk-q"><i>4</i>어디부터? <span class="new sm">새로</span></div>
+        <div class="mk-chips"><span class="on">1층</span><span>지하1층</span><span>옥상</span><span>+ 직접</span></div>
       </div>
       <div class="mk-bot"><div class="mk-btn">찍기 시작</div></div>
     </div></div>
@@ -252,16 +255,16 @@ k{display:inline-block;font-weight:700;color:var(--blue-d);background:var(--blue
       <div class="do"><b>이렇게</b>
         <ol><li>맨 위 <k>사진보드</k>.</li>
         <li><k>소방</k> → 찍을 장비가 저절로 들어갑니다(장비 목록은 눌러서 빼거나 더함).</li>
+        <li>어떻게 돌아요: 층마다 돌면 <k>공간 순</k>, 장비별로 돌면 <k>장비 순</k>(찍을 순서를 ↑↓로).</li>
         <li>어디: <k>101동</k>.</li>
         <li>어디부터: <k>1층</k>. 위로 갈지 아래로 갈지도 여기서 정해집니다. <span class="new">새로</span></li>
-        <li>어떻게 돌아요: 층마다 돌면 <k>공간 순</k>, 장비별로 돌면 <k>장비 순</k>(찍을 순서를 ↑↓로).</li>
         <li><k>찍기 시작</k>.</li></ol></div>
       <div class="then"><b>그러면</b> 보드판에 시설명 · 장비 · 층 · 날짜 · 점검자(내 이름)가 모두 미리 채워져 있습니다. 현장에서 글을 쓸 일이 없습니다.</div>
     </div>
   </div>
 </section>
 
-<section id="b3" class="step">
+<section id="b3" class="step" style="--s:'3'">
   <div class="sh"><span class="n">3</span><div><h2>찍기</h2><p class="when">장비 하나 3초 · 손이 바쁘면 말로</p></div></div>
   <div class="row">
     <div class="phone"><div class="scr cam">
@@ -282,7 +285,7 @@ k{display:inline-block;font-weight:700;color:var(--blue-d);background:var(--blue
   </div>
 </section>
 
-<section id="b4" class="step">
+<section id="b4" class="step" style="--s:'4'">
   <div class="sh"><span class="n">4</span><div><h2>다음 층으로</h2><p class="when">계단 오르며 한 번</p></div></div>
   <div class="row">
     <div class="phone"><div class="scr cam">
@@ -298,7 +301,7 @@ k{display:inline-block;font-weight:700;color:var(--blue-d);background:var(--blue
   </div>
 </section>
 
-<section id="b5" class="step">
+<section id="b5" class="step" style="--s:'5'">
   <div class="sh"><span class="n">5</span><div><h2>마치기</h2><p class="when">현장에서 바로</p></div></div>
   <div class="row">
     <div class="phone"><div class="scr" style="height:400px">
@@ -323,7 +326,7 @@ k{display:inline-block;font-weight:700;color:var(--blue-d);background:var(--blue
   </div>
 </section>
 
-<section id="b6" class="step">
+<section id="b6" class="step" style="--s:'6'">
   <div class="sh"><span class="n">6</span><div><h2>불량 조치 · 다음 달</h2><p class="when">나중에</p></div></div>
   <div class="pairs">
     <div><i class="r"></i><b>조치 전</b><small>점검 때 불량 사진</small></div>
