@@ -991,7 +991,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   const stop = () => { camClose = null; if (typeof idleT !== 'undefined' && idleT) { clearInterval(idleT); idleStop(); } if (voiceStop) voiceStop(); if (camStream) camStream.getTracks().forEach(t => t.stop()); camStream = null; cancelAnimationFrame(loop); wrap.remove(); };
   const start = async () => {
     if (camStream) camStream.getTracks().forEach(t => t.stop());
-    const torchId = LAB && facing === 'environment' ? ls.get('labTorchCam', '') : '';   // 실험실(R1016-03): 지난번에 찾은 '플래시 되는 뒤 렌즈'
+    const torchId = '';   // R1016-03: 플래시 렌즈는 ⚡ 누를 때만(고성식 10-16) — 열 때는 평소 카메라
     try { camStream = await navigator.mediaDevices.getUserMedia({ video: torchId ? { deviceId: { exact: torchId }, width: { ideal: 1920 }, height: { ideal: 1440 } } : { facingMode: facing, width: { ideal: 1920 }, height: { ideal: 1440 } }, audio: false }); }
     catch { if (torchId) { ls.set('labTorchCam', ''); return start(); } camStream = null; }
     try { if (!camStream) throw 0; }
@@ -1000,7 +1000,6 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     const tr = camStream.getVideoTracks()[0], cp = tr && tr.getCapabilities ? tr.getCapabilities() : {};
     hw = cp.zoom && cp.zoom.max > 1 ? cp.zoom : null; setZoom(1);   // 앞/뒤를 바꾸면 1× 부터
     torchOk = !!cp.torch; torchOn = false; if (typeof drawTorch === 'function') drawTorch();   // 실험실 플래시(정인수님 10-15) — 카메라를 다시 켜면 꺼진 채로
-    if (LAB && facing === 'environment' && !torchOk && !torchId && !ls.get('labTorchNone')) findTorchCam(tr);
   };
   /* 실험실(R1016-03): 뒤 카메라가 여러 개인 폰은 플래시 없는 렌즈(광각 등)가 열릴 때가 있다 — 뒤 렌즈를 하나씩 열어 플래시 되는 것을 찾아 바꾸고 기억 */
   let torchHunt = false;
@@ -1008,8 +1007,9 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     if (torchHunt) return; torchHunt = true;
     try {
       const curId = cur && cur.getSettings ? cur.getSettings().deviceId : '';
-      const devs = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput' && d.deviceId && d.deviceId !== curId && !/front|전면|user/i.test(d.label || ''));
-      if (!devs.length) { ls.set('labTorchNone', 1); return; }
+      const remembered = ls.get('labTorchCam', '');
+      const devs = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput' && d.deviceId && d.deviceId !== curId && !/front|전면|user/i.test(d.label || '')).sort((a, b) => (b.deviceId === remembered) - (a.deviceId === remembered));
+      if (!devs.length) return false;
       if (camStream) camStream.getTracks().forEach(x => x.stop());   // 안드로이드는 카메라를 한 번에 하나만 연다 — 지금 렌즈를 닫고 하나씩
       for (const d of devs) {
         let st = null;
@@ -1019,20 +1019,21 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
           if (!wrap.isConnected || facing !== 'environment') { st.getTracks().forEach(x => x.stop()); return; }
           if (camStream) camStream.getTracks().forEach(x => x.stop());
           camStream = st; video.srcObject = st; ls.set('labTorchCam', d.deviceId);
-          hw = c2.zoom && c2.zoom.max > 1 ? c2.zoom : null; setZoom(1); torchOk = true; torchOn = false; drawTorch();
-          toast('플래시 되는 카메라로 바꿨어요 ⚡'); return;
+          hw = c2.zoom && c2.zoom.max > 1 ? c2.zoom : null; setZoom(1); torchOk = true; torchOn = true;
+          t2.applyConstraints({ advanced: [{ torch: true }] }).catch(() => { torchOn = false; }).finally(() => drawTorch()); drawTorch();
+          toast('플래시 되는 카메라로 바꿔 켰어요 ⚡'); return true;
         }
         st.getTracks().forEach(x => x.stop());
       }
-      ls.set('labTorchNone', 1);   // 플래시 되는 뒤 렌즈가 없다 — 다음부터 찾지 않음, 원래 카메라로
-      if (wrap.isConnected) await start();
+      if (wrap.isConnected) await start();   // 플래시 되는 뒤 렌즈가 없다 — 원래 카메라로
+      return false;
     } catch { if (wrap.isConnected && !(camStream && camStream.active)) start(); } finally { torchHunt = false; }
   };
   // 줌(2026-10-04 사용자: 찍기 화면에서 줌 되게): 두 손가락으로 벌리고 오므리기 · 1× 2× 4× 버튼.
   // 카메라가 줌을 알려 주면 카메라 줌(화질 그대로), 아니면 가운데를 잘라 키우는 디지털 줌(찍은 사진도 화면에 보이던 부분만)
   let zoom = 1, hw = null, clipNow = '';
   let torchOk = false, torchOn = false;
-  const torchBtn = el('button', { class: 'labtorch', 'aria-label': '플래시', onclick: () => { const t = camStream && camStream.getVideoTracks()[0]; if (!t) return; if (!torchOk) return toast('이 휴대폰은 여기서 플래시를 켤 수 없어요 — [옵션 안내] › 기본 카메라로 찍어 주세요'); torchOn = !torchOn;
+  const torchBtn = el('button', { class: 'labtorch', 'aria-label': '플래시', onclick: () => { const t = camStream && camStream.getVideoTracks()[0]; if (!t) return; if (!torchOk) { if (LAB && facing === 'environment' && !torchHunt) { toast('플래시 되는 카메라를 찾는 중…'); findTorchCam(t).then(ok => { if (!ok) toast('이 휴대폰은 여기서 플래시를 켤 수 없어요 — [옵션 안내] › 기본 카메라로 찍어 주세요'); }); return; } return toast('이 휴대폰은 여기서 플래시를 켤 수 없어요 — [옵션 안내] › 기본 카메라로 찍어 주세요'); } torchOn = !torchOn;
     t.applyConstraints({ advanced: [{ torch: torchOn }] }).catch(() => { torchOn = false; toast('이 휴대폰은 여기서 플래시를 켤 수 없어요 — [⋯] › 기본 카메라로 찍어 주세요'); }).finally(() => drawTorch()); drawTorch(); } });
   const drawTorch = () => { torchBtn.textContent = torchOn ? '⚡ 켬' : '⚡ 끔'; torchBtn.classList.toggle('on', torchOn); };
   const zMin = () => hw ? Math.max(hw.min, 1) : 1, zMax = () => hw ? Math.min(hw.max, 10) : 4;
