@@ -213,7 +213,7 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = '2026-10-14f';
+const PHOTO_VER = '2026-10-15a';
 async function checkVer() {
   // 사진통 앱 안에서는 새로고침하지 않아요(2026-10-09): 새로고침하면 공개 주소로 바로 넘어가 앱이 넣어 준 연결(작업 칩 · 기본 카메라 · 사진대지에 넣기)이 빠진 채 열렸다.
   // 앱은 열 때마다 뒤에서 최신판을 받아 두고 다음에 그것으로 연다(PhotoBox.js refreshPage)
@@ -597,7 +597,7 @@ function drawLogo(g, W, H, ghost) {
   const u = Math.min(W, H), lw = u * 0.15 * (OPT.logoSize || 1), lh = lw * LOGO.height / LOGO.width, pad = u * 0.012, m = u * 0.03;
   const bw = lw + pad * 2, bh = lh + pad * 2, pos = OPT.logoPos || 'br';
   const x = pos === 'bl' ? m : W - bw - m, y = pos === 'tr' ? m : H - bh - m;
-  g.save(); if (ghost) g.globalAlpha = 0.6;
+  g.save();
   g.fillStyle = 'rgba(255,255,255,.85)'; g.beginPath(); g.roundRect(x, y, bw, bh, pad * 1.5); g.fill();
   g.drawImage(LOGO, x + pad, y + pad, lw, lh); g.restore();
 }
@@ -667,7 +667,7 @@ function drawNote(g, img, W, H, note, ghost) {
   const L = measureNote(g, note, W, H), T = themeOf(note);
   const x = note.at ? Math.max(0, Math.min(W - L.w, note.at.x * W)) : L.def[0], y = note.at ? Math.max(0, Math.min(H - L.h, note.at.y * H)) : L.def[1];
   g.save();
-  if (ghost) g.globalAlpha = 0.55;
+  // 2026-10-15 정인수님(R1015-37): 찍기 전 미리보기도 저장되는 모습 그대로(예전엔 55% 투명 → 화면에선 보이던 숫자가 사진에선 가려짐)
   if (L.box) {
     const R0 = (['strip', 'column'].includes(note.layout) || note.theme === 'dark' ? 4 : 3.4) * L.u;   // 기본 카드는 모서리 조금 더 둥글게
     g.save(); g.beginPath(); g.roundRect(x, y, L.w, L.h, R0); g.clip();
