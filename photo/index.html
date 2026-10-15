@@ -241,6 +241,7 @@ const PHOTO_VER = '2026-10-14f';
 // 사진통 실험실(2026-10-15 장남덕님 간결 수정안 · 이슈 #225): 실험실 앱(com.sisultong.photo.test)이 window.__lab 을 줄 때만 —
 // 찍고 말하기 / 말하고 찍기 고르기 · 말한 칸만 바꾸기 · 저장 알림 · 촬영 화면 비우기(배율 · 기본 카메라 · 도구 줄 · 셀카는 [⋯ 더보기]로). 3.0 화면은 그대로
 const LAB = !!window.__lab;
+const GAL_DIR = LAB ? '사진통' : 'Download';   // 실험실(R1015-38 정인수): 갤러리 '사진통' 앨범에 따로 저장 — 앱(PhotoBox ALBUM)과 같게
 async function checkVer() {
   // 사진통 앱 안에서는 새로고침하지 않아요(2026-10-09): 새로고침하면 공개 주소로 바로 넘어가 앱이 넣어 준 연결(작업 칩 · 기본 카메라 · 사진대지에 넣기)이 빠진 채 열렸다.
   // 앱은 열 때마다 뒤에서 최신판을 받아 두고 다음에 그것으로 연다(PhotoBox.js refreshPage)
@@ -1170,7 +1171,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
       if (LABC && !f) { shots.pop(); p.saved = false; thumb = null; drawLeft(); labStat(0, { fail: 1 }); toast('저장하지 못했어요 — 사진과 글은 그대로예요. 다시 [저장]을 눌러 주세요'); if (!review || review.p !== p) { wrap.append(box); review = { el: box, p, keep, drop, draw, edit: editIt }; draw(); } return; }
       if (f) { download(f); p.out = f; p.outSig = p.sig; }   // 2026-10-09 고성식 님 '옮기는 중 10초': 저장한 그림을 기억해 두고 옮길 때 다시 그리지 않는다
       if (f && OPT.orig) { const o = await origFile(p, f.name); if (o) { await new Promise(r => setTimeout(r, 400)); download(o); } }
-      close(); toast(`저장했어요${OPT.orig ? '(원본도)' : ''} (갤러리 › Download) · 찍은 사진 ${shots.length}장`);
+      close(); toast(`저장했어요${OPT.orig ? '(원본도)' : ''} (갤러리 › ${GAL_DIR}) · 찍은 사진 ${shots.length}장`);
       if (LABC) { labOk(); labStat(0, { n: 1, ms: Date.now() - labT, taps: labTaps, voice: labVoiceN }); labT = Date.now(); labTaps = labVoiceN = 0; }
       slim(p);   // 메모리: 저장한 사진은 접어 둔다(위 slim)
       autoNext(at);   // 찍으면 자동으로 넘기기(10-14) — 찍을 때의 차례(at) 다음으로
@@ -1594,7 +1595,7 @@ function editor() {
       aiReady() ? el('button', { onclick: () => aiFillEditor() }, ui('ai'), 'AI로 채우기') : null),
     // 2026-10-09 핵심 다듬기: 간편 찍기 → 바로 사진대지(예전엔 홈 › 사진대지 › 빈 칸 › 앨범에서 다시 골라야 했다). 사진통 앱(새 버전) 안에서만
     window.__toSheet && !JOB ? el('button', { class: 'tosheet', onclick: toSheet }, ui('layout'), window.__toSheetLabel || '이 사진으로 사진대지 만들기') : null,
-    savedNote = el('div', { class: 'savednote', text: '✓ 휴대폰 갤러리에 저장했어요 (Download 폴더) · 글을 고치면 다시 저장할 수 있어요' }),
+    savedNote = el('div', { class: 'savednote', text: '✓ 휴대폰 갤러리에 저장했어요 (' + GAL_DIR + ' 폴더) · 글을 고치면 다시 저장할 수 있어요' }),
     el('div', { class: 'acts' },
       el('button', { class: 'big sec', onclick: share }, '보내기'),
       contBtn = el('button', { class: 'big sec', style: 'display:none', onclick: () => { photos = []; home(); } }, '계속 찍기'),
@@ -1895,7 +1896,7 @@ async function gloveMode() {
     if (!active) return;
     active = false; gloveOn = false; stopRec(); try { speechSynthesis.cancel(); } catch {}
     cancelAnimationFrame(loop); stream.getTracks().forEach(t => t.stop()); try { wake && wake.release(); } catch {}
-    wrap.remove(); home(); speak(saved ? `장갑 모드를 끝내요. ${saved}장 저장했어요` : '장갑 모드를 끝내요'); if (saved) toast(`${saved}장을 저장했어요 (갤러리 › Download)`);
+    wrap.remove(); home(); speak(saved ? `장갑 모드를 끝내요. ${saved}장 저장했어요` : '장갑 모드를 끝내요'); if (saved) toast(`${saved}장을 저장했어요 (갤러리 › ${GAL_DIR})`);
   }
   const wrap = el('div', { class: 'cam glove-cam' },
     el('div', { class: 'view' }, video, ov, cnt),
@@ -2016,7 +2017,7 @@ function galLabel(i) {
 function galDone() {
   const n = photos.filter(x => x.saved).length; speak(`${n}장 라벨을 붙였어요`);
   const bg = el('div', { class: 'sheet-bg labcf' });
-  bg.append(el('div', { class: 'sheet labmore' }, el('h2', {}, `${n}장 라벨을 붙였어요`), el('div', { class: 'hint', style: 'text-align:left', text: '갤러리(Download)에 저장했어요. 바로 보내려면 [보내기]' }),
+  bg.append(el('div', { class: 'sheet labmore' }, el('h2', {}, `${n}장 라벨을 붙였어요`), el('div', { class: 'hint', style: 'text-align:left', text: '갤러리(' + GAL_DIR + ')에 저장했어요. 바로 보내려면 [보내기]' }),
     el('button', { class: 'big pri', onclick: () => { bg.remove(); share(); } }, '보내기'), el('button', { class: 'big sec', onclick: () => bg.remove() }, '닫기')));
   document.body.append(bg);
 }
@@ -2042,7 +2043,7 @@ async function save() {
     await new Promise(r => setTimeout(r, 400));   // 여러 장을 한꺼번에 받으면 막히는 휴대폰이 있어서 조금씩 쉬어요
     if (OPT.orig && photos[i]) { const o = await origFile(photos[i], f.name); if (o) { download(o); await new Promise(r => setTimeout(r, 400)); } }
   }
-  toast(files.length > 1 ? `${files.length}장을 저장했어요 (갤러리 › Download)` : '사진을 저장했어요 (갤러리 › Download)');
+  toast(files.length > 1 ? `${files.length}장을 저장했어요 (갤러리 › ${GAL_DIR})` : '사진을 저장했어요 (갤러리 › ' + GAL_DIR + ')');
   for (const x of photos) if (x !== photos[cur]) await slim(x);   // 메모리: 보고 있는 사진만 원래 크기로
 }
 // 보드판을 넣은 사진을 그대로 앱으로 — 앱이 사진대지를 열고 칸에 차례로 넣는다
