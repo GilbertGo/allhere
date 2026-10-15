@@ -780,7 +780,7 @@ function noteFor(p, out) {
 }
 
 // ---------- 화면 ----------
-let photos = [], cur = 0, appendNext = false, labToSheet = false;   // appendNext: 편집 중 '+ 앨범'은 지금 사진들에 더해요
+let photos = [], cur = 0, appendNext = false, labToSheet = false, labGal = false;   // appendNext: 편집 중 '+ 앨범'은 지금 사진들에 더해요
 const camIn = el('input', { type: 'file', accept: 'image/*', capture: 'environment', style: 'display:none', onchange: () => { load([...camIn.files], true); camIn.value = ''; } });
 const pickIn = el('input', { type: 'file', accept: 'image/*', multiple: true, style: 'display:none', onchange: () => { load([...pickIn.files], false); pickIn.value = ''; } });
 document.body.append(camIn, pickIn);
@@ -868,6 +868,7 @@ async function load(files, fresh) {
   appendNext = false; editor();
   fillPlaces(list, here);
   if (LAB && labToSheet) { labToSheet = false; toSheet(); }   // 실험실 더보기 [여러 장 사진대지로]
+  if (LAB && labGal) { labGal = false; galLabel(0); }   // 실험실 🖼 갤러리 — 한 장씩 말로 라벨링
 }
 
 // 글상자를 손가락으로 끌어 옮겨요(편집 화면·카메라 화면 같이 씀). getBox: 지금 그린 자리, size: 그림 크기
@@ -1425,7 +1426,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
       el('button', { onclick: editText }, ui('pen'), '글자 수정'),
       el('button', { onclick: async () => { await allowMotion(); camVoice(); } }, ui('mic'), '음성 입력')),
     LABC ? null : el('div', { class: 'tools-hint' }, ui('mic', 14), '터치 없이 음성 입력: 휴대폰을 3회 톡톡톡 두드리세요!'),   // 2026-10-08 장남덕님 문구(고성식 님 승인)
-    LABC ? el('div', { class: 'labbar' }, homeBtn, torchBtn,
+    LABC ? el('div', { class: 'labbar' }, homeBtn, el('button', { 'aria-label': '갤러리에서 불러와 한 장씩 라벨링', onclick: () => { labGal = true; openPick(); } }, '🖼'), torchBtn,
       zBtn, el('button', { 'aria-label': '앞 · 뒤 카메라', onclick: () => flipCam() }, '↻'), el('button', { 'aria-label': '설정', onclick: () => openSet() }, '⚙')) : null,
     el('div', { class: 'bar' },
       leftBtn,
@@ -1957,6 +1958,7 @@ async function voiceFill(opt = {}) {   // opt: 카메라 화면처럼 다른 곳
     if (opt.fast && state === 'ask') { const t2 = t.replace(/[\s.,!?~]*(다음|넘어가)[\s.,!?~]*$/, '').trim(); if (t2 !== t.trim()) t = t2 || '같음'; }
     const n = norm(t);
     if (SAY.quit.test(n) && n.length <= 5) return stop('음성 입력을 끝내요');
+    if (opt.onWord && opt.onWord(n, V)) return;   // 실험실 갤러리: 칸을 묻는 중에도 '건너뛰기'
     if (opt.byLabel) {   // 실험실: "내용 계단 청소"처럼 칸 이름부터 말하면 그 칸만 바꾸고 나머지는 그대로 → 확인으로
       for (const f of fields()) { const L = String(f.label || '').replace(/\s/g, ''); if (!L) continue;
         const m = t.match(new RegExp('^\\s*' + [...L].map(c => c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s*') + '\\s*(?:은|는|이|가|을|를|:)?\\s*'));
@@ -1981,6 +1983,42 @@ async function voiceFill(opt = {}) {   // opt: 카메라 화면처럼 다른 곳
   toast('음성 입력을 시작해요 · 끝낼 때 "그만" 또는 다시 똑똑똑');
   await speak('음성 입력을 시작해요');
   askNext();
+}
+// ---------- 실험실: 갤러리 사진 한 장씩 말로 라벨링(장남덕님 10-15 순회 서비스) ----------
+const GAL_ASK = f => ['title', 'memo'].includes(f.id);   // 말로는 제목 · 세부 내용만, 일자 · 위치는 사진(EXIF)에서
+function galPopup(p, onSave, onRedo, onSkip) {
+  document.querySelectorAll('.sheet-bg.labcf').forEach(x => x.remove());
+  const bg = el('div', { class: 'sheet-bg labcf' }), shown = f => { const v = valOf(p, f); return v && !isEx(f.id, v) ? v : '(없음)'; };
+  const rows = cfg.fields.filter(f => f.on).map(f => el('div', { class: 'labcfrow' }, el('span', {}, labOf(f) + (GAL_ASK(f) ? '' : ' · 자동')),
+    GAL_ASK(f) ? (i => i)(el('input', { type: 'text', class: 'labcfin', maxlength: f.id === 'memo' ? 60 : 30, value: isEx(f.id, valOf(p, f)) ? '' : (valOf(p, f) || ''),
+      onfocus: () => { if (voiceKill) voiceKill(); }, oninput: e => { putVal(p, f, e.target.value); if (!f.per) saveCfg(); redraw(); } })) : el('b', {}, shown(f))));
+  const go = fn => () => { bg.remove(); fn && fn(); };
+  bg.append(el('div', { class: 'sheet labmore' }, el('h2', {}, `${cur + 1} / ${photos.length} — 이렇게 넣을까요?`), ...rows,
+    el('button', { class: 'big pri', onclick: go(onSave) }, cur + 1 < photos.length ? '저장하고 다음 사진' : '저장'),
+    el('div', { class: 'row2' }, el('button', { class: 'big sec', onclick: go(onRedo) }, '다시 말하기'), el('button', { class: 'big sec', onclick: go(onSkip) }, '이 사진 건너뛰기'))));
+  document.body.append(bg); return bg; }
+function galLabel(i) {
+  if (i >= photos.length) return galDone();
+  if (photos[cur]) photos[cur].look = lookOf(); cur = i; useLook(photos[cur]); onPhotoChange && onPhotoChange(); refreshInputs && refreshInputs(); redraw();
+  const p = photos[cur], cf = () => document.querySelectorAll('.sheet-bg.labcf').forEach(x => x.remove());
+  const save1 = async () => { if (voiceKill) voiceKill(); cf(); const [f] = await render([p]); if (f) { download(f); p.saved = true; p.sig = sigOf(p); p.out = f; p.outSig = p.sig; toast(`${cur + 1}번째 저장했어요`); } else toast('저장하지 못했어요 — 다시 [저장]'); if (f) galLabel(cur + 1); };
+  const skip = () => { if (voiceKill) voiceKill(); cf(); galLabel(cur + 1); };
+  const redo = () => { if (voiceKill) voiceKill(); cf(); galLabel(cur); };
+  voiceFill({ get: f => valOf(p, f), set: (f, t) => { putVal(p, f, t); if (!f.per) saveCfg(); refreshInputs && refreshInputs(); redraw(); },
+    skip: f => !GAL_ASK(f), byLabel: true, fast: true,
+    help: `${cur + 1} / ${photos.length}번째 · 말하고 "다음" → 다음 칸 · "저장" · "같음" 그대로 · "건너뛰기" · "그만" 끝`,
+    onConfirm: () => galPopup(p, save1, redo, skip),
+    onWord: n => { if (/^(건너뛰기|건너뛰어|넘겨|다음사진)$/.test(n)) { skip(); return true; } return false; },
+    confirmQ: sum => sum + '. 저장할까요?',
+    confirm: async (n, v) => { if (/건너|넘겨|패스/.test(n)) return skip(); if (SAY.redo.test(n)) { cf(); return v.restart(); } if (SAY.save.test(n)) return save1(); return v.ask('저장, 다시, 건너뛰기 중에 말씀하세요'); },
+    onEnd: v => { v.stop(); galPopup(p, save1, redo, skip); } });
+}
+function galDone() {
+  const n = photos.filter(x => x.saved).length; speak(`${n}장 라벨을 붙였어요`);
+  const bg = el('div', { class: 'sheet-bg labcf' });
+  bg.append(el('div', { class: 'sheet labmore' }, el('h2', {}, `${n}장 라벨을 붙였어요`), el('div', { class: 'hint', style: 'text-align:left', text: '갤러리(Download)에 저장했어요. 바로 보내려면 [보내기]' }),
+    el('button', { class: 'big pri', onclick: () => { bg.remove(); share(); } }, '보내기'), el('button', { class: 'big sec', onclick: () => bg.remove() }, '닫기')));
+  document.body.append(bg);
 }
 async function render(list = photos, prog) {
   const out = [];
