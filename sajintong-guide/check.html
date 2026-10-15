@@ -213,6 +213,12 @@ k{display:inline-block;font-weight:700;color:var(--blue-d);background:var(--blue
 .q4 li::before{content:counter(q);position:absolute;left:12px;top:10px;width:30px;height:30px;border-radius:10px;background:var(--blue);color:#fff;font-weight:900;display:grid;place-items:center}
 .q4 b{display:block;font-size:16.5px}
 .q4 span{color:var(--sub);font-size:14.5px}
+.ghd{display:flex;justify-content:space-between;align-items:center;margin:8px 0 5px;font-size:11px}
+.ghd span{color:var(--blue-d);font-weight:700}
+.gg{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
+.gg i{display:block;aspect-ratio:3/4;border-radius:6px;background:linear-gradient(160deg,#94A3B8,#475569);position:relative}
+.gg i::after{content:"";position:absolute;top:4px;right:4px;width:14px;height:14px;border-radius:50%;border:2px solid #fff;background:rgba(0,0,0,.25)}
+.gg i.on::after{background:#2563EB}
 .facts li{margin:6px 0}
 
 .design{margin-top:14px;background:var(--amber-s);border-radius:12px;padding:10px 14px;font-size:14.5px}
@@ -256,6 +262,7 @@ k{display:inline-block;font-weight:700;color:var(--blue-d);background:var(--blue
       <li><b>🎙 손이 바쁘면 말로</b>"찍어" · "다음 층" · "불량 압력 미달"</li>
       <li><b>📤 끝나면 버튼 하나</b>카톡 전송 · 사진대지 완성</li>
       <li><b>🔁 다음 달엔 한 번에</b>[지난번처럼 101동] 누르면 바로 시작</li>
+      <li><b>🗂 찍어 둔 사진도 자동 정리</b>골라만 주면 시설명 · 날짜별 사진대지로 (C)</li>
     </ul>
   </div>
   <div class="cta"><a href="#quick">1분 사용법 보기 ↓</a><span>실험실 앱을 열면 업데이트가 바로 떠요 · 처음이면 sisultong.web.app/lab</span></div>
@@ -462,6 +469,32 @@ k{display:inline-block;font-weight:700;color:var(--blue-d);background:var(--blue
     <div class="pd"><b>끝나면 바로 문서</b>마치기 → 사진대지가 완성되어 <k>보내기</k>(PDF).</div>
   </div>
   <p class="aside">갤러리에 이미 찍어 둔 사진이 있으면 <k>갤러리에서 가져오기</k>로 칸 순서대로 넣습니다.</p>
+</section>
+
+<div class="part" id="c1"><span>C</span>찍어 둔 사진보드로 사진대지 자동 작성 <em class="new" style="font-style:normal">새로</em></div>
+<section class="step" style="--s:'C'">
+  <p style="margin-top:0">여러 날 나눠 찍었거나, 사진대지를 깜빡하고 사진만 찍어 뒀을 때. 보드판 글을 앱이 이미 알고 있어서 <b>골라만 주면</b> 사진대지가 됩니다.</p>
+  <div class="row">
+    <div class="phone"><div class="scr" style="height:430px">
+      <div class="bar"><span>9:41</span><span>▮▮▮ 100%</span></div>
+      <div class="top">보드·대지 함 · 사진보드</div>
+      <div class="pad">
+        <div class="ghd"><b>10월 16일</b><span>이날 모두</span></div>
+        <div class="gg"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div>
+        <div class="ghd"><b>10월 17일</b><span>이날 모두</span></div>
+        <div class="gg"><i class="on"></i><i class="on"></i><i></i></div>
+      </div>
+      <div class="mk-bot"><div class="mk-btn soft" style="flex:1">취소</div><div class="mk-btn" style="flex:2.2">7장 → 사진대지 2개 만들기</div></div>
+    </div></div>
+    <div class="txt">
+      <div class="do"><b>이렇게</b>
+        <ol><li>아래 <k>보드·대지 함</k> → <k>사진보드</k> → 맨 위 <k>골라서 사진대지 자동 작성</k>.</li>
+          <li>사진을 누르거나, 날짜 옆 <k>이날 모두</k>로 한 번에 고릅니다.</li>
+          <li>아래 <k>7장 → 사진대지 2개 만들기</k>.</li></ol></div>
+      <div class="then"><b>그러면</b> 시설명 · 날짜별로 나눠 사진대지가 만들어집니다(101동 10.16 / 102동 10.17). 사진은 <b>층(지하 → 지상 → 옥상) → 장비</b> 순으로 놓이고, 칸 이름은 보드판 글대로 '2층 감지기'처럼 들어갑니다.</div>
+      <p class="aside"><b>다음 실험실(19)부터</b> 쓸 수 있어요. 사진통으로 찍은 사진보드만 됩니다. 다른 앱 · 종이 보드 사진은 다음 단계(AI가 글을 읽음)에서.</p>
+    </div>
+  </div>
 </section>
 
 <footer>사진통 · AI고프로 정리 · 고성식 님 기획 · 2026-10-16 · 검토용 설계안</footer>
