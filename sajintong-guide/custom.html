@@ -173,198 +173,215 @@ k{display:inline-block;font-weight:700;color:var(--blue-d);background:var(--blue
 .pairs{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .pairs > div{flex:0 1 150px;text-align:center} .pairs b{display:block;margin-top:6px} .pairs small{color:var(--sub);font-size:12.5px}
 .facts li{margin:6px 0}
+
+.design{margin-top:14px;background:var(--amber-s);border-radius:12px;padding:10px 14px;font-size:14.5px}
+.new{display:inline-block;font-size:11.5px;font-weight:700;color:#fff;background:#EA580C;border-radius:6px;padding:0 6px;vertical-align:1px;white-space:nowrap}
+.new.sm{font-size:8.5px;padding:0 4px}
+.three{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-top:10px}
+.c3{display:block;text-decoration:none;color:var(--ink);border:1px solid var(--line);border-radius:14px;padding:12px;background:var(--bg)}
+.c3 i{display:block;height:8px;border-radius:4px;margin-bottom:8px}
+.c3 b{display:block;font-size:17px} .c3 small{display:block;color:var(--sub);font-size:13px} .c3 em{display:block;font-style:normal;color:var(--blue-d);font-size:13px;margin-top:4px;font-weight:700}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+.two > div{border-radius:14px;padding:12px;font-size:14.5px}
+.two b{display:block;font-size:16px;margin-bottom:2px}
+.pb{background:var(--blue-s)} .pd{background:var(--bg);border:1px solid var(--line)}
+.part{display:flex;align-items:center;gap:10px;font-size:22px;font-weight:900;margin:34px 0 4px}
+.part span{width:38px;height:38px;border-radius:50%;background:var(--ink);color:var(--bg);display:grid;place-items:center;font-size:18px}
+.part small{font-size:14px;font-weight:500;color:var(--sub)}
+.cam .prog{position:absolute;right:10px;top:30px;background:rgba(15,23,42,.75);border-radius:8px;padding:3px 8px;font-size:10.5px;font-weight:700}
+.cam .pop{position:absolute;left:14px;right:14px;top:150px;background:#fff;color:#0F172A;border-radius:14px;padding:14px;box-shadow:0 8px 24px rgba(0,0,0,.4);font-size:12px;text-align:center}
+.cam .pop div{display:flex;gap:6px;margin-top:10px} .cam .pop span{flex:1;border-radius:9px;padding:7px 0;font-weight:700}
+.cam .pop .b1{background:#2563EB;color:#fff} .cam .pop .b2{background:#E2E8F0}
 </style>
 </head>
 <body>
 <div class="wrap">
 
 <header class="hero">
-  <span class="badge">사진통 실험실 · 맞춤 모드</span>
-  <h1>소방 점검, 사진통으로 이렇게 합니다</h1>
-  <p class="lead">관리사무소 김 과장님의 월간 소방 점검 하루를 따라가 보세요.<br>사무실에서 정하고 → 현장에서 찍고 → 끝나면 바로 보냅니다.</p>
-  <div class="map">
-    <a href="#t1"><b>1</b>점검 열기</a><span>›</span>
-    <a href="#t2"><b>2</b>무엇을 점검할지</a><span>›</span>
-    <a href="#t3"><b>3</b>찍기</a><span>›</span>
-    <a href="#t4"><b>4</b>다음 층으로</a><span>›</span>
-    <a href="#t5"><b>5</b>마치고 보내기</a><span>›</span>
-    <a href="#t6"><b>6</b>불량 조치</a><span>›</span>
-    <a href="#t7"><b>7</b>다음 달</a>
-  </div>
+  <span class="badge">사진통 · 맞춤 모드 설명서 (설계안)</span>
+  <h1>맞춤 모드, 이렇게 씁니다</h1>
+  <p class="lead">간편 모드는 <b>가장 간편하게</b>, 맞춤 모드는 <b>가장 알맞게</b>.<br>맞춤 모드는 내 일의 순서에 맞춰 찍고, 끝나면 바로 냅니다.</p>
+  <div class="design">이 설명서는 <b>앞으로 만들 앱</b>을 기준으로 씁니다. 지금 앱에 아직 없는 부분은 <span class="new">새로</span> 표시를 했고, 앱을 이 설명서대로 고칩니다.</div>
 </header>
 
-<!-- 1 -->
-<section id="t1" class="step">
-  <div class="sh"><span class="n">1</span><div><h2>점검 열기</h2><p class="when">사무실에서 · 10초</p></div></div>
-  <div class="row">
-    <div class="phone"><div class="scr">
-      <div class="bar"><span>9:41</span><span>▮▮▮ 100%</span></div>
-      <div class="pad">
-        <div class="mk-sec">📷 간편 모드</div>
-        <div class="mk-big"><div>보드판 생성</div><div>사진대지 생성</div></div>
-        <div class="mk-sec" style="margin-top:12px">▦ 용도별 맞춤 모드</div>
-        <div class="mk-cat"><i style="background:linear-gradient(135deg,#FDBA74,#EA580C)"></i><b>공사·작업</b><em>›</em></div>
-        <div class="mk-cat hl"><i style="background:linear-gradient(135deg,#93C5FD,#1D4ED8)"></i><b>시설·점검</b><em>›</em></div>
-        <div class="mk-cat"><i style="background:linear-gradient(135deg,#86EFAC,#059669)"></i><b>일상·생활</b><em>›</em></div>
-      </div>
-    </div></div>
-    <div class="txt">
-      <div class="do"><b>이렇게</b>
-        <ol><li>사진통을 엽니다. 카메라가 바로 뜨면 아래 <k>⌂ 메인</k>을 누릅니다.</li>
-        <li>메인 화면의 <k>시설·점검</k>을 누릅니다.</li></ol></div>
-      <div class="then">처음 한 번은 로그인합니다. 관리사무소 직원들과 같은 건물로 함께 쓰기 때문입니다.</div>
-      <p class="aside">공사 · 보수 작업이면 <b>공사·작업</b>을 누르세요. 흐름은 같습니다.</p>
-    </div>
+<section>
+  <h2 style="font-size:19px">무슨 일을 하세요?</h2>
+  <div class="three">
+    <a href="#b1" class="c3"><i style="background:linear-gradient(135deg,#93C5FD,#1D4ED8)"></i><b>시설·점검</b><small>소방 · 승강기 · 전기 · 기계 정기 점검</small><em>→ 점검 사진 · 점검 사진대지</em></a>
+    <a href="#w1" class="c3"><i style="background:linear-gradient(135deg,#FDBA74,#EA580C)"></i><b>공사·작업</b><small>보수 · 청소 · 제초 · 도장 · 검측</small><em>→ 작업 전·중·후 사진 · 작업 사진대지</em></a>
+    <a href="#l1" class="c3"><i style="background:linear-gradient(135deg,#86EFAC,#059669)"></i><b>일상·생활</b><small>여행 · 가족 · 음식 · 반려동물</small><em>→ 앨범</em></a>
   </div>
+  <h3>만드는 것은 두 가지</h3>
+  <div class="two">
+    <div class="pb"><b>🖼 사진보드</b>현장에서 빨리. 사진마다 보드판(시설명 · 장비 · 위치 · 날짜)이 박혀 저장됩니다. 그대로 카톡으로 보내도 됩니다.</div>
+    <div class="pd"><b>📄 사진대지</b>문서로 낼 때. 찍은 사진이 양식 칸에 정리된 PDF가 됩니다.</div>
+  </div>
+  <div class="tip"><b>순서:</b> 현장에서는 <b>사진보드로 찍고</b>, 문서가 필요하면 끝난 뒤 <b>[사진대지로 묶기]</b> 한 번. <span class="new">새로</span><br>처음부터 사진대지를 고르고 찍어도 됩니다(아래 B).</div>
 </section>
 
-<!-- 2 -->
-<section id="t2" class="step">
-  <div class="sh"><span class="n">2</span><div><h2>무엇을 점검할지 정하기</h2><p class="when">사무실에서 · 30초 · 위에서부터 차례로 누르기만</p></div></div>
+<!-- ============ A. 사진보드 ============ -->
+<div class="part"><span>A</span>사진보드로 찍기 <small>예) 101동 월간 소방 점검</small></div>
+
+<section id="b1" class="step">
+  <div class="sh"><span class="n">1</span><div><h2>들어가기</h2><p class="when">5초</p></div></div>
+  <div class="do"><b>이렇게</b>
+    <ol><li>메인 → <k>시설·점검</k>.</li>
+    <li>하던 점검이 있으면 앱을 열 때 카메라 위에 <k>101동 소방 · 이어서 찍기</k>가 뜹니다. 누르면 바로 3단계로. <span class="new">새로</span></li></ol></div>
+</section>
+
+<section id="b2" class="step">
+  <div class="sh"><span class="n">2</span><div><h2>한 화면에서 정하기</h2><p class="when">20초 · 지난번 것이 미리 들어 있음</p></div></div>
   <div class="row">
-    <div class="phone"><div class="scr" style="height:500px">
+    <div class="phone"><div class="scr" style="height:470px">
       <div class="bar"><span>9:41</span><span>▮▮▮ 100%</span></div>
-      <div class="top">← 시설 · 점검 기록</div>
+      <div class="top">← 시설 · 점검</div>
       <div class="pad">
-        <div class="mk-what hlw"><div>사진보드<small>1장씩 라벨링</small></div><div class="on">사진대지<small>칸에 넣어 문서로</small></div></div>
-        <div class="mk-q"><i>1</i>무슨 점검인가요?</div>
-        <div class="mk-chips"><span>승강기</span><span class="on">소방</span><span>전기</span><span>기계</span><span>급배수</span></div>
-        <div class="mk-q"><i>2</i>시설명</div>
+        <div class="mk-what"><div class="on">사진보드<small>현장에서 빨리</small></div><div>사진대지<small>문서로</small></div></div>
+        <div class="mk-q"><i>1</i>무슨 점검?</div>
+        <div class="mk-chips"><span>승강기</span><span class="on">소방</span><span>전기</span><span>기계</span></div>
+        <div class="mk-q"><i>2</i>어디?</div>
         <div class="mk-in" style="color:var(--ink)">101동</div>
-        <div class="mk-q"><i>3</i>사진대지 형식</div>
-        <div class="mk-fm"><div>칸별</div><div class="on">점검 사진첩</div><div>조치 전·후</div></div>
-        <div class="mk-q"><i>4</i>점검 순서</div>
-        <div class="mk-chips"><span>장비 순</span><span class="on">공간 순</span><span>자유롭게</span></div>
+        <div class="mk-q"><i>3</i>어디부터? <span class="new sm">새로</span></div>
+        <div class="mk-chips"><span class="on">1층</span><span>지하1층</span><span>옥상</span><span>+ 직접</span></div>
+        <div class="mk-q"><i>4</i>어떻게 돌아요?</div>
+        <div class="mk-chips"><span class="on">층마다 (공간 순)</span><span>장비마다 (장비 순)</span><span>자유롭게</span></div>
       </div>
-      <div class="mk-bot"><div class="mk-btn soft">갤러리에서 가져오기</div><div class="mk-btn">카메라 열기</div></div>
+      <div class="mk-bot"><div class="mk-btn">찍기 시작</div></div>
     </div></div>
     <div class="txt">
       <div class="do"><b>이렇게</b>
-        <ol><li>맨 위에서 <k>사진보드</k> 또는 <k>사진대지</k>를 고릅니다 (아래 상자 참고). 김 과장님은 점검 문서까지 낼 거라 <k>사진대지</k>.</li>
-        <li><k>소방</k>을 누릅니다 → 찍을 장비(수신기 · 감지기 · 소화기 · 유도등…)가 저절로 정해집니다.</li>
-        <li>시설명에 <k>101동</k>을 적습니다. 안 적으면 '소방 10.16'처럼 저절로 붙습니다.</li>
-        <li>형식은 <k>점검 사진첩</k> — 장비마다 양호 / 불량을 남기는 점검용 문서입니다.</li>
-        <li>점검 순서를 고릅니다. 김 과장님은 층마다 돌아서 <k>공간 순</k>.</li>
-        <li><k>카메라 열기</k>를 누르고 현장으로 갑니다.</li></ol></div>
-      <div class="choose" style="margin-bottom:10px">
-        <div><b>사진대지</b> — 찍은 사진이 점검 문서(사진대지)로 바로 정리됨<br><small>점검 결과를 문서로 내야 할 때 · 아래 ③④를 정함</small></div>
-        <div style="border-color:var(--line);background:none"><b>사진보드</b> — 보드판이 박힌 사진만 빠르게, 문서는 나중에<br><small>현장 기록만 먼저 남길 때 · ③④ 없이 바로 찍기</small></div>
-      </div>
-      <div class="choose">
-        <div><b>공간 순</b> — 한 층을 다 찍고 다음 층으로<br><small>층마다 돌며 점검할 때</small></div>
-        <div><b>장비 순</b> — 한 장비 찍으면 다음 장비로 저절로<br><small>장비별로 돌며 점검할 때 · 찍을 순서를 ↑↓로 정함</small></div>
-        <div><b>자유롭게</b> — 찍을 장비를 그때그때 직접 고름</div>
-      </div>
+        <ol><li>맨 위 <k>사진보드</k>.</li>
+        <li><k>소방</k> → 찍을 장비가 저절로 들어갑니다(장비 목록은 눌러서 빼거나 더함).</li>
+        <li>어디: <k>101동</k>.</li>
+        <li>어디부터: <k>1층</k>. 위로 갈지 아래로 갈지도 여기서 정해집니다. <span class="new">새로</span></li>
+        <li>어떻게 돌아요: 층마다 돌면 <k>공간 순</k>, 장비별로 돌면 <k>장비 순</k>(찍을 순서를 ↑↓로).</li>
+        <li><k>찍기 시작</k>.</li></ol></div>
+      <div class="then"><b>그러면</b> 보드판에 시설명 · 장비 · 층 · 날짜 · 점검자(내 이름)가 모두 미리 채워져 있습니다. 현장에서 글을 쓸 일이 없습니다.</div>
     </div>
   </div>
 </section>
 
-<!-- 3 -->
-<section id="t3" class="step">
-  <div class="sh"><span class="n">3</span><div><h2>현장에서 찍기</h2><p class="when">1층 · 장비 하나에 5초</p></div></div>
+<section id="b3" class="step">
+  <div class="sh"><span class="n">3</span><div><h2>찍기</h2><p class="when">장비 하나 3초 · 손이 바쁘면 말로</p></div></div>
   <div class="row">
     <div class="phone"><div class="scr cam">
       <div class="view"></div>
       <div class="board"><div><b>시설명</b><span>101동</span></div><div><b>점검</b><span>소화기</span></div><div><b>위치</b><span>1층</span></div><div><b>일자</b><span>26/10/16/목</span></div></div>
+      <div class="prog">1층 · 2 / 4</div>
       <div class="items"><span class="done">수신기 ✓</span><span class="done">감지기 ✓</span><span class="now">소화기</span><span>유도등</span></div>
-      <div class="loc"><div class="v">위치<b>1층</b></div><div class="k on">공간 순</div><div class="k on">다음<br>공간 ▶</div><div class="k">▲</div><div class="k">▼</div></div>
+      <div class="loc"><div class="v">위치<b>1층</b></div><div class="k on">다음<br>공간 ▶</div></div>
       <div class="shut">찍어</div>
     </div></div>
-    <div class="phone"><div class="scr cam">
-      <div class="view" style="inset:0 0 70px"></div>
-      <div class="board"><div><b>시설명</b><span>101동</span></div><div><b>점검</b><span>소화기</span></div><div><b>위치</b><span>1층</span></div></div>
-      <div class="res"><span style="background:#10B981">양호</span><span style="background:#EF4444">불량</span><span style="background:#64748B">해당없음</span></div>
-    </div></div>
     <div class="txt">
       <div class="do"><b>이렇게</b>
-        <ol><li>화면 아래 줄에서 지금 찍을 장비(흰색)를 봅니다. 다른 장비를 찍으려면 그 이름을 누릅니다.</li>
-        <li>장비를 비추고 <k>찍어</k>.</li>
-        <li><k>양호</k> 또는 <k>불량</k>을 누릅니다. 불량이면 '압력 미달'처럼 한 줄 적습니다.</li></ol></div>
-      <div class="then"><b>그러면</b> 사진에 보드판(시설명 · 장비 · 층 · 날짜)이 박혀 저장되고, 찍은 장비에 <span style="color:var(--green);font-weight:700">✓</span>가 붙습니다. 보드판 글은 따로 적을 필요가 없습니다.</div>
+        <ol><li>아래 줄의 흰 장비(지금 찍을 것)를 비추고 <k>찍어</k> — 또는 말로 "찍어". <span class="new">새로</span></li>
+        <li>찍은 뒤 <k>양호</k>는 그냥 넘어가고, 문제가 있으면 <k>불량</k>을 누르고 한마디("압력 미달").</li>
+        <li>장비 순이면 다음 장비로 저절로 넘어갑니다. 공간 순이면 층 안에서 아래 줄을 눌러 고릅니다.</li></ol></div>
+      <div class="then"><b>그러면</b> 사진마다 보드판이 박혀 갤러리의 <b>사진통 › 101동 소방 10.16</b> 폴더에 저장됩니다. <span class="new">새로</span> 위에 <b>1층 · 2 / 4</b>로 어디까지 찍었는지 보입니다. <span class="new">새로</span></div>
     </div>
   </div>
 </section>
 
-<!-- 4 -->
-<section id="t4" class="step">
-  <div class="sh"><span class="n">4</span><div><h2>다음 층으로</h2><p class="when">1층을 다 찍었으면</p></div></div>
-  <div class="spaces">
-    <div class="sp"><div class="spt">1층</div><div class="its"><span class="ok">수신기 ✓</span><span class="ok">감지기 ✓</span><span class="ok">소화기 ✓</span><span class="ok">유도등 ✓</span></div></div>
-    <div class="nx">다음 공간 ▶</div>
-    <div class="sp next"><div class="spt">2층</div><div class="its"><span class="now">수신기</span><span>감지기</span><span>소화기</span><span>유도등</span></div><small>보드판 위치가 '2층'으로 바뀌고, 첫 장비부터</small></div>
+<section id="b4" class="step">
+  <div class="sh"><span class="n">4</span><div><h2>다음 층으로</h2><p class="when">계단 오르며 한 번</p></div></div>
+  <div class="row">
+    <div class="phone"><div class="scr cam">
+      <div class="view"></div>
+      <div class="pop"><b>1층 유도등을 안 찍었어요</b><div><span class="b1">지금 찍기</span><span class="b2">넘어가기</span></div></div>
+    </div></div>
+    <div class="txt">
+      <div class="do"><b>이렇게</b>
+        <ol><li><k>다음 공간 ▶</k> — 또는 말로 "다음 층". <span class="new">새로</span></li>
+        <li>빠뜨린 장비가 있으면 알려 줍니다 → <k>지금 찍기</k> 또는 <k>넘어가기</k>. <span class="new">새로</span></li></ol></div>
+      <div class="then"><b>그러면</b> 보드판 위치가 <b>2층</b>으로 바뀌고 첫 장비부터 다시 시작합니다.</div>
+    </div>
   </div>
-  <div class="do" style="margin-top:12px"><b>이렇게</b>
-    <ol><li>계단을 올라가면서 <k>다음 공간 ▶</k>을 한 번 누릅니다.</li>
-    <li>2층에서 3단계처럼 찍습니다. 꼭대기 층까지 같은 방법으로.</li></ol></div>
-  <div class="note"><b>위로 갈지 아래로 갈지</b>는 <k>▲</k> <k>▼</k>로 정합니다. 처음엔 아래로(1층 → 지하1층) 가니, 위로 올라가며 점검하면 처음에 <k>▲</k>를 한 번 누르세요.<br>
-  <b>위치가 '서구 공촌동'처럼 숫자 없이</b> 들어가 있으면 '1층처럼 넣어 주세요'가 뜹니다. 위치에 <k>1층</k>을 한 번 적으면 그다음부터 넘어갑니다.</div>
 </section>
 
-<!-- 5 -->
-<section id="t5" class="step">
-  <div class="sh"><span class="n">5</span><div><h2>마치고 보내기</h2><p class="when">점검 끝 · 현장에서 바로</p></div></div>
+<section id="b5" class="step">
+  <div class="sh"><span class="n">5</span><div><h2>마치기</h2><p class="when">현장에서 바로</p></div></div>
   <div class="row">
-    <div class="phone"><div class="scr">
+    <div class="phone"><div class="scr" style="height:400px">
       <div class="bar"><span>9:41</span><span>▮▮▮ 100%</span></div>
-      <div class="top">← 소방 점검 사진첩</div>
+      <div class="top">101동 소방 점검 끝</div>
       <div class="pad">
-        <div class="sum">101동 · 점검 16항목 · 양호 14 · <span style="color:var(--red)">불량 1</span> · 미점검 1</div>
+        <div class="sum">사진 16장 · 양호 14 · <span style="color:var(--red)">불량 1</span> · 빠진 것 1</div>
         <div class="sheet">
-          <div><i class="g"></i><small>1층 수신기 · 양호</small></div>
-          <div><i class="g"></i><small>1층 감지기 · 양호</small></div>
+          <div><i class="g"></i><small>1층 수신기</small></div>
           <div><i class="r"></i><small style="color:var(--red)">1층 소화기 · 불량</small></div>
-          <div><i class="g"></i><small>1층 유도등 · 양호</small></div>
         </div>
       </div>
-      <div class="mk-bot"><div class="mk-btn soft">조치하기</div><div class="mk-btn">보내기</div></div>
+      <div class="mk-bot" style="flex-direction:column"><div class="mk-btn">사진 보내기 (카톡)</div><div class="mk-btn soft">사진대지로 묶기</div></div>
     </div></div>
     <div class="txt">
       <div class="do"><b>이렇게</b>
-        <ol><li>카메라에서 <k>←</k> 뒤로 나와, 맨 위 '찍는 중' 카드의 <k>마치기 · 사진대지</k>.</li>
-        <li>맨 위 요약을 봅니다. <b>미점검</b>이 있으면 <k>이어서 찍기</k>로 돌아가 채웁니다.</li>
-        <li><k>보내기</k> → 카톡 등으로 PDF나 사진을 보냅니다.</li></ol></div>
-      <div class="then"><b>그러면</b> 장비 사진마다 양호 / 불량이 적힌 <b>점검 사진대지</b>가 완성됩니다. 사무실에서 따로 정리할 필요가 없습니다.</div>
-      <p class="aside">중간에 앱을 닫아도 괜찮습니다. 다시 시설·점검에 들어오면 맨 위 '찍는 중' 카드의 <k>이어서 찍기</k>로 계속합니다.</p>
+        <ol><li><k>마치기</k> — 또는 말로 "끝". <span class="new">새로</span></li>
+        <li>요약을 봅니다: 찍은 장수 · 불량 · 빠진 것.</li>
+        <li>바로 공유하려면 <k>사진 보내기</k>, 문서가 필요하면 <k>사진대지로 묶기</k>. <span class="new">새로</span></li></ol></div>
+      <div class="then"><b>사진대지로 묶기</b>를 누르면 찍은 사진이 층 · 장비 순서대로 점검 사진대지에 들어가고, 양호 / 불량도 그대로 옮겨집니다. 다시 찍을 필요가 없습니다.</div>
     </div>
   </div>
 </section>
 
-<!-- 6 -->
-<section id="t6" class="step">
-  <div class="sh"><span class="n">6</span><div><h2>불량 조치하고 보고</h2><p class="when">며칠 뒤 · 고친 다음</p></div></div>
+<section id="b6" class="step">
+  <div class="sh"><span class="n">6</span><div><h2>불량 조치 · 다음 달</h2><p class="when">나중에</p></div></div>
   <div class="pairs">
-    <div><i class="r"></i><b>조치 전</b><small>점검 때 찍은 불량 사진</small></div>
+    <div><i class="r"></i><b>조치 전</b><small>점검 때 불량 사진</small></div>
     <span class="ar">→</span>
-    <div><i class="b"></i><b>조치 후</b><small>고친 다음 새로 찍기</small></div>
+    <div><i class="b"></i><b>조치 후</b><small>고친 뒤 찍기</small></div>
   </div>
   <div class="do" style="margin-top:12px"><b>이렇게</b>
-    <ol><li>보드·대지 함에서 그 점검 사진대지를 엽니다.</li>
-    <li>불량 장비의 <k>조치하기</k> → 고친 모습을 찍습니다.</li>
-    <li>다시 <k>보내기</k>.</li></ol></div>
-  <div class="then"><b>그러면</b> 불량 장비에 조치 전 · 후 사진이 나란히 붙고 '조치 완료'로 셉니다. 그대로 이행 보고에 씁니다.</div>
+    <ol><li><b>불량 조치</b>: 시설·점검 → 맨 위 <k>조치할 것 1</k> → 고친 모습 찍기 → 조치 전·후가 나란히 붙음. <span class="new">새로</span></li>
+    <li><b>다음 달</b>: 시설·점검 → <k>지난달처럼 101동 소방</k> 한 번 → 2단계가 모두 채워진 채로 바로 찍기. <span class="new">새로</span></li></ol></div>
 </section>
 
-<!-- 7 -->
-<section id="t7" class="step">
-  <div class="sh"><span class="n">7</span><div><h2>다음 달 같은 점검</h2><p class="when">다시 정할 필요 없이</p></div></div>
-  <div class="do"><b>이렇게</b>
-    <ol><li>시설·점검 → 맨 위 <k>작성하던 사진대지 불러오기</k>.</li>
-    <li>지난달 '101동 소방'을 골라 <k>같은 항목으로 새로</k>.</li></ol></div>
-  <div class="then"><b>그러면</b> 장비 목록 · 순서가 그대로 들어간 새 점검이 바로 시작됩니다. <k>설비 이력</k>에서는 장비마다 지난 점검 · 불량 · 조치를 모아 볼 수 있습니다.</div>
-  <p class="aside">장비에 QR을 붙여 두면, 메인의 <k>QR 코드 판독</k>으로 찍을 때 그 장비의 기록이 바로 열립니다.</p>
+<!-- ============ B. 사진대지 ============ -->
+<div class="part"><span>B</span>처음부터 사진대지로</div>
+<section class="step">
+  <p style="margin-top:0">문서 양식이 정해져 있으면 2단계에서 <k>사진대지</k>를 고릅니다. 흐름은 A와 같고 두 가지만 다릅니다.</p>
+  <div class="two">
+    <div class="pd"><b>형식 고르기</b>칸별 · 점검 사진첩(양호 / 불량) · 조치 전·후 중 하나.</div>
+    <div class="pd"><b>끝나면 바로 문서</b>마치기 → 사진대지가 완성되어 <k>보내기</k>(PDF).</div>
+  </div>
+  <p class="aside">갤러리에 이미 찍어 둔 사진이 있으면 <k>갤러리에서 가져오기</k>로 칸 순서대로 넣습니다.</p>
+</section>
+
+<!-- ============ C. 공사·작업 ============ -->
+<div class="part" id="w1"><span>C</span>공사·작업 <small>예) 지하주차장 보수</small></div>
+<section class="step">
+  <div class="chain">
+    <div class="eq"><b>종류</b><small>보수 · 수리</small></div><span class="ar">→</span>
+    <div class="eq"><b>작업명</b><small>지하주차장 보수</small></div><span class="ar">→</span>
+    <div class="eq"><b>작업 전</b><small>찍어</small></div><span class="ar">→</span>
+    <div class="eq"><b>작업 중 · 후</b><small>찍어</small></div><span class="ar">→</span>
+    <div class="eq"><b>마치기</b><small>보내기 / 사진대지</small></div>
+  </div>
+  <p class="aside">작업 전에 찍고 앱을 닫았다가, 작업이 끝나면 <k>이어서 찍기</k>로 작업 후를 찍습니다. 지적사항 보수는 형식을 <k>조치 전·후</k>로.</p>
+</section>
+
+<!-- ============ D. 일상 ============ -->
+<div class="part" id="l1"><span>D</span>일상·생활</div>
+<section class="step">
+  <p style="margin:0">테마(여행 · 가족 · 음식…) → 제목 → <k>갤러리에서 고르기</k> 또는 <k>찍기</k> → 앨범 틀 고르기 → 보내기. 그날 찍은 사진이 많으면 "10월 6일 사진 12장으로 앨범 만들까요?"를 먼저 물어 봅니다.</p>
 </section>
 
 <section>
-  <h2 style="font-size:19px">알아 두실 점</h2>
-  <ul class="facts">
-    <li><b>점검 순서(공간 순 · 장비 순)</b>는 지금 <b>사진통 실험실</b>에만 있습니다.</li>
-    <li>맞춤 모드에서는 <b>말로 채우기가 안 됩니다</b>. 장비 · 층이 미리 정해져 있어 손으로 누릅니다. '다음 공간'도 버튼으로만 됩니다.</li>
-    <li>점검 순서 · ▲▼ · 다음 공간 같은 업무 버튼은 <b>맞춤 모드에서만</b> 나옵니다. 간편 모드 카메라에는 없습니다.</li>
-    <li>사진은 갤러리의 <b>'사진통'</b> 앨범에 저장됩니다(실험실).</li>
-  </ul>
+  <h2 style="font-size:19px">앱에서 고칠 것 (이 설명서 기준)</h2>
+  <table>
+    <tr><th>#</th><th>무엇</th><th>어디</th></tr>
+    <tr><td>1</td><td>하던 점검 '이어서 찍기'를 앱 열 때 카메라 위에</td><td>A-1</td></tr>
+    <tr><td>2</td><td>'어디부터?'(첫 공간 · 방향) 묻기 — 구·동 뒤에 층을 붙임</td><td>A-2</td></tr>
+    <tr><td>3</td><td>맞춤 모드에서도 말로: "찍어" · "다음 층" · "끝" · 불량 한마디</td><td>A-3 · 4 · 5</td></tr>
+    <tr><td>4</td><td>사진보드에도 양호 / 불량(점검일 때)</td><td>A-3</td></tr>
+    <tr><td>5</td><td>진행 표시 '1층 · 2 / 4'</td><td>A-3</td></tr>
+    <tr><td>6</td><td>작업별 갤러리 폴더 '사진통 › 101동 소방 10.16'</td><td>A-3</td></tr>
+    <tr><td>7</td><td>다음 공간 때 빠진 장비 알림</td><td>A-4</td></tr>
+    <tr><td>8</td><td>마치기 요약 + [사진 보내기] [사진대지로 묶기]</td><td>A-5</td></tr>
+    <tr><td>9</td><td>'조치할 것 N' · '지난달처럼' 바로 시작</td><td>A-6</td></tr>
+  </table>
 </section>
 
-<footer>사진통 · AI고프로 정리 · 고성식 님 지시로 작성 · 2026-10-16</footer>
+<footer>사진통 · AI고프로 정리 · 고성식 님 지시로 작성 · 2026-10-16 (설계안)</footer>
 </div>
 
 </body>
