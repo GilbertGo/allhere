@@ -1502,7 +1502,14 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   const homeBtn = el('button', { 'aria-label': '메인으로', style: 'display:none', onclick: () => { try { window.ReactNativeWebView.postMessage(JSON.stringify({ t: 'go-home' })); } catch {} } }, '⌂ 메인');
   const drawLeft = () => { if (LABC && window.ReactNativeWebView) homeBtn.style.display = shots.length ? '' : 'none'; if (shots.length) { const q = shots[shots.length - 1]; if (!thumb) { const c = document.createElement('canvas'), k = 120 / Math.max(q.W, q.H); c.width = Math.round(q.W * k); c.height = Math.round(q.H * k); drawNote(c.getContext('2d'), q.bmp, c.width, c.height, { ...noteFor(q), at: null }); thumb = c.toDataURL('image/jpeg', .7); } leftBtn.style.cssText = `background:#222 url(${thumb}) center/cover;padding-left:52px;background-size:44px 44px;background-position:6px center;background-repeat:no-repeat`; } else leftBtn.style.cssText = '';
     leftBtn.textContent = shots.length ? `찍은 사진 · ${shots.length}장` : photos.length ? '돌아가기' : '갤러리에서\n고르기'; leftBtn.onclick = shots.length || photos.length ? done : openPick;
-    if (LABC && !shots.length && !photos.length) { leftBtn.textContent = '옵션\n안내'; leftBtn.onclick = () => openMore(true); }   // 장남덕님 시안: 명령어 · 음성 순서 · 설정(갤러리도 여기)
+    if (LABC && !shots.length && !photos.length) { leftBtn.textContent = '옵션\n안내'; leftBtn.onclick = () => openMore(true); }
+    if (LABC && window.__autoSheet && shots.length) leftBtn.onclick = () => { const names = shots.map(x => x.out && x.out.name).filter(Boolean); const bg = el('div', { class: 'sheet-bg', onclick: e => { if (e.target === bg) bg.remove(); } });
+      bg.append(el('div', { class: 'sheet' }, el('h2', {}, '찍은 사진 ' + shots.length + '장'),
+        names.length ? el('button', { class: 'big pri', onclick: () => { bg.remove(); try { window.ReactNativeWebView.postMessage(JSON.stringify({ t: 'auto-sheet', names })); } catch {} } }, '⚡ 사진대지 자동 작성') : null,
+        names.length ? el('div', { class: 'hint', style: 'text-align:left', text: '보드판 글대로 시설명 · 날짜별로 나누고 층 · 내용 순서로 정리해요' }) : null,
+        el('button', { class: 'big sec', onclick: () => { bg.remove(); done(); } }, '찍은 사진 보기 · 고치기 · 보내기'),
+        el('button', { class: 'big sec', onclick: () => bg.remove() }, '계속 찍기')));
+      document.body.append(bg); };   // 실험실(R1016-08): 다 찍고 바로 사진대지   // 장남덕님 시안: 명령어 · 음성 순서 · 설정(갤러리도 여기)
     if (JOB) { const n = jobTotal(); leftBtn.textContent = n ? `다 찍음\n사진대지 (${n}장)` : '처음으로'; leftBtn.onclick = () => jobPost({ t: n ? 'job-done' : 'job-back' }); }
     if (ORD) { const n = ordSp.length; leftBtn.textContent = n ? `마치기\n(${n}장)` : '처음으로'; leftBtn.onclick = ordDone; }
     // 2026-10-09 단계 줄이기: 사진대지 · 팀에서 찍으러 왔으면 왼쪽 버튼이 바로 [사진대지에 넣기] — '찍은 사진 → 완료' 두 번을 한 번으로
