@@ -947,7 +947,8 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   if (LABC && !ls.get('labInit')) { cfg.layout = 'table2'; saveCfg(); ls.set('labInit', 1); }
   if (LABC && window.__userName && (!vals.who || isEx('who', vals.who))) { vals.who = window.__userName; saveCfg(); }
   if (LABC) window.__setUser = n => { if (!n) return; window.__userName = n; if (!vals.who || isEx('who', vals.who)) { vals.who = n; saveCfg(); } };   // 장남덕님 10-16: 처음엔 (없음)이던 것   // R1015-42 담당 자동
-  if (LABC && !ls.get('labInit2')) { cfg.size = 1.2; saveCfg(); ls.set('labInit2', 1); }   // 장남덕님 10-15 '동산보드 크기로' — 보드 선택에서 바꿈   // 장남덕님 10-15 '기본세팅 2단 표'
+  if (LABC && !ls.get('labInit2')) { cfg.size = 1.2; saveCfg(); ls.set('labInit2', 1); }
+  if (LABC && !ls.get('labInit3')) { const m = cfg.fields.find(f => f.id === 'memo'); if (m && (!m.label || m.label === '내용')) { m.label = '세부내용'; saveCfg(); } ls.set('labInit3', 1); }   // 고성식 10-16: 보드판 글자도 '세부내용'(확인 창과 같게, 직접 바꾼 이름은 그대로)   // 장남덕님 10-15 '동산보드 크기로' — 보드 선택에서 바꿈   // 장남덕님 10-15 '기본세팅 2단 표'
   const LABM = { after: '찍고 말하기', before: '말하고 찍기', classic: '기존 방식' };
   const LAB_SKIP = f => !['title', 'memo'].includes(f.id);   // 장남덕님 10-15: 제목 · 세부 내용만 말로, 날짜 · 장소 · 담당은 자동(묻지 않음)
   /* 확인 창: 말로 넣은 것(제목 · 내용)과 자동으로 든 것(일자 · 위치 · 담당)을 보여 주고 [저장] */
@@ -2198,8 +2199,8 @@ async function voiceFill(opt = {}) {   // opt: 카메라 화면처럼 다른 곳
     if (SAY.quit.test(n) && n.length <= 5) return stop('음성 입력을 끝내요');
     if (opt.onWord && opt.onWord(n, V)) return;   // 실험실 갤러리: 칸을 묻는 중에도 '건너뛰기'
     if (opt.byLabel) {   // 실험실: "내용 계단 청소"처럼 칸 이름부터 말하면 그 칸만 바꾸고 나머지는 그대로 → 확인으로
-      for (const f of fields()) { const L = String(f.label || '').replace(/\s/g, ''); if (!L) continue;
-        const m = t.match(new RegExp('^\\s*' + [...L].map(c => c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s*') + '\\s*(?:은|는|이|가|을|를|:)?\\s*'));
+      for (const f of fields()) { const Ls = [String(f.label || '').replace(/\s/g, ''), ...(f.id === 'memo' ? ['세부내용', '내용'] : [])].filter(Boolean); if (!Ls.length) continue;   // 고성식 10-16: 이름이 '세부내용'이어도 "내용 ○○"도 됨
+        let m = null; for (const L of Ls){ m = t.match(new RegExp('^\\s*' + [...L].map(c => c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s*') + '\\s*(?:은|는|이|가|을|를|:)?\\s*')); if (m) break; }
         const val = m ? t.slice(m[0].length).trim() : ''; if (!val) continue;
         setV(f, val.slice(0, f.id === 'memo' ? 60 : 30)); if (opt.changed) opt.changed(); else { refreshInputs && refreshInputs(); redraw(); }
         state = 'ask'; qi = fields().length; return askNext(); }
