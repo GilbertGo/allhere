@@ -184,6 +184,10 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 .cam .labear{position:absolute;left:12px;top:calc(62px + env(safe-area-inset-top,0px));background:linear-gradient(90deg,rgba(37,99,235,.92),rgba(14,124,134,.92));color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:999px;padding:8px 14px;font-size:14px;font-weight:600;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.3);letter-spacing:-.01em}
 .cam .labear b{font-weight:800;margin-right:2px}
 .cam .labear.paused{background:rgba(0,0,0,.6)}
+.cam .labpause{position:absolute;right:12px;top:calc(62px + env(safe-area-inset-top,0px));background:rgba(0,0,0,.55);color:#fff;border:1px solid rgba(255,255,255,.4);border-radius:999px;padding:8px 14px;font-size:14px;font-weight:700}
+.cam .labpause.on{background:#F59E0B;color:#1F2937;border-color:#F59E0B}
+.labcfrow.asking{outline:3px solid #2563EB;outline-offset:2px;border-radius:10px;animation:askb 1s ease-in-out infinite}
+@keyframes askb{50%{outline-color:rgba(37,99,235,.2)}}
 .cam .labresume{position:absolute;left:12px;top:calc(110px + env(safe-area-inset-top,0px));background:#fff;color:#1D4ED8;border-radius:999px;padding:9px 16px;font-size:15px;font-weight:800;box-shadow:0 4px 14px rgba(0,0,0,.35);max-width:calc(100% - 24px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cam .savedpv{position:absolute;inset:0;z-index:30;background:#000;display:flex;flex-direction:column;padding:calc(14px + env(safe-area-inset-top,0px)) 12px calc(14px + env(safe-area-inset-bottom,0px))}
 .cam .savedpv .msg{color:#fff;font-size:16px;font-weight:800;text-align:center;margin-bottom:10px}
@@ -939,7 +943,8 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   const QUICK = CHECK || !!window.__quick;
   const LABC = LAB && !JOB;   // 실험실은 간편 찍기(작업 · 점검 사진첩이 아닐 때)만
   if (LABC && !ls.get('labInit')) { cfg.layout = 'table2'; saveCfg(); ls.set('labInit', 1); }
-  if (LABC && window.__userName && (!vals.who || isEx('who', vals.who))) { vals.who = window.__userName; saveCfg(); }   // R1015-42 담당 자동
+  if (LABC && window.__userName && (!vals.who || isEx('who', vals.who))) { vals.who = window.__userName; saveCfg(); }
+  if (LABC) window.__setUser = n => { if (!n) return; window.__userName = n; if (!vals.who || isEx('who', vals.who)) { vals.who = n; saveCfg(); } };   // 장남덕님 10-16: 처음엔 (없음)이던 것   // R1015-42 담당 자동
   if (LABC && !ls.get('labInit2')) { cfg.size = 1.2; saveCfg(); ls.set('labInit2', 1); }   // 장남덕님 10-15 '동산보드 크기로' — 보드 선택에서 바꿈   // 장남덕님 10-15 '기본세팅 2단 표'
   const LABM = { after: '찍고 말하기', before: '말하고 찍기', classic: '기존 방식' };
   const LAB_SKIP = f => !['title', 'memo'].includes(f.id);   // 장남덕님 10-15: 제목 · 세부 내용만 말로, 날짜 · 장소 · 담당은 자동(묻지 않음)
@@ -948,10 +953,11 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     const bg = el('div', { class: 'sheet-bg labcf' }), shown = f => { const v = get(f); return v && !isEx(f.id, v) ? v : '(없음)'; };
     const inp = f => { const i = el('input', { type: 'text', class: 'labcfin', 'data-f': f.id, maxlength: f.id === 'memo' ? 60 : 30, value: isEx(f.id, get(f)) ? '' : (get(f) || ''), placeholder: (LAB_DESC[f.id] || [])[1] || '',
       onfocus: () => { if (voiceKill) voiceKill(); }, oninput: () => set(f, i.value) }); return i; };   // 손으로 고치기 시작하면 말로 듣기는 멈춤
-    const rows = cfg.fields.filter(f => f.on).map(f => el('div', { class: 'labcfrow' }, el('span', {}, labOf(f) + (LAB_SKIP(f) ? ' · 자동' : '')), set && !LAB_SKIP(f) ? inp(f) : el('b', {}, shown(f))));
+    const rows = cfg.fields.filter(f => f.on).map(f => el('div', { class: 'labcfrow', 'data-row': f.id }, el('span', {}, (f.id === 'memo' ? '세부내용' : labOf(f)) + (LAB_SKIP(f) ? ' · 자동' : '')), set && !LAB_SKIP(f) ? inp(f) : el('b', {}, shown(f))));
     const go = fn => () => { bg.remove(); fn && fn(); };
     bg.append(el('div', { class: 'sheet labmore' }, el('h2', {}, ui.title || '이렇게 넣을까요?'), ...rows,
       el('button', { class: 'big pri', onclick: go(onSave) }, '저장'),
+      el('div', { class: 'hint', style: 'margin-top:-6px;font-size:12.5px', text: '▶ 갤러리 › ' + GAL_DIR + ' 폴더에 저장돼요' }),   // 장남덕님 10-16: 저장 위치 조그맣게
       el('div', { class: 'row2' }, el('button', { class: 'big sec', onclick: go(onKbd) }, ui.kbd || '자판으로 고치기'), el('button', { class: 'big sec', onclick: go(onRedo) }, '다시 말하기'))));
     document.body.append(bg); if (!quiet) speak(cfg.fields.filter(f => f.on && !LAB_SKIP(f)).map(f => labOf(f) + ' ' + shown(f)).join(', ') + '. 저장할까요?'); return bg; };
   const labMode = () => { const m = ls.get('labVoice', 'after'); return LABM[m] ? m : 'after'; };   // after = 찍고 말하기, before = 말하고 찍기, classic = 기존(찍으면 바로 저장)
@@ -1403,6 +1409,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     const base = {};   // 위치: 처음 값(저절로 든 동네) 뒤에 덧붙임
     voiceFill({ get: f => valOf(p, f), set: (f, t) => { if (f.id === 'place' && cfg.mode !== 'fire') { if (base.place == null) base.place = isEx('place', valOf(p, f)) ? '' : valOf(p, f); t = (base.place + ' ' + t).trim().slice(0, 30); } putVal(p, f, t); if (!f.per) saveCfg(); labVoiceN++; }, changed: () => { if (review && review.p === p) review.draw(); document.querySelectorAll('.labcf .labcfin').forEach(i => { const f = cfg.fields.find(x => x.id === i.dataset.f); if (f && document.activeElement !== i) i.value = isEx(f.id, valOf(p, f)) ? '' : (valOf(p, f) || ''); }); },
       skip: LAB_SKIP, byLabel: true, fast: true, startSay: '찍었습니다',
+      onAsk: f => document.querySelectorAll('.labcf .labcfrow').forEach(r => r.classList.toggle('asking', !!f && r.dataset.row === f.id)),   // 장남덕님 10-16: 지금 듣는 칸 깜빡임
       // R1015-40: 첫 장은 길게 안내, 다음 장부터 짧게(한 장마다 5~6초 늘지 않게)
       askText: (f, cur) => shots.length === 0
         ? (f.id === 'title' ? '새 제목, 또는 그대로 라고 말씀하세요' : '세부 입력 사항을 말씀하세요') + (cur ? '. 지금은 ' + cur + ' 로 되어 있습니다' : '')
@@ -1422,6 +1429,9 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   let idleRec = null, idleT = 0; let labPause = false; const ear = el('button', { class: 'labear', 'aria-label': '음성 듣기 멈춤 · 다시 시작', onclick: () => { labPause = !labPause; if (labPause) idleStop(); drawEar(); toast(labPause ? '작업 멈춤 — 띠를 다시 누르면 "찍어"를 들어요' : 'AI 비서가 다시 들어요'); } }); ear.style.display = 'none';
   const drawEar = () => { ear.replaceChildren(labPause ? el('span', {}, '⏸ 작업 멈춤 — 눌러서 다시 시작') : el('span', {}, el('b', {}, 'AI 비서 듣는 중'), ' ▶ [찍어]라고 말하세요!')); ear.classList.toggle('paused', labPause); };
   drawEar();
+  const pauseBtn = el('button', { class: 'labpause', onclick: () => { labPause = !labPause; if (labPause) { idleStop(); if (voiceKill) voiceKill(); } drawEar(); drawPause(); toast(labPause ? '잠시 멈춤 — 다시 누르면 이어서 들어요' : '다시 들어요'); } });
+  const drawPause = () => { pauseBtn.textContent = labPause ? '▶ 다시 시작' : '⏸ 잠시 멈춤'; pauseBtn.classList.toggle('on', labPause); };
+  drawPause(); ear.addEventListener('click', () => setTimeout(drawPause, 0));
   const sayShoot = () => LABC && SR && labMode() === 'after' && ls.get('labSayShoot', true);
   const listenOk = () => sayShoot() && !labPause;   // 장남덕님 시안: 기본 켬
   const idleStop = () => { if (idleRec) { idleRec.onend = null; try { idleRec.abort(); } catch {} idleRec = null; } };
@@ -1433,6 +1443,18 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     r.onend = () => { idleRec = null; if (/찍어|찰칵|촬영/.test(norm(heard)) && !review && !voiceStop) { closeSaved(); shoot(); } };
     try { r.start(); idleRec = r; } catch {} };
   if (LABC) idleT = setInterval(idleListen, 1200);
+  const autoOn = () => LABC && ls.get('labAutoShoot', true);
+  let asPrev = null, asStill = 0, asArmed = true; const asT0 = Date.now(), asC = document.createElement('canvas'); asC.width = 32; asC.height = 24; const asG = asC.getContext('2d', { willReadFrequently: true });
+  const asPaint = k => { const b = wrap.querySelector('.shut'); if (b) b.style.background = k > 0 ? `conic-gradient(#2563EB ${Math.round(k * 360)}deg, #fff 0)` : ''; };
+  const asTick = () => { if (!wrap.isConnected) return clearInterval(asI);
+    if (!autoOn() || labPause || review || savedPv || voiceStop || document.querySelector('.sheet-bg') || !video.videoWidth) { asStill = 0; asPrev = null; asPaint(0); return; }
+    try { asG.drawImage(video, 0, 0, 32, 24); } catch { return; } const d = asG.getImageData(0, 0, 32, 24).data, cur = new Uint8Array(768); let sum = 0;
+    for (let i = 0, j = 0; i < d.length; i += 4, j++) { cur[j] = (d[i] + d[i + 1] + d[i + 2]) / 3; if (asPrev) sum += Math.abs(cur[j] - asPrev[j]); }
+    const diff = asPrev ? sum / 768 : 99; asPrev = cur;
+    if (diff > 15) { asArmed = true; asStill = 0; } else if (diff < 7 && asArmed && Date.now() - asT0 > 1500) asStill += 200; else asStill = 0;
+    asPaint(Math.min(1, asStill / 1500));
+    if (asStill >= 1500) { asStill = 0; asArmed = false; asPaint(0); shoot(); } };
+  const asI = LABC ? setInterval(asTick, 200) : 0;   // 장남덕님 10-16: '찍어' 안 해도 카메라 대면 1~2초 뒤 자동으로
   if (ORD && SR) { ear.classList.add('ord'); ear.style.display = '';
     const drawOrdEar = () => ear.replaceChildren(labPause ? el('span', {}, '⏸ 듣기 멈춤 — 눌러서 다시') : el('span', {}, el('b', {}, 'AI 비서 듣는 중'), ORD === 'space' ? ' "찍어" · "다음 층" · "끝"' : ' "찍어" · "다음 장비" · "끝"'));
     drawOrdEar(); ear.onclick = () => { labPause = !labPause; if (labPause) idleStop(); drawOrdEar(); };
@@ -1483,6 +1505,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
       el('div', { class: 'labpick' }, pick('after', '찍고 말하기', '찍으면 바로 제목부터 말로 — 저장하면 다음 사진'), pick('before', '말하고 찍기', '글을 말로 먼저 채우고 "찍어"'), pick('classic', '기존 방식', '찍으면 바로 저장 — 비교용')),
       labMode() === 'after' ? el('button', { class: 'big sec', onclick: () => { ls.set('labAskEach', !askEach()); bg.remove(); openMore(); } }, askEach() ? '찍을 때마다 설명 묻기: 켬' : '찍을 때마다 설명 묻기: 끔 (계속 찍기 — 글은 그대로)') : null,
       labMode() === 'after' && SR ? el('button', { class: 'big sec', onclick: () => { ls.set('labSayShoot', !ls.get('labSayShoot', true)); bg.remove(); idleStop(); openMore(); } }, ls.get('labSayShoot', true) ? '음성 자동인식 "찍어": 켬' : '음성 자동인식 "찍어": 끔') : null,
+      el('button', { class: 'big sec', onclick: () => { ls.set('labAutoShoot', !ls.get('labAutoShoot', true)); bg.remove(); openMore(); } }, ls.get('labAutoShoot', true) ? '자동 찍기 (가만히 1.5초): 켬' : '자동 찍기 (가만히 1.5초): 끔'),
       el('div', { class: 'hint', style: 'text-align:left;margin-bottom:-4px', text: '방식별 비교 기록 (한 장 평균)' }), labTable(),
       el('div', { class: 'hint', style: 'text-align:left;margin-bottom:-4px', text: '갤러리 사진 라벨링 (사진대지는 사무실에서 — 앱 홈 › 사진대지)' }),
       el('div', { class: 'row2' }, el('button', { class: 'big sec', onclick: go(() => { labToSheet = false; openPick(); }) }, '한 장씩 라벨링'), null),
@@ -1614,7 +1637,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     document.body.append(bg);
   }, 600);
   const view = el('div', { class: 'view' }, video, PAIR ? ghostImg : null, ov, PAIR ? ghostBtn : null,
-      LABC ? labModeBtn : null, LABC ? ear : null,
+      LABC ? labModeBtn : null, LABC ? ear : null, LABC ? pauseBtn : null,
       LABC && window.__resume ? el('button', { class: 'labresume', onclick: () => { try { window.ReactNativeWebView.postMessage(JSON.stringify({ t: 'resume-job' })); } catch {} } }, '▶ ' + [window.__resume.name, window.__resume.kind].filter(Boolean).join(' ') + ' · 이어서 찍기') : null,
       LABC ? el('button', { class: 'gear more', 'aria-label': '더보기', onclick: openMore }, '⋯') : el('button', { class: 'gear', 'aria-label': '설정', onclick: openSet }, ui('sliders', 20)),
       LABC ? null : zoomEl, PAIR ? phEl : null, LABC || (window.ReactNativeWebView && !window.__nativeCam) ? null : el('button', { class: 'ncam', onclick: nativeShot }, ui('camera', 16), '기본 카메라\n광학줌 · 고화질'), nIn, JOB && !ORD ? stepsEl : null, ORD ? ordProg : null, ORD ? ordPick : null, ORD ? ear : null);
@@ -2148,7 +2171,7 @@ async function voiceFill(opt = {}) {   // opt: 카메라 화면처럼 다른 곳
     r.onresult = ev => { const t = [...ev.results].map(x => x[0].transcript).join(''); heard.textContent = t; if (ev.results[ev.results.length - 1].isFinal) { final = t; clearTimeout(idleT); return; }
       if (!opt.fast || !t.trim()) return; const m = norm(t);
       if (state === 'ask' ? /(다음|넘어가)$/.test(m) : (SAY.save.test(m) || SAY.redo.test(m) || SAY.shoot.test(m) || /다시찍|버려|다됐|됐어/.test(m))) return finish(t);
-      clearTimeout(idleT); idleT = setTimeout(() => finish(t), 2500); };
+      clearTimeout(idleT); idleT = setTimeout(() => finish(t), LAB ? 1200 : 2500); };   // 장남덕님 10-16: 제목 → 세부내용 바로 이어지게
     r.onerror = ev => { if (ev.error === 'not-allowed') stop(), toast('마이크 사용을 허락해 주세요'); };
     r.onend = () => { clearTimeout(idleT); rec = null; if (!active) return; if (final.trim()) handle(final.trim()); else setTimeout(listen, 150); };
     try { r.start(); rec = r; } catch { setTimeout(listen, 500); }
@@ -2156,8 +2179,9 @@ async function voiceFill(opt = {}) {   // opt: 카메라 화면처럼 다른 곳
   const ask = async t => { stopRec(); stEl.textContent = t; heard.textContent = ''; await speak(t); listen(); };
   const josa = w => { const c = (w || '').charCodeAt(w.length - 1); return c >= 0xAC00 && c <= 0xD7A3 && (c - 0xAC00) % 28 ? '을' : '를'; };
   const askNext = () => {
-    const fs = fields(); if (qi >= fs.length) { state = 'confirm'; if (opt.onConfirm) opt.onConfirm(V); const sum = fs.map(f => `${f.label} ${getV(f) || '없음'}`).join(', '); return ask(opt.confirmQ ? opt.confirmQ(sum) : `${sum}. 저장할까요?`); }
+    const fs = fields(); if (qi >= fs.length) { if (opt.onAsk) opt.onAsk(null); state = 'confirm'; if (opt.onConfirm) opt.onConfirm(V); const sum = fs.map(f => `${f.label} ${getV(f) || '없음'}`).join(', '); return ask(opt.confirmQ ? opt.confirmQ(sum) : `${sum}. 저장할까요?`); }
     const f = fs[qi], v = getV(f), cur = v && !(LAB && isEx(f.id, v)) ? v : '';
+    if (opt.onAsk) opt.onAsk(f);
     if (opt.askText) return ask(opt.askText(f, cur));
     ask(`${f.label}${josa(f.label)} 말씀하세요${cur ? '. 지금은 ' + cur : ''}`);
   };
@@ -2187,7 +2211,7 @@ async function voiceFill(opt = {}) {   // opt: 카메라 화면처럼 다른 곳
   }
   V = { ask, stop, restart: () => { state = 'ask'; qi = 0; return askNext(); } };
   if (navigator.vibrate) navigator.vibrate(200);
-  if (opt.startSay) await speak(opt.startSay);   // 실험실(R1015-40): "찍었습니다"로 바로 — '음성 입력을 시작해요' 없앰
+  if (opt.startSay) { if (LAB) await new Promise(r => setTimeout(r, 400)); await speak(opt.startSay); }   // 실험실(R1015-40): "찍었습니다"로 바로 — '음성 입력을 시작해요' 없앰
   else { toast('음성 입력을 시작해요 · 끝낼 때 "그만" 또는 다시 똑똑똑'); await speak('음성 입력을 시작해요'); }
   askNext();
 }
