@@ -185,6 +185,13 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 .cam .labear b{font-weight:800;margin-right:2px}
 .cam .labear.paused{background:rgba(0,0,0,.6)}
 .cam .labresume{position:absolute;left:12px;top:calc(110px + env(safe-area-inset-top,0px));background:#fff;color:#1D4ED8;border-radius:999px;padding:9px 16px;font-size:15px;font-weight:800;box-shadow:0 4px 14px rgba(0,0,0,.35);max-width:calc(100% - 24px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cam .savedpv{position:absolute;inset:0;z-index:30;background:#000;display:flex;flex-direction:column;padding:calc(14px + env(safe-area-inset-top,0px)) 12px calc(14px + env(safe-area-inset-bottom,0px))}
+.cam .savedpv .msg{color:#fff;font-size:16px;font-weight:800;text-align:center;margin-bottom:10px}
+.cam .savedpv img{flex:1;min-height:0;width:100%;object-fit:contain;border-radius:10px}
+.cam .savedpv .row2{display:flex;gap:10px;margin-top:12px}
+.cam .savedpv .row2 button{flex:1;height:64px;border-radius:16px;font-size:20px;font-weight:900}
+.cam .savedpv .go{background:#fff;color:#0F172A}
+.cam .savedpv .send{background:#2563EB;color:#fff}
 .cam .labear.ord{top:auto;bottom:66px;left:12px;font-size:13px;padding:6px 12px}
 .cam .ordpick{position:absolute;left:12px;bottom:12px;background:#fff;color:#0F172A;border-radius:999px;padding:10px 20px;font-size:18px;font-weight:900;box-shadow:0 4px 14px rgba(0,0,0,.4);white-space:nowrap;max-width:90%;overflow:hidden;text-overflow:ellipsis}
 .cam .ordpick small{color:#2563EB;font-weight:800;margin-left:4px}
@@ -1253,6 +1260,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   const noteRecent = () => { if (!QUICK) return; const r = ls.get('recent', {}); cfg.fields.filter(x => x.on && !['title', 'date'].includes(x.id)).forEach(x => { const v = camGet(x); if (v && v !== EX[x.id]) r[x.id] = pushRecent(r[x.id], v); }); ls.set('recent', r); };
   dragBox(ov, () => box, () => { const q = crop(); return q ? [Math.round(q.w * upK(q)), Math.round(q.h * upK(q))] : [1, 1]; }, () => {}, editText);
   const shoot = async () => {
+    if (savedPv) { closeSaved(); return; }   // 저장한 사진을 보는 중이면 먼저 카메라로
     const q = crop(); if (!q) return;
     noteRecent();   // 사진 비율 · 디지털 줌대로 화면에 보이던 부분만
     const k = upK(q), c = document.createElement('canvas'); c.width = Math.round(q.w * k); c.height = Math.round(q.h * k); const cg = c.getContext('2d'); cg.imageSmoothingQuality = 'high'; cg.drawImage(video, q.x, q.y, q.w, q.h, 0, 0, c.width, c.height);
@@ -1287,6 +1295,14 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
       afterShot(p);
     } catch { toast('사진을 열지 못했어요'); }
   };
+  /* 장남덕님 10-16: 찍고 저장하면 그 사진을 바로 크게 — [찍어] 다음 사진 찍을 카메라로 · [보내기] 이 사진을 카톡 등으로 */
+  let savedPv = null;
+  const closeSaved = () => { if (savedPv) { try { URL.revokeObjectURL(savedPv.url); } catch {} savedPv.el.remove(); savedPv = null; } };
+  const showSaved = f => { closeSaved(); if (!f) return; const url = URL.createObjectURL(f);
+    const send = async () => { try { if (navigator.canShare && navigator.canShare({ files: [f] })) await navigator.share({ files: [f] }); else toast('갤러리 › ' + GAL_DIR + '에서 보내 주세요'); } catch {} };
+    const box = el('div', { class: 'savedpv', role: 'dialog', 'aria-label': '저장한 사진' }, el('div', { class: 'msg' }, '✓ 저장했어요 · ' + shots.length + '장째'), el('img', { src: url, alt: '방금 저장한 사진' }),
+      el('div', { class: 'row2' }, el('button', { class: 'go', onclick: closeSaved }, '찍어'), el('button', { class: 'send', onclick: send }, '보내기')));
+    wrap.append(box); savedPv = { el: box, url }; };
   // 찍은 사진 확인(2026-10-02 사용자: 찍고 나서 찍은 사진 보여주고 저장할지 물어봐): 다시 찍기 / 글 수정 / 저장
   let review = null;
   // 2026-10-09 장남덕님 요청 · 고성식 님 결정: 찍으면 바로 저장하고 곧바로 다음 사진 찍을 준비(확인 화면 없이).
@@ -1311,8 +1327,8 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
       if (LABC && !f) { shots.pop(); p.saved = false; thumb = null; drawLeft(); labStat(0, { fail: 1 }); toast('저장하지 못했어요 — 사진과 글은 그대로예요. 다시 [저장]을 눌러 주세요'); if (!review || review.p !== p) { wrap.append(box); review = { el: box, p, keep, drop, draw, edit: editIt }; draw(); } return; }
       if (f) { download(f); p.out = f; p.outSig = p.sig; }   // 2026-10-09 고성식 님 '옮기는 중 10초': 저장한 그림을 기억해 두고 옮길 때 다시 그리지 않는다
       if (f && OPT.orig) { const o = await origFile(p, f.name); if (o) { await new Promise(r => setTimeout(r, 400)); download(o); } }
-      close(); toast(`저장했어요${OPT.orig ? '(원본도)' : ''} (갤러리 › ${GAL_DIR}) · 찍은 사진 ${shots.length}장`);
-      if (LABC) { labOk(); labStat(0, { n: 1, ms: Date.now() - labT, taps: labTaps, voice: labVoiceN }); labT = Date.now(); labTaps = labVoiceN = 0; }
+      close(); if (JOB) toast(`저장했어요${OPT.orig ? '(원본도)' : ''} (갤러리 › ${GAL_DIR}) · 찍은 사진 ${shots.length}장`); else showSaved(f);   // 장남덕님 10-16: 저장한 사진을 바로 크게
+      if (LABC) { labStat(0, { n: 1, ms: Date.now() - labT, taps: labTaps, voice: labVoiceN }); labT = Date.now(); labTaps = labVoiceN = 0; }
       slim(p);   // 메모리: 저장한 사진은 접어 둔다(위 slim)
       autoNext(at);   // 찍으면 자동으로 넘기기(10-14) — 찍을 때의 차례(at) 다음으로
       if (JOB && f) {
@@ -1414,7 +1430,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     const r = new SR(); r.lang = 'ko-KR'; r.interimResults = false; r.continuous = false; let heard = '';
     r.onresult = ev => { heard = [...ev.results].map(x => x[0].transcript).join(''); };
     r.onerror = ev => { if (ev.error === 'not-allowed') { ls.set('labSayShoot', false); toast('마이크를 쓸 수 없어 "찍어" 듣기를 껐어요'); } };
-    r.onend = () => { idleRec = null; if (/찍어|찰칵|촬영/.test(norm(heard)) && !review && !voiceStop) shoot(); };
+    r.onend = () => { idleRec = null; if (/찍어|찰칵|촬영/.test(norm(heard)) && !review && !voiceStop) { closeSaved(); shoot(); } };
     try { r.start(); idleRec = r; } catch {} };
   if (LABC) idleT = setInterval(idleListen, 1200);
   if (ORD && SR) { ear.classList.add('ord'); ear.style.display = '';
@@ -1513,7 +1529,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     if (JOB) { const n = jobTotal(); leftBtn.textContent = n ? `다 찍음\n사진대지 (${n}장)` : '처음으로'; leftBtn.onclick = () => jobPost({ t: n ? 'job-done' : 'job-back' }); }
     if (ORD) { const n = ordSp.length; leftBtn.textContent = n ? `마치기\n(${n}장)` : '처음으로'; leftBtn.onclick = ordDone; }
     // 2026-10-09 단계 줄이기: 사진대지 · 팀에서 찍으러 왔으면 왼쪽 버튼이 바로 [사진대지에 넣기] — '찍은 사진 → 완료' 두 번을 한 번으로
-    if (window.__toSheet && !JOB && shots.length) { leftBtn.textContent = (window.__toSheetLabel || '사진대지에 넣기') + '\n(' + shots.length + '장)'; leftBtn.onclick = () => { stop(); photos = shots.slice(); cur = 0; toSheet(); }; } };
+    if (window.__toSheet && window.__toSheetLabel && !JOB && shots.length) { /* 장남덕님 10-16: 홈 카메라는 찍은 뒤 [사진대지에 넣기]로 넘어가지 않음 */ leftBtn.textContent = (window.__toSheetLabel || '사진대지에 넣기') + '\n(' + shots.length + '장)'; leftBtn.onclick = () => { stop(); photos = shots.slice(); cur = 0; toSheet(); }; } };
   drawLeft();
   // 설정(예전 첫 화면에 있던 것): AI로 채우기 설정 · 두드림 감도
   // 설정 › 저장 · 로고(2026-10-07) — 원본도 함께 저장 켬/끔, 로고 넣기 · 바꾸기 · 빼기 · 위치 · 크기
