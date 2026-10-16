@@ -186,8 +186,10 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 .cam .labear.paused{background:rgba(0,0,0,.6)}
 .cam .labpause{position:absolute;right:12px;top:calc(62px + env(safe-area-inset-top,0px));background:rgba(0,0,0,.55);color:#fff;border:1px solid rgba(255,255,255,.4);border-radius:999px;padding:8px 14px;font-size:14px;font-weight:700}
 .cam .labpause.on{background:#F59E0B;color:#1F2937;border-color:#F59E0B}
-.labcfrow.asking{outline:3px solid #2563EB;outline-offset:2px;border-radius:10px;animation:askb 1s ease-in-out infinite}
-@keyframes askb{50%{outline-color:rgba(37,99,235,.2)}}
+.labcfrow.asking{outline:4px solid #2563EB;outline-offset:2px;border-radius:12px;background:#FEF08A;animation:askb .8s ease-in-out infinite}
+.labcfrow.asking>span:first-child{color:#1D4ED8;font-weight:900}
+.labcfrow.asking>span:first-child::before{content:"🎤 "}
+@keyframes askb{50%{background:#DBEAFE;outline-color:rgba(37,99,235,.15)}}   /* 장남덕님 10-16: 점멸 칸 더 눈에 띄게 */
 .cam .labresume{position:absolute;left:12px;top:calc(110px + env(safe-area-inset-top,0px));background:#fff;color:#1D4ED8;border-radius:999px;padding:9px 16px;font-size:15px;font-weight:800;box-shadow:0 4px 14px rgba(0,0,0,.35);max-width:calc(100% - 24px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cam .savedpv{position:absolute;inset:0;z-index:30;background:#000;display:flex;flex-direction:column;padding:calc(14px + env(safe-area-inset-top,0px)) 12px calc(14px + env(safe-area-inset-bottom,0px))}
 .cam .savedpv .msg{color:#fff;font-size:16px;font-weight:800;text-align:center;margin-bottom:10px}
@@ -1454,9 +1456,9 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     try { asG.drawImage(video, 0, 0, 32, 24); } catch { return; } const d = asG.getImageData(0, 0, 32, 24).data, cur = new Uint8Array(768); let sum = 0;
     for (let i = 0, j = 0; i < d.length; i += 4, j++) { cur[j] = (d[i] + d[i + 1] + d[i + 2]) / 3; if (asPrev) sum += Math.abs(cur[j] - asPrev[j]); }
     const diff = asPrev ? sum / 768 : 99; asPrev = cur;
-    if (diff > 15) { asArmed = true; asStill = 0; } else if (diff < 7 && asArmed && Date.now() - asT0 > 800) asStill += 200; else asStill = 0;
-    asPaint(Math.min(1, asStill / 800));
-    if (asStill >= 800) {   // 장남덕님 10-16: 각 잡고 바로 찍히게(1.5 → 0.8초)
+    if (diff > 15) { asArmed = true; asStill = 0; } else if (diff < 7 && asArmed && Date.now() - asT0 > 1000) asStill += 200; else asStill = 0;
+    asPaint(Math.min(1, asStill / 1000));
+    if (asStill >= 1000) {   // 장남덕님 10-16: 대고 1초 뒤 자동 찍기
  asStill = 0; asArmed = false; asPaint(0); shoot(); } };
   const asI = LABC ? setInterval(asTick, 200) : 0;   // 장남덕님 10-16: '찍어' 안 해도 카메라 대면 1~2초 뒤 자동으로
   if (ORD && SR) { ear.classList.add('ord'); ear.style.display = '';
@@ -1510,7 +1512,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
       labMode() === 'after' ? el('button', { class: 'big sec', onclick: () => { ls.set('labAskEach', !askEach()); bg.remove(); openMore(); } }, askEach() ? '찍을 때마다 설명 묻기: 켬' : '찍을 때마다 설명 묻기: 끔 (계속 찍기 — 글은 그대로)') : null,
       labMode() === 'after' && SR ? el('button', { class: 'big sec', onclick: () => { ls.set('labSayShoot', !ls.get('labSayShoot', true)); bg.remove(); idleStop(); openMore(); } }, ls.get('labSayShoot', true) ? '음성 자동인식 "찍어": 켬' : '음성 자동인식 "찍어": 끔') : null,
       el('button', { class: 'big sec', onclick: () => { toast('말하는 중… 안 들리면 휴대폰 소리(미디어 음량)를 올려 주세요'); speak('음성 안내 시험입니다. 이 말이 들리면 정상이에요'); } }, '🔊 음성 안내 시험'),
-      el('button', { class: 'big sec', onclick: () => { ls.set('labAutoShoot', !ls.get('labAutoShoot', true)); bg.remove(); openMore(); } }, ls.get('labAutoShoot', true) ? '자동 찍기 (각 잡으면 바로): 켬' : '자동 찍기 (각 잡으면 바로): 끔'),
+      el('button', { class: 'big sec', onclick: () => { ls.set('labAutoShoot', !ls.get('labAutoShoot', true)); bg.remove(); openMore(); } }, ls.get('labAutoShoot', true) ? '자동 찍기 (대고 1초): 켬' : '자동 찍기 (대고 1초): 끔'),
       el('div', { class: 'hint', style: 'text-align:left;margin-bottom:-4px', text: '방식별 비교 기록 (한 장 평균)' }), labTable(),
       el('div', { class: 'hint', style: 'text-align:left;margin-bottom:-4px', text: '갤러리 사진 라벨링 (사진대지는 사무실에서 — 앱 홈 › 사진대지)' }),
       el('div', { class: 'row2' }, el('button', { class: 'big sec', onclick: go(() => { labToSheet = false; openPick(); }) }, '한 장씩 라벨링'), null),
