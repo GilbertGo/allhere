@@ -1457,7 +1457,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   if (LABC) idleT = setInterval(idleListen, 1200);
   const autoOn = () => LABC && ls.get('labAutoShoot', true);
   let asPrev = null, asStill = 0, asArmed = true; const asT0 = Date.now(), asC = document.createElement('canvas'); asC.width = 32; asC.height = 24; const asG = asC.getContext('2d', { willReadFrequently: true });
-  const asPaint = k => { const b = wrap.querySelector('.shut'); if (b) b.style.background = k > 0 ? `radial-gradient(circle, #fff 0 64%, transparent 65%), conic-gradient(#2563EB ${Math.round(k * 360)}deg, rgba(255,255,255,.35) 0)` : ''; };   // 셔터 테두리를 따라 도는 원
+  const asPaint = k => { const b = wrap.querySelector('.shut'); if (b){ b.style.background = k > 0 ? `radial-gradient(circle, #fff 0 52%, transparent 53%), conic-gradient(#FACC15 ${Math.round(k * 360)}deg, rgba(255,255,255,.22) 0)` : ''; b.style.boxShadow = k > 0 ? '0 0 0 3px rgba(250,204,21,.55), 0 0 22px rgba(250,204,21,.85)' : ''; b.style.transform = k > 0 ? 'scale(1.08)' : ''; b.style.transition = 'transform .2s'; } };   // 고성식 10-17: 더 눈에 띄게 — 굵은 노란 원 · 빛 · 살짝 커짐
   const asTick = () => { if (!wrap.isConnected) return clearInterval(asI);
     if (!autoOn() || labPause || review || savedPv || voiceStop || document.querySelector('.sheet-bg') || !video.videoWidth) { asStill = 0; asPrev = null; asPaint(0); return; }
     try { asG.drawImage(video, 0, 0, 32, 24); } catch { return; } const d = asG.getImageData(0, 0, 32, 24).data, cur = new Uint8Array(768); let sum = 0;
