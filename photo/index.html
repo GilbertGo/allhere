@@ -1508,12 +1508,12 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
         '"내용 계단 청소"처럼 칸 이름부터 말하면 그 칸만 바뀌어요\n' +
         '위 "AI 비서 듣는 중" 띠를 누르면 작업 멈춤 / 다시 시작 · 말하는 중에는 [말로 채우기 끝내기]'),
       el('div', { class: 'hint', style: 'text-align:left;margin-bottom:-4px', text: '찍는 방식 (옵션 — 기본은 찍고 말하기)' }),
-      el('div', { class: 'labpick' }, pick('after', '찍고 말하기', '찍으면 바로 제목부터 말로 — 저장하면 다음 사진'), pick('before', '말하고 찍기', '글을 말로 먼저 채우고 "찍어"'), pick('classic', '기존 방식', '찍으면 바로 저장 — 비교용')),
+      el('div', { class: 'labpick' }, pick('after', '찍고 말하기', '찍으면 바로 제목부터 말로 — 저장하면 다음 사진'), pick('before', '말하고 찍기', '글을 말로 먼저 채우고 "찍어"'), pick('classic', '기존 방식', '찍으면 바로 저장 — 비교용')),   /* [시험 후 숨김] 찍는 방식 3가지 고르기 — 시험 끝나면 정한 한 가지만 */
       labMode() === 'after' ? el('button', { class: 'big sec', onclick: () => { ls.set('labAskEach', !askEach()); bg.remove(); openMore(); } }, askEach() ? '찍을 때마다 설명 묻기: 켬' : '찍을 때마다 설명 묻기: 끔 (계속 찍기 — 글은 그대로)') : null,
       labMode() === 'after' && SR ? el('button', { class: 'big sec', onclick: () => { ls.set('labSayShoot', !ls.get('labSayShoot', true)); bg.remove(); idleStop(); openMore(); } }, ls.get('labSayShoot', true) ? '음성 자동인식 "찍어": 켬' : '음성 자동인식 "찍어": 끔') : null,
-      el('button', { class: 'big sec', onclick: () => { toast('말하는 중… 안 들리면 휴대폰 소리(미디어 음량)를 올려 주세요'); speak('음성 안내 시험입니다. 이 말이 들리면 정상이에요'); } }, '🔊 음성 안내 시험'),
+      el('button', { class: 'big sec', onclick: () => { toast('말하는 중… 안 들리면 휴대폰 소리(미디어 음량)를 올려 주세요'); speak('음성 안내 시험입니다. 이 말이 들리면 정상이에요'); } }, '🔊 음성 안내 시험'),   /* [시험 후 숨김] 음성 안내 시험 */
       el('button', { class: 'big sec', onclick: () => { ls.set('labAutoShoot', !ls.get('labAutoShoot', true)); bg.remove(); openMore(); } }, ls.get('labAutoShoot', true) ? '자동 찍기 (대고 1초): 켬' : '자동 찍기 (대고 1초): 끔'),
-      el('div', { class: 'hint', style: 'text-align:left;margin-bottom:-4px', text: '방식별 비교 기록 (한 장 평균)' }), labTable(),
+      el('div', { class: 'hint', style: 'text-align:left;margin-bottom:-4px', text: '방식별 비교 기록 (한 장 평균)' }), labTable(),   /* [시험 후 숨김] 방식별 비교 기록 */
       el('div', { class: 'hint', style: 'text-align:left;margin-bottom:-4px', text: '갤러리 사진 라벨링 (사진대지는 사무실에서 — 앱 홈 › 사진대지)' }),
       el('div', { class: 'row2' }, el('button', { class: 'big sec', onclick: go(() => { labToSheet = false; openPick(); }) }, '한 장씩 라벨링'), null),
       el('div', { class: 'hint', style: 'text-align:left;margin-bottom:-4px', text: '보드판 글' }),
