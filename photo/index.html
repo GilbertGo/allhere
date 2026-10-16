@@ -1404,7 +1404,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     const cf = () => document.querySelectorAll('.sheet-bg.labcf').forEach(x => x.remove());
     const setP = (f, t) => { putVal(p, f, t); if (!f.per) saveCfg(); if (review && review.p === p) review.draw(); };
     const fix = () => { if (voiceKill) voiceKill(); cf(); if (review) review.edit(); };   // [수정] → 고치는 창([수정내용 저장]이 바로 저장)
-    const popup = () => labConfirm(f => valOf(p, f), () => { if (voiceKill) voiceKill(); labKeep(); }, () => { if (voiceKill) voiceKill(); afterVoice(); }, fix, setP, true, { title: '이대로 저장할까요?', kbd: '수정' });
+    const popup = () => labConfirm(f => valOf(p, f), () => { if (voiceKill) voiceKill(); labKeep(); }, () => { if (voiceKill) voiceKill(); afterVoice(); }, fix, setP, true, { title: '그대로 저장할까요?', kbd: '수정' });
     popup();   // R1015-40: 찍자마자 입력 팝업
     const base = {};   // 위치: 처음 값(저절로 든 동네) 뒤에 덧붙임
     voiceFill({ get: f => valOf(p, f), set: (f, t) => { if (f.id === 'place' && cfg.mode !== 'fire') { if (base.place == null) base.place = isEx('place', valOf(p, f)) ? '' : valOf(p, f); t = (base.place + ' ' + t).trim().slice(0, 30); } putVal(p, f, t); if (!f.per) saveCfg(); labVoiceN++; }, changed: () => { if (review && review.p === p) review.draw(); document.querySelectorAll('.labcf .labcfin').forEach(i => { const f = cfg.fields.find(x => x.id === i.dataset.f); if (f && document.activeElement !== i) i.value = isEx(f.id, valOf(p, f)) ? '' : (valOf(p, f) || ''); }); },
@@ -1417,18 +1417,21 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
       onEnd: v => { v.stop(); labConfirm(f => valOf(p, f), labKeep, () => afterVoice(), () => review && review.edit(), (f, t) => { putVal(p, f, t); if (!f.per) saveCfg(); if (review && review.p === p) review.draw(); }); },
       help: '말하고 "다음" → 다음 칸 · "저장" · "같음" 그대로 · "다시" 처음부터 · "그만" 끝 · "다시 찍기"',
       buttons: [['다시 찍기', v => { v.stop(); cf(); if (review) review.drop(); }, 'x'], ['저장하고 계속 찍기', v => { v.stop(); cf(); labKeep(); }]],   // 작업 멈춤은 위 'AI 비서' 띠로(R1015-44, 버튼을 늘리지 않음)
-      confirmQ: () => '이대로 저장할까요, 수정할까요?',
+      confirmQ: () => '그대로 저장할까요, 수정할까요?',   // 장남덕님 10-16: 이대로 → 그대로
       onConfirm: popup,
       confirm: async (n, v) => {
         if (/다시\s?찍|버려|취소|지워/.test(n)) { document.querySelectorAll('.sheet-bg.labcf').forEach(x => x.remove()); v.stop(); if (review) review.drop(); return speak('지웠어요. 다시 찍어 주세요'); }
         if (/수정|고칠|고쳐/.test(n)) { v.stop(); return fix(); }   // R1015-42: [수정] → 고치는 창
         if (SAY.redo.test(n)) { return v.restart(); }
-        if (SAY.save.test(n)) { cf(); v.stop(); return labKeep(); }
-        return v.ask('저장, 또는 수정 이라고 말씀하세요');
+        if (SAY.save.test(n) || /그대로|이대로/.test(n)) { cf(); v.stop(); return labKeep(); }   // "그대로" = 저장(이대로와 같음)
+        return v.ask('그대로, 또는 수정 이라고 말씀하세요');
       } }); };
   let idleRec = null, idleT = 0; let labPause = false; const ear = el('button', { class: 'labear', 'aria-label': '음성 듣기 멈춤 · 다시 시작', onclick: () => { labPause = !labPause; if (labPause) idleStop(); drawEar(); toast(labPause ? '작업 멈춤 — 띠를 다시 누르면 "찍어"를 들어요' : 'AI 비서가 다시 들어요'); } }); ear.style.display = 'none';
   const drawEar = () => { ear.replaceChildren(labPause ? el('span', {}, '⏸ 작업 멈춤 — 눌러서 다시 시작') : el('span', {}, el('b', {}, 'AI 비서 듣는 중'), ' ▶ [찍어]라고 말하세요!')); ear.classList.toggle('paused', labPause); };
   drawEar();
+  const resumeBtn = el('button', { class: 'labresume', onclick: () => { try { window.ReactNativeWebView.postMessage(JSON.stringify({ t: 'resume-job' })); } catch {} } });
+  const drawResume = () => { const r = window.__resume; resumeBtn.style.display = LABC && r ? '' : 'none'; if (r) resumeBtn.textContent = '▶ ' + [r.name, r.kind].filter(Boolean).join(' ') + ' · 이어서 찍기'; };
+  drawResume(); window.__drawResume = drawResume;
   const pauseBtn = el('button', { class: 'labpause', onclick: () => { labPause = !labPause; if (labPause) { idleStop(); if (voiceKill) voiceKill(); } drawEar(); drawPause(); toast(labPause ? '잠시 멈춤 — 다시 누르면 이어서 들어요' : '다시 들어요'); } });
   const drawPause = () => { pauseBtn.textContent = labPause ? '▶ 다시 시작' : '⏸ 잠시 멈춤'; pauseBtn.classList.toggle('on', labPause); };
   drawPause(); ear.addEventListener('click', () => setTimeout(drawPause, 0));
@@ -1451,9 +1454,10 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     try { asG.drawImage(video, 0, 0, 32, 24); } catch { return; } const d = asG.getImageData(0, 0, 32, 24).data, cur = new Uint8Array(768); let sum = 0;
     for (let i = 0, j = 0; i < d.length; i += 4, j++) { cur[j] = (d[i] + d[i + 1] + d[i + 2]) / 3; if (asPrev) sum += Math.abs(cur[j] - asPrev[j]); }
     const diff = asPrev ? sum / 768 : 99; asPrev = cur;
-    if (diff > 15) { asArmed = true; asStill = 0; } else if (diff < 7 && asArmed && Date.now() - asT0 > 1500) asStill += 200; else asStill = 0;
-    asPaint(Math.min(1, asStill / 1500));
-    if (asStill >= 1500) { asStill = 0; asArmed = false; asPaint(0); shoot(); } };
+    if (diff > 15) { asArmed = true; asStill = 0; } else if (diff < 7 && asArmed && Date.now() - asT0 > 800) asStill += 200; else asStill = 0;
+    asPaint(Math.min(1, asStill / 800));
+    if (asStill >= 800) {   // 장남덕님 10-16: 각 잡고 바로 찍히게(1.5 → 0.8초)
+ asStill = 0; asArmed = false; asPaint(0); shoot(); } };
   const asI = LABC ? setInterval(asTick, 200) : 0;   // 장남덕님 10-16: '찍어' 안 해도 카메라 대면 1~2초 뒤 자동으로
   if (ORD && SR) { ear.classList.add('ord'); ear.style.display = '';
     const drawOrdEar = () => ear.replaceChildren(labPause ? el('span', {}, '⏸ 듣기 멈춤 — 눌러서 다시') : el('span', {}, el('b', {}, 'AI 비서 듣는 중'), ORD === 'space' ? ' "찍어" · "다음 층" · "끝"' : ' "찍어" · "다음 장비" · "끝"'));
@@ -1505,7 +1509,8 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
       el('div', { class: 'labpick' }, pick('after', '찍고 말하기', '찍으면 바로 제목부터 말로 — 저장하면 다음 사진'), pick('before', '말하고 찍기', '글을 말로 먼저 채우고 "찍어"'), pick('classic', '기존 방식', '찍으면 바로 저장 — 비교용')),
       labMode() === 'after' ? el('button', { class: 'big sec', onclick: () => { ls.set('labAskEach', !askEach()); bg.remove(); openMore(); } }, askEach() ? '찍을 때마다 설명 묻기: 켬' : '찍을 때마다 설명 묻기: 끔 (계속 찍기 — 글은 그대로)') : null,
       labMode() === 'after' && SR ? el('button', { class: 'big sec', onclick: () => { ls.set('labSayShoot', !ls.get('labSayShoot', true)); bg.remove(); idleStop(); openMore(); } }, ls.get('labSayShoot', true) ? '음성 자동인식 "찍어": 켬' : '음성 자동인식 "찍어": 끔') : null,
-      el('button', { class: 'big sec', onclick: () => { ls.set('labAutoShoot', !ls.get('labAutoShoot', true)); bg.remove(); openMore(); } }, ls.get('labAutoShoot', true) ? '자동 찍기 (가만히 1.5초): 켬' : '자동 찍기 (가만히 1.5초): 끔'),
+      el('button', { class: 'big sec', onclick: () => { toast('말하는 중… 안 들리면 휴대폰 소리(미디어 음량)를 올려 주세요'); speak('음성 안내 시험입니다. 이 말이 들리면 정상이에요'); } }, '🔊 음성 안내 시험'),
+      el('button', { class: 'big sec', onclick: () => { ls.set('labAutoShoot', !ls.get('labAutoShoot', true)); bg.remove(); openMore(); } }, ls.get('labAutoShoot', true) ? '자동 찍기 (각 잡으면 바로): 켬' : '자동 찍기 (각 잡으면 바로): 끔'),
       el('div', { class: 'hint', style: 'text-align:left;margin-bottom:-4px', text: '방식별 비교 기록 (한 장 평균)' }), labTable(),
       el('div', { class: 'hint', style: 'text-align:left;margin-bottom:-4px', text: '갤러리 사진 라벨링 (사진대지는 사무실에서 — 앱 홈 › 사진대지)' }),
       el('div', { class: 'row2' }, el('button', { class: 'big sec', onclick: go(() => { labToSheet = false; openPick(); }) }, '한 장씩 라벨링'), null),
@@ -1638,7 +1643,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   }, 600);
   const view = el('div', { class: 'view' }, video, PAIR ? ghostImg : null, ov, PAIR ? ghostBtn : null,
       LABC ? labModeBtn : null, LABC ? ear : null, LABC ? pauseBtn : null,
-      LABC && window.__resume ? el('button', { class: 'labresume', onclick: () => { try { window.ReactNativeWebView.postMessage(JSON.stringify({ t: 'resume-job' })); } catch {} } }, '▶ ' + [window.__resume.name, window.__resume.kind].filter(Boolean).join(' ') + ' · 이어서 찍기') : null,
+      LABC ? resumeBtn : null,
       LABC ? el('button', { class: 'gear more', 'aria-label': '더보기', onclick: openMore }, '⋯') : el('button', { class: 'gear', 'aria-label': '설정', onclick: openSet }, ui('sliders', 20)),
       LABC ? null : zoomEl, PAIR ? phEl : null, LABC || (window.ReactNativeWebView && !window.__nativeCam) ? null : el('button', { class: 'ncam', onclick: nativeShot }, ui('camera', 16), '기본 카메라\n광학줌 · 고화질'), nIn, JOB && !ORD ? stepsEl : null, ORD ? ordProg : null, ORD ? ordPick : null, ORD ? ear : null);
   view.addEventListener('pointerdown', e => { onPt(e); if (pts.size === 2) pinch = { d: pdist(), z: zoom }; });
