@@ -151,6 +151,13 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 .cam .tools{display:flex;gap:6px;padding:8px 10px 0}
 .cam .tools button{flex:1 1 0;min-width:0;height:62px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.16);color:rgba(255,255,255,.9);font-size:12px;font-weight:600;letter-spacing:.01em;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;white-space:nowrap;letter-spacing:-.03em}
 .cam .tools button svg,.etools button svg{display:block}
+.cam .savedpv{position:absolute;inset:0;z-index:30;background:#000;display:flex;flex-direction:column;padding:calc(14px + env(safe-area-inset-top,0px)) 12px calc(14px + env(safe-area-inset-bottom,0px))}
+.cam .savedpv .msg{color:#fff;font-size:16px;font-weight:800;text-align:center;margin-bottom:10px}
+.cam .savedpv img{flex:1;min-height:0;width:100%;object-fit:contain;border-radius:10px}
+.cam .savedpv .row2{display:flex;gap:10px;margin-top:12px}
+.cam .savedpv .row2 button{flex:1;height:64px;border-radius:16px;font-size:20px;font-weight:900}
+.cam .savedpv .go{background:#fff;color:#0F172A}
+.cam .savedpv .send{background:#2563EB;color:#fff}
 .cam .nloc{display:flex;align-items:center;gap:8px;margin:8px 10px 0;padding:6px 6px 6px 14px;border-radius:14px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);min-height:62px}
 .cam .nloc .v{flex:1;min-width:0;text-align:left;color:#fff;background:none}
 .cam .nloc .v small{display:block;color:rgba(255,255,255,.6);font-size:12px;font-weight:600}
@@ -213,7 +220,7 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 // 사진은 서버로 보내지 않아요. 위치 이름을 찾을 때만 좌표를 OpenStreetMap 주소 찾기에 보내요.
 const app = document.getElementById('app');
 // 새 버전 확인: 휴대폰이 예전 화면을 기억해 두는 경우가 있어서, 열 때·돌아올 때 서버 파일의 버전이 다르면 가운데 안내 후 새로고침해요
-const PHOTO_VER = '2026-10-15a';
+const PHOTO_VER = '2026-10-16a';
 async function checkVer() {
   // 사진통 앱 안에서는 새로고침하지 않아요(2026-10-09): 새로고침하면 공개 주소로 바로 넘어가 앱이 넣어 준 연결(작업 칩 · 기본 카메라 · 사진대지에 넣기)이 빠진 채 열렸다.
   // 앱은 열 때마다 뒤에서 최신판을 받아 두고 다음에 그것으로 연다(PhotoBox.js refreshPage)
@@ -1042,6 +1049,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   const noteRecent = () => { if (!QUICK) return; const r = ls.get('recent', {}); cfg.fields.filter(x => x.on && !['title', 'date'].includes(x.id)).forEach(x => { const v = camGet(x); if (v && v !== EX[x.id]) r[x.id] = pushRecent(r[x.id], v); }); ls.set('recent', r); };
   dragBox(ov, () => box, () => { const q = crop(); return q ? [q.w, q.h] : [1, 1]; }, () => {}, editText);
   const shoot = async () => {
+    if (savedPv) { closeSaved(); return; }   /* 저장한 사진을 보는 중이면 먼저 카메라로 */
     const q = crop(); if (!q) return;
     noteRecent();   // 사진 비율 · 디지털 줌대로 화면에 보이던 부분만
     const c = document.createElement('canvas'); c.width = q.w; c.height = q.h; c.getContext('2d').drawImage(video, q.x, q.y, q.w, q.h, 0, 0, q.w, q.h);
@@ -1076,6 +1084,14 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
       showReview(p, quick());
     } catch { toast('사진을 열지 못했어요'); }
   };
+  /* 장남덕님 10-16: 찍고 저장하면 그 사진을 바로 크게 — [찍어] 다음 사진 찍을 카메라로 · [보내기] 이 사진을 카톡 등으로 */
+  let savedPv = null;
+  const closeSaved = () => { if (savedPv) { try { URL.revokeObjectURL(savedPv.url); } catch {} savedPv.el.remove(); savedPv = null; } };
+  const showSaved = f => { closeSaved(); if (!f) return; const url = URL.createObjectURL(f);
+    const send = async () => { try { if (navigator.canShare && navigator.canShare({ files: [f] })) await navigator.share({ files: [f] }); else toast('갤러리 › Download에서 보내 주세요'); } catch {} };
+    const box = el('div', { class: 'savedpv', role: 'dialog', 'aria-label': '저장한 사진' }, el('div', { class: 'msg' }, '✓ 저장했어요 · ' + shots.length + '장째'), el('img', { src: url, alt: '방금 저장한 사진' }),
+      el('div', { class: 'row2' }, el('button', { class: 'go', onclick: closeSaved }, '찍어'), el('button', { class: 'send', onclick: send }, '보내기')));
+    wrap.append(box); savedPv = { el: box, url }; };
   // 찍은 사진 확인(2026-10-02 사용자: 찍고 나서 찍은 사진 보여주고 저장할지 물어봐): 다시 찍기 / 글 수정 / 저장
   let review = null;
   // 2026-10-09 장남덕님 요청 · 고성식 님 결정: 찍으면 바로 저장하고 곧바로 다음 사진 찍을 준비(확인 화면 없이).
@@ -1098,7 +1114,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
       saveCfg(); rememberPer(p); p.saved = true; p.sig = sigOf(p); shots.push(p); thumb = null; drawLeft();
       const [f] = await render([p]); if (f) { download(f); p.out = f; p.outSig = p.sig; }   // 2026-10-09 고성식 님 '옮기는 중 10초': 저장한 그림을 기억해 두고 옮길 때 다시 그리지 않는다
       if (f && OPT.orig) { const o = await origFile(p, f.name); if (o) { await new Promise(r => setTimeout(r, 400)); download(o); } }
-      close(); toast(`저장했어요${OPT.orig ? '(원본도)' : ''} (갤러리 › Download) · 찍은 사진 ${shots.length}장`);
+      close(); if (JOB) toast(`저장했어요${OPT.orig ? '(원본도)' : ''} (갤러리 › Download) · 찍은 사진 ${shots.length}장`); else showSaved(f);   // 장남덕님 10-16: 저장한 사진을 바로 크게
       slim(p);   // 메모리: 저장한 사진은 접어 둔다(위 slim)
       autoNext(at);   // 찍으면 자동으로 넘기기(10-14) — 찍을 때의 차례(at) 다음으로
       if (JOB && f) {
@@ -1164,7 +1180,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     leftBtn.textContent = shots.length ? `찍은 사진 · ${shots.length}장` : photos.length ? '돌아가기' : '갤러리에서\n고르기'; leftBtn.onclick = shots.length || photos.length ? done : openPick;
     if (JOB) { const n = jobTotal(); leftBtn.textContent = n ? `다 찍음\n사진대지 (${n}장)` : '처음으로'; leftBtn.onclick = () => jobPost({ t: n ? 'job-done' : 'job-back' }); }
     // 2026-10-09 단계 줄이기: 사진대지 · 팀에서 찍으러 왔으면 왼쪽 버튼이 바로 [사진대지에 넣기] — '찍은 사진 → 완료' 두 번을 한 번으로
-    if (window.__toSheet && !JOB && shots.length) { leftBtn.textContent = (window.__toSheetLabel || '사진대지에 넣기') + '\n(' + shots.length + '장)'; leftBtn.onclick = () => { stop(); photos = shots.slice(); cur = 0; toSheet(); }; } };
+    if (window.__toSheet && window.__toSheetLabel && !JOB && shots.length) { /* 장남덕님 10-16: 홈 카메라는 찍은 뒤 [사진대지에 넣기]로 넘어가지 않음 */ leftBtn.textContent = (window.__toSheetLabel || '사진대지에 넣기') + '\n(' + shots.length + '장)'; leftBtn.onclick = () => { stop(); photos = shots.slice(); cur = 0; toSheet(); }; } };
   drawLeft();
   // 설정(예전 첫 화면에 있던 것): AI로 채우기 설정 · 두드림 감도
   // 설정 › 저장 · 로고(2026-10-07) — 원본도 함께 저장 켬/끔, 로고 넣기 · 바꾸기 · 빼기 · 위치 · 크기
