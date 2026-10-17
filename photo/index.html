@@ -367,15 +367,25 @@ async function placeName(lat, lng) {
   if (k in placeCache) return placeCache[k];
   try {
     const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=17&accept-language=ko`);
-    if (!r.ok) return null;
+    if (!r.ok) throw 0;
     const j = await r.json(), a = j.address || {};
-    return placeCache[k] = ([a.city_district || a.borough || a.county, a.suburb || a.quarter || a.neighbourhood || a.village || a.town].filter(Boolean).join(' ') || j.name || '').slice(0, 30) || null;
+    const n = ([a.city_district || a.borough || a.county, a.suburb || a.quarter || a.neighbourhood || a.village || a.town].filter(Boolean).join(' ') || j.name || '').slice(0, 30);
+    if (!n) throw 0; return placeCache[k] = n;
+  } catch {}
+  try {   /* 고성식 10-18: 첫 곳이 막히면 다른 곳에서 */
+    const r = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=ko`);
+    if (!r.ok) return null;
+    const j = await r.json(), adm = ((j.localityInfo && j.localityInfo.administrative) || []).map(x => x.name).filter(x => /[구군시]$/.test(x || ''));
+    const n = [adm[adm.length - 1] || j.city, j.locality].filter(Boolean).filter((x, i, a) => a.indexOf(x) === i).join(' ').slice(0, 30);
+    return n ? (placeCache[k] = n) : null;
   } catch { return null; }
 }
 function hereNow() {
   return new Promise(res => {
     if (!navigator.geolocation) return res(null);
-    navigator.geolocation.getCurrentPosition(p => res({ lat: p.coords.latitude, lng: p.coords.longitude }), () => res(null), { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
+    let done = false, fails = 0; const ok = p => { if (!done) { done = true; res({ lat: p.coords.latitude, lng: p.coords.longitude }); } }, bad = () => { if (++fails >= 2 && !done) { done = true; res(null); } };
+    navigator.geolocation.getCurrentPosition(ok, bad, { enableHighAccuracy: false, timeout: 8000, maximumAge: 600000 });   /* 고성식 10-18: 위치 자동 입력 안 됨 — 대략 위치 먼저 */
+    navigator.geolocation.getCurrentPosition(ok, bad, { enableHighAccuracy: true, timeout: 20000, maximumAge: 60000 });
   });
 }
 
@@ -934,7 +944,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   const camVals = {};   // 카메라에서 고친 사진마다 칸(일자·위치 등). 이어서 찍는 사진에 같이 들어가요
   const ghostP = () => Object.assign({ date: fmtDate(new Date()), place: cfg.mode === 'fire' ? lastOr('place') : (placeNow || EX.place) }, typeof perDefaults === 'function' ? perDefaults() : {}, camVals);
   here.then(h => h && placeName(h.lat, h.lng).then(n => { if (n) placeNow = n; }));
-  const shotsEl = el('div', { class: 'shots', style: 'display:none' });
+  if (LAB && !JOB) { let tries = 0; const again = () => { if (placeNow || ++tries > 20 || !document.body.contains(wrap)) return; hereNow().then(h => h && placeName(h.lat, h.lng)).then(n => { if (n && !placeNow) { placeNow = n; if (review && review.p && (!review.p.place || isEx('place', review.p.place))) { review.p.place = n; review.draw(); } document.querySelectorAll('.labcf [data-row="place"] b').forEach(b => b.textContent = n); } else setTimeout(again, 30000); }); }; setTimeout(again, 12000); }   // 고성식 10-18: 위치 자동 입력
   let jobAt = JOB ? Math.max(0, Math.min(JOB.at || 0, JOB.steps.length - 1)) : 0;   // 작업 모드: 지금 찍을 차례(JOB.steps 번호). 이어서 찍을 때는 앱이 준 차례부터
   // 조치 전·후(2026-10-06 사용자 승인 시안): 칸 = 지적사항(보수 항목). 사진마다 조치 전 / 조치 후. 앱이 사진대지에서 짝을 지어 준다
   const PAIR = !!(JOB && JOB.format === 'pair');
@@ -947,6 +957,8 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   const QUICK = CHECK || !!window.__quick;
   const LABC = LAB && !JOB;   // 실험실은 간편 찍기(작업 · 점검 사진첩이 아닐 때)만
   if (LABC && !ls.get('labInit')) { cfg.layout = 'table2'; saveCfg(); ls.set('labInit', 1); }
+  if (LABC && (!vals.who || isEx('who', vals.who)) && ls.get('lastWho', '')) { vals.who = ls.get('lastWho', ''); saveCfg(); }   // 고성식 10-18: 담당은 기존 내용 그대로
+  if (LABC && vals.who && !isEx('who', vals.who)) ls.set('lastWho', vals.who);
   if (LABC && window.__userName && (!vals.who || isEx('who', vals.who))) { vals.who = window.__userName; saveCfg(); }
   if (LABC) window.__setUser = n => { if (!n) return; window.__userName = n; if (!vals.who || isEx('who', vals.who)) { vals.who = n; saveCfg(); } };   // 장남덕님 10-16: 처음엔 (없음)이던 것   // R1015-42 담당 자동
   if (LABC && !ls.get('labInit2')) { cfg.size = 1.2; saveCfg(); ls.set('labInit2', 1); }
@@ -1411,7 +1423,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   const afterVoice = (o = {}) => { if (!review) return; const p = review.p;
     const cf = () => document.querySelectorAll('.sheet-bg.labcf').forEach(x => x.remove());
     const setP = (f, t) => { putVal(p, f, t); if (!f.per) saveCfg(); if (review && review.p === p) review.draw(); };
-    const fix = o.all ? () => { if (voiceKill) voiceKill(); const i = document.querySelector('.labcf .labcfin'); if (i) i.focus(); }   // 수정 창: 자판으로
+    const fix = o.all ? () => { if (voiceKill) voiceKill(); popup(); setTimeout(() => { const i = document.querySelector('.labcf .labcfin'); if (i) i.focus(); }, 60); }   // 고성식 10-18: 이 사진 글 수정 화면에서 자판   // 수정 창: 자판으로
       : () => { if (voiceKill) voiceKill(); cf(); afterVoice({ all: true }); };   // 장남덕님 10-17: [수정] = 찍은 뒤 창과 같은 모양 · 음성 자동 입력(모든 칸)   // [수정] → 고치는 창([수정내용 저장]이 바로 저장)
     const popup = () => labConfirm(f => valOf(p, f), () => { if (voiceKill) voiceKill(); labKeep(); }, () => { if (voiceKill) voiceKill(); afterVoice(o); }, fix, setP, true, o.all ? { title: '이 사진 글 수정', kbd: '자판으로 고치기', all: true, save: '수정내용 저장' } : { title: '그대로 저장할까요?', kbd: '수정' });
     popup();   // R1015-40: 찍자마자 입력 팝업
