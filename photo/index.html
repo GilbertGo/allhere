@@ -1421,10 +1421,10 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
       onAsk: f => document.querySelectorAll('.labcf .labcfrow').forEach(r => r.classList.toggle('asking', !!f && r.dataset.row === f.id)),   // 장남덕님 10-16: 지금 듣는 칸 깜빡임
       // R1015-40: 첫 장은 길게 안내, 다음 장부터 짧게(한 장마다 5~6초 늘지 않게)
       askText: (f, cur) => shots.length === 0
-        ? (f.id === 'title' ? '새 제목, 또는 그대로 라고 말씀하세요' : '세부 입력 사항을 말씀하세요') + (cur ? '. 지금은 ' + cur + ' 로 되어 있습니다' : '')
+        ? (f.id === 'title' ? '새 제목, 또는 그대로. 모두 그대로 라고 하면 바로 저장해요' : '세부 입력 사항을 말씀하세요') + (cur ? '. 지금은 ' + cur + ' 로 되어 있습니다' : '')
         : (f.id === 'title' ? '제목?' : '세부 내용?') + (cur ? ' 지금은 ' + cur : ''),
       onEnd: v => { v.stop(); labConfirm(f => valOf(p, f), labKeep, () => afterVoice(), () => review && review.edit(), (f, t) => { putVal(p, f, t); if (!f.per) saveCfg(); if (review && review.p === p) review.draw(); }); },
-      help: '말하고 "다음" → 다음 칸 · "저장" · "같음" 그대로 · "다시" 처음부터 · "그만" 끝 · "다시 찍기"',
+      help: '말하고 "다음" → 다음 칸 · "저장" · "같음" 그대로 · "모두 그대로" 바로 저장 · "다시" 처음부터 · "그만" 끝 · "다시 찍기"',
       buttons: [['다시 찍기', v => { v.stop(); cf(); if (review) review.drop(); }, 'x'], ['저장하고 계속 찍기', v => { v.stop(); cf(); labKeep(); }]],   // 작업 멈춤은 위 'AI 비서' 띠로(R1015-44, 버튼을 늘리지 않음)
       confirmQ: () => '그대로 저장할까요, 수정할까요?',   // 장남덕님 10-16: 이대로 → 그대로
       onConfirm: popup,
@@ -1860,7 +1860,8 @@ function shapeIco(k) {
 const norm = t => (t || '').replace(/[\s.,!?~'"]/g, '');
 const SAY = {
   shoot: /찍어|찍기|촬영|사진|찰칵|치즈/, save: /저장|좋아|네|예|응|오케이|그래/, redo: /다시|아니|틀려|수정/,
-  drop: /버려|취소|지워/, quit: /그만|종료|끝내|나가/, same: /^(같음|같아|그대로|패스|넘어가|다음|없음)$/
+  drop: /버려|취소|지워/, quit: /그만|종료|끝내|나가/, same: /^(같음|같아|그대로|패스|넘어가|다음|없음)$/,
+  all: /^(모두|전부|다|모든칸|전체|싹다|나머지|나머지도)(다)?(그대로|같음|같아|이대로)(저장)?(해|해줘|할게|해요|요)?$/   /* 고성식 10-18: 모두 그대로 → 바로 저장 */
 };
 function speak(t) {
   return new Promise(res => {
@@ -2184,7 +2185,7 @@ async function voiceFill(opt = {}) {   // opt: 카메라 화면처럼 다른 곳
     const finish = t => { if (final || rec !== r) return; final = t; clearTimeout(idleT); try { r.stop(); } catch {} };
     r.onresult = ev => { const t = [...ev.results].map(x => x[0].transcript).join(''); heard.textContent = t; if (ev.results[ev.results.length - 1].isFinal) { final = t; clearTimeout(idleT); return; }
       if (!opt.fast || !t.trim()) return; const m = norm(t);
-      if (state === 'ask' ? (/(다음|넘어가)$/.test(m) || (LAB && /^(그대로|이대로)?저장(해|해줘|할게|해요)?$/.test(m))) : (SAY.save.test(m) || SAY.redo.test(m) || SAY.shoot.test(m) || /다시찍|버려|다됐|됐어/.test(m))) return finish(t);
+      if (state === 'ask' ? (/(다음|넘어가)$/.test(m) || (LAB && (/^(그대로|이대로)?저장(해|해줘|할게|해요)?$/.test(m) || SAY.all.test(m)))) : (SAY.save.test(m) || SAY.redo.test(m) || SAY.shoot.test(m) || /다시찍|버려|다됐|됐어/.test(m))) return finish(t);
       clearTimeout(idleT); idleT = setTimeout(() => finish(t), LAB ? 1200 : 2500); };   // 장남덕님 10-16: 제목 → 세부내용 바로 이어지게
     r.onerror = ev => { if (ev.error === 'not-allowed') stop(), toast('마이크 사용을 허락해 주세요'); };
     r.onend = () => { clearTimeout(idleT); rec = null; if (!active) return; if (final.trim()) handle(final.trim()); else setTimeout(listen, 150); };
@@ -2200,7 +2201,8 @@ async function voiceFill(opt = {}) {   // opt: 카메라 화면처럼 다른 곳
     ask(`${f.label}${josa(f.label)} 말씀하세요${cur ? '. 지금은 ' + cur : ''}`);
   };
   async function handle(t) {
-    if (opt.fast && state === 'ask' && opt.confirm && /^(그대로|이대로)?저장(해|해줘|할게|해요)?$/.test(norm(t))) return opt.confirm(norm(t), V);   // 장남덕님 10-17: "저장" 한 번에
+    if (opt.fast && state === 'ask' && opt.confirm && /^(그대로|이대로)?저장(해|해줘|할게|해요)?$/.test(norm(t))) return opt.confirm(norm(t), V);
+    if (LAB && opt.fast && state === 'ask' && opt.confirm && SAY.all.test(norm(t))) { if (opt.onAsk) opt.onAsk(null); return opt.confirm('그대로', V); }   // 고성식 10-18: 모두 그대로   // 장남덕님 10-17: "저장" 한 번에
     if (opt.fast && state === 'ask') { const t2 = t.replace(/[\s.,!?~]*(다음|넘어가)[\s.,!?~]*$/, '').trim(); if (t2 !== t.trim()) t = t2 || '같음'; }
     const n = norm(t);
     if (SAY.quit.test(n) && n.length <= 5) return stop('음성 입력을 끝내요');
