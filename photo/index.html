@@ -169,6 +169,7 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 .vbar .g-btns .g-b{height:56px;font-size:17px}
 .sheet.labmore .big{flex:none;height:52px;font-size:16.5px;border-radius:14px;width:100%}
 .sheet.labmore .row2{display:flex;gap:8px}
+.sheet.labmore .row2 .labhome{flex:0 0 64px;font-size:26px;padding:0}
 .sheet.labmore .row2 .big{flex:1}
 .labcfrow{display:flex;gap:10px;align-items:baseline;padding:8px 2px;border-bottom:1px solid var(--line)}
 .labcfrow span{flex:none;width:92px;font-size:13px;color:var(--muted)}
@@ -813,7 +814,7 @@ const LOOK_KEYS = ['layout', 'theme', 'size', 'color', 'tRound', 'tBg', 'tLine',
 const lookOf = () => JSON.parse(JSON.stringify(Object.fromEntries(LOOK_KEYS.map(k => [k, cfg[k]]))));
 const useLook = p => { if (p && p.look) Object.assign(cfg, JSON.parse(JSON.stringify(p.look))); };   // 그 사진의 디자인을 편집 칸에 불러와요
 // out: 저장 · 보내는 사진용 — 처음부터 들어 있던 예시 글(EX)은 빼요. 화면 미리보기에는 그대로 보여 줘서 어디를 고치면 되는지 알게(2026-10-09 실사 B-3: 새 사용자 첫 사진에 "점심 삼대째손두부 · 장남덕"이 찍혔다)
-const isEx = (id, v) => !!EX[id] && String(v || '').trim() === EX[id];
+const isEx = (id, v) => !!EX[id] && !(id === 'who' && window.__lab) && String(v || '').trim() === EX[id];   // 고성식 10-18: 실험실 담당은 예시 없음 — 장남덕님 이름이 예시와 같아 (없음)으로 보였다
 function noteFor(p, out) {
   const D = (p && p.look) || cfg;
   const v = id => { const f = cfg.fields.find(x => x.id === id); const x = f ? valOf(p, f) : ''; return out && isEx(id, x) ? '' : x; };
@@ -957,25 +958,28 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   const QUICK = CHECK || !!window.__quick;
   const LABC = LAB && !JOB;   // 실험실은 간편 찍기(작업 · 점검 사진첩이 아닐 때)만
   if (LABC && !ls.get('labInit')) { cfg.layout = 'table2'; saveCfg(); ls.set('labInit', 1); }
-  /* 고성식 10-18: 담당 = 이전에 넣은 이름(아이디 말고). 전에 계정 이름이 저절로 들어간 것은 되돌림 */
-  if (LABC && (!vals.who || isEx('who', vals.who)) && ls.get('whoMine', '')) { vals.who = ls.get('whoMine', ''); saveCfg(); }
-  if (LABC) window.__setUser = n => { if (!n) return; window.__userName = n; if (vals.who === n && ls.get('whoMine', '') !== n) { vals.who = ls.get('whoMine', '') || ls.get('who', '') || ''; saveCfg(); } };   // 장남덕님 10-16: 처음엔 (없음)이던 것   // R1015-42 담당 자동
+  /* 고성식 10-18: 담당 = 전 담당자(아이디 말고) · 없음 금지 */
+  const whoPrev = () => { const id = window.__userName || '', ok = v => v && !isEx('who', v) && v !== id;
+    return [ls.get('whoMine', ''), ...((ls.get('recent', {}).who) || []), vals.who, ls.get('who', '')].find(ok) || (vals.who && !isEx('who', vals.who) ? vals.who : '') || id; };
+  if (LABC) { const w = whoPrev(); if (w && w !== vals.who) { vals.who = w; saveCfg(); } }
+  if (LABC) window.__setUser = n => { if (!n) return; window.__userName = n; const w = whoPrev(); if (w && w !== vals.who) { vals.who = w; saveCfg(); } };   // 장남덕님 10-16: 처음엔 (없음)이던 것   // R1015-42 담당 자동
   if (LABC && !ls.get('labInit2')) { cfg.size = 1.2; saveCfg(); ls.set('labInit2', 1); }
   if (LABC && !ls.get('labInit3')) { const m = cfg.fields.find(f => f.id === 'memo'); if (m && (!m.label || m.label === '내용')) { m.label = '세부내용'; saveCfg(); } ls.set('labInit3', 1); }   // 고성식 10-16: 보드판 글자도 '세부내용'(확인 창과 같게, 직접 바꾼 이름은 그대로)   // 장남덕님 10-15 '동산보드 크기로' — 보드 선택에서 바꿈   // 장남덕님 10-15 '기본세팅 2단 표'
   const LABM = { after: '찍고 말하기', before: '말하고 찍기', classic: '기존 방식' };
   const LAB_SKIP = f => !['title', 'memo'].includes(f.id);   // 장남덕님 10-15: 제목 · 세부 내용만 말로, 날짜 · 장소 · 담당은 자동(묻지 않음)
   /* 확인 창: 말로 넣은 것(제목 · 내용)과 자동으로 든 것(일자 · 위치 · 담당)을 보여 주고 [저장] */
   const labConfirm = (get, onSave, onRedo, onKbd, set, quiet, ui) => { ui = ui || {}; document.querySelectorAll('.sheet-bg.labcf').forEach(x => x.remove());
-    const bg = el('div', { class: 'sheet-bg labcf' }), shown = f => { const v = get(f); return v && !isEx(f.id, v) ? v : '(없음)'; };
-    const inp = f => { const i = el('input', { type: 'text', class: 'labcfin', 'data-f': f.id, maxlength: f.id === 'memo' ? 60 : 30, value: isEx(f.id, get(f)) ? '' : (get(f) || ''), placeholder: ['title', 'memo'].includes(f.id) ? '음성으로 말하세요' : ((LAB_DESC[f.id] || [])[1] || ''),   /* 고성식 10-18 */
-      onfocus: () => { if (voiceKill) voiceKill(); }, oninput: () => { set(f, i.value); if (f.id === 'who' && i.value.trim()) ls.set('whoMine', i.value.trim()); } }); return i; };   // 손으로 고치기 시작하면 말로 듣기는 멈춤
+    const bg = el('div', { class: 'sheet-bg labcf' }), shown = f => { let v = get(f); if (LABC && f.id === 'who' && (!v || isEx('who', v) || v === window.__userName) && whoPrev() !== v) { v = whoPrev(); if (v && set) set(f, v); } return v && !isEx(f.id, v) ? v : '(없음)'; };   // 고성식 10-18: 담당은 전 담당자
+    const inp = f => { const i = el('input', { type: 'text', class: 'labcfin', 'data-f': f.id, maxlength: f.id === 'memo' ? 60 : 30, value: LABC && f.id === 'who' && (!get(f) || isEx('who', get(f)) || get(f) === window.__userName) ? whoPrev() : isEx(f.id, get(f)) ? '' : (get(f) || ''), placeholder: ['title', 'memo'].includes(f.id) ? '음성으로 말하세요' : ((LAB_DESC[f.id] || [])[1] || ''),   /* 고성식 10-18 */
+      onfocus: () => { if (voiceKill) voiceKill(); }, oninput: () => { set(f, i.value); if (f.id === 'who' && i.value.trim()) { ls.set('whoMine', i.value.trim()); if (LABC) { vals.who = i.value.trim(); saveCfg(); } } } }); return i; };   // 손으로 고치기 시작하면 말로 듣기는 멈춤
     const rows = cfg.fields.filter(f => f.on).map(f => el('div', { class: 'labcfrow', 'data-row': f.id }, el('span', {}, (f.id === 'memo' ? '세부내용' : labOf(f)) + (LAB_SKIP(f) && !ui.all ? ' · 자동' : '')), set && (ui.all || !LAB_SKIP(f)) ? inp(f) : el('b', {}, shown(f))));
     let pz = false; const pzBtn = el('button', { class: 'labcfpause', onclick: () => { if (!pz) { pz = true; if (voiceKill) voiceKill(); pzBtn.textContent = '▶ 이어서 말하기'; } else { bg.remove(); onRedo && onRedo(); } } }, '⏸ 잠시 멈춤');   // 장남덕님 10-17: 글 입력 중간에 일시멈춤
     const go = fn => () => { bg.remove(); fn && fn(); };
     bg.append(el('div', { class: 'sheet labmore' }, el('h2', {}, ui.title || '이렇게 넣을까요?'), ...rows,
       el('button', { class: 'big pri', onclick: go(onSave) }, ui.save || '저장'),
       el('div', { class: 'hint', style: 'margin-top:-6px;font-size:12.5px', text: '▶ 갤러리 › ' + GAL_DIR + ' 폴더에 저장돼요' }),   // 장남덕님 10-16: 저장 위치 조그맣게
-      el('div', { class: 'row2' }, el('button', { class: 'big sec', onclick: go(onKbd) }, ui.kbd || '자판으로 고치기'), el('button', { class: 'big sec', onclick: go(onRedo) }, '다시 말하기'))));
+      el('div', { class: 'row2' }, el('button', { class: 'big sec', onclick: go(onKbd) }, ui.kbd || '자판으로 고치기'), el('button', { class: 'big sec', onclick: go(onRedo) }, '다시 말하기'),
+        window.ReactNativeWebView ? el('button', { class: 'big sec labhome', 'aria-label': '메인으로', onclick: () => { if (voiceKill) voiceKill(); bg.remove(); try { window.ReactNativeWebView.postMessage(JSON.stringify({ t: 'go-home' })); } catch {} } }, '🏠') : null)));   // 고성식 10-18: 집 그림 → 메인
     if (set) { bg.append(pzBtn); }   // 고성식 10-18: 잠시 멈춤 = 사진 가운데
     document.body.append(bg); if (set) requestAnimationFrame(() => { const t = bg.querySelector('.sheet').getBoundingClientRect().top, pe = [...document.querySelectorAll('.review canvas')].pop(), pr = pe && pe.getBoundingClientRect(), dh = pr && pe.width ? Math.min(pr.height, pe.height * pr.width / pe.width) : 0, a = pr ? Math.max(0, pr.top + (pr.height - dh) / 2) : 0, b = pr ? Math.min(t, pr.top + (pr.height + dh) / 2) : t;   /* 사진은 contain — 실제 그려진 곳 */
       pzBtn.style.top = Math.max(40, b - a > 90 ? (a + b) / 2 : t / 2) + 'px'; });   // 보이는 사진 한가운데
@@ -1421,7 +1425,7 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
   const askEach = () => ls.get('labAskEach', true);
   const afterShot = p => { idleStop(); if (LABC && labMode() === 'after' && SR && askEach()) { showReview(p, false); return afterVoice(); } showReview(p, LABC && labMode() === 'after' ? true : quick()); };
   const labOk = () => { const o = el('div', { class: 'labok', role: 'status' }, '✓ 저장됐어요 · ' + shots.length + '장째'); wrap.append(o); setTimeout(() => o.remove(), 1400); };
-  const labKeep = async () => { if (!review) return; await review.keep(); };   // 고성식 10-18: 음성은 다 지우고
+  const labKeep = async () => { if (!review) return; const wf = cfg.fields.find(x => x.id === 'who'), w = wf && valOf(review.p, wf); if (w && !isEx('who', w) && w !== window.__userName) ls.set('whoMine', w); await review.keep(); };   // 전 담당자로 기억   // 고성식 10-18: 음성은 다 지우고
   const afterVoice = (o = {}) => { if (!review) return; const p = review.p;
     const cf = () => document.querySelectorAll('.sheet-bg.labcf').forEach(x => x.remove());
     const setP = (f, t) => { putVal(p, f, t); if (!f.per) saveCfg(); if (review && review.p === p) review.draw(); };
