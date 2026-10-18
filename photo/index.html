@@ -197,7 +197,7 @@ details.more{border-top:1px solid var(--soft);padding-top:6px}details.more summa
 .cam .savedpv .row2{display:flex;gap:10px;margin-top:12px}
 .cam .savedpv .row2 button{flex:1;height:64px;border-radius:16px;font-size:20px;font-weight:900}
 .cam .savedpv .pause{align-self:center;margin-top:10px;height:44px;padding:0 20px;border-radius:999px;background:rgba(255,255,255,.14);color:#fff;font-size:15px;font-weight:800;border:1px solid rgba(255,255,255,.35)}
-.labcfpause{float:right;margin-top:-4px;height:34px;padding:0 12px;border-radius:999px;background:#FEF3C7;color:#92400E;font-size:13px;font-weight:800}
+.labcfpause{position:fixed;left:50%;top:30%;transform:translate(-50%,-50%);z-index:2;height:64px;padding:0 28px;border-radius:999px;background:rgba(0,0,0,.62);color:#fff;font-size:20px;font-weight:800;border:2px solid rgba(255,255,255,.85);box-shadow:0 6px 24px rgba(0,0,0,.35)}   /* 고성식 10-18: 사진 가운데 */
 .cam .savedpv .go{background:#fff;color:#0F172A}
 .cam .savedpv .send{background:#2563EB;color:#fff}
 .cam .labear.ord{top:auto;bottom:66px;left:12px;font-size:13px;padding:6px 12px}
@@ -972,11 +972,14 @@ async function camera(auto) {   // auto: 앱을 열 때 저절로(누르지 않�
     const rows = cfg.fields.filter(f => f.on).map(f => el('div', { class: 'labcfrow', 'data-row': f.id }, el('span', {}, (f.id === 'memo' ? '세부내용' : labOf(f)) + (LAB_SKIP(f) && !ui.all ? ' · 자동' : '')), set && (ui.all || !LAB_SKIP(f)) ? inp(f) : el('b', {}, shown(f))));
     let pz = false; const pzBtn = el('button', { class: 'labcfpause', onclick: () => { if (!pz) { pz = true; if (voiceKill) voiceKill(); pzBtn.textContent = '▶ 이어서 말하기'; } else { bg.remove(); onRedo && onRedo(); } } }, '⏸ 잠시 멈춤');   // 장남덕님 10-17: 글 입력 중간에 일시멈춤
     const go = fn => () => { bg.remove(); fn && fn(); };
-    bg.append(el('div', { class: 'sheet labmore' }, el('h2', {}, set ? pzBtn : null, ui.title || '이렇게 넣을까요?'), ...rows,
+    bg.append(el('div', { class: 'sheet labmore' }, el('h2', {}, ui.title || '이렇게 넣을까요?'), ...rows,
       el('button', { class: 'big pri', onclick: go(onSave) }, ui.save || '저장'),
       el('div', { class: 'hint', style: 'margin-top:-6px;font-size:12.5px', text: '▶ 갤러리 › ' + GAL_DIR + ' 폴더에 저장돼요' }),   // 장남덕님 10-16: 저장 위치 조그맣게
       el('div', { class: 'row2' }, el('button', { class: 'big sec', onclick: go(onKbd) }, ui.kbd || '자판으로 고치기'), el('button', { class: 'big sec', onclick: go(onRedo) }, '다시 말하기'))));
-    document.body.append(bg); if (!quiet) speak(cfg.fields.filter(f => f.on && !LAB_SKIP(f)).map(f => labOf(f) + ' ' + shown(f)).join(', ') + '. 저장할까요?'); return bg; };
+    if (set) { bg.append(pzBtn); }   // 고성식 10-18: 잠시 멈춤 = 사진 가운데
+    document.body.append(bg); if (set) requestAnimationFrame(() => { const t = bg.querySelector('.sheet').getBoundingClientRect().top, pe = [...document.querySelectorAll('.review canvas')].pop(), pr = pe && pe.getBoundingClientRect(), dh = pr && pe.width ? Math.min(pr.height, pe.height * pr.width / pe.width) : 0, a = pr ? Math.max(0, pr.top + (pr.height - dh) / 2) : 0, b = pr ? Math.min(t, pr.top + (pr.height + dh) / 2) : t;   /* 사진은 contain — 실제 그려진 곳 */
+      pzBtn.style.top = Math.max(40, b - a > 90 ? (a + b) / 2 : t / 2) + 'px'; });   // 보이는 사진 한가운데
+    if (!quiet) speak(cfg.fields.filter(f => f.on && !LAB_SKIP(f)).map(f => labOf(f) + ' ' + shown(f)).join(', ') + '. 저장할까요?'); return bg; };
   const labMode = () => { const m = ls.get('labVoice', 'after'); return LABM[m] ? m : 'after'; };   // after = 찍고 말하기, before = 말하고 찍기, classic = 기존(찍으면 바로 저장)
   /* 비교 기록(ChatGPT 10-15): 방식마다 저장한 장 수 · 걸린 시간(앞 사진 저장 ~ 이 사진 저장) · 누른 횟수 · 말로 고친 횟수 · 저장 실패 */
   let labT = Date.now(), labTaps = 0, labVoiceN = 0;
